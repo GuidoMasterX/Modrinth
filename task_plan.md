@@ -26,24 +26,24 @@ CF API: user-supplied x-api-key; CDN downloads require key since 2026-07-16. End
 docs/superpowers/specs/2026-09-06-curseforge-source-design.md + docs/superpowers/plans/2026-09-06-curseforge-source.md.
 
 ### Phase 5: Implementation
-**Status:** in_progress
+**Status:** complete
 - [x] 5.1 Settings: curseforge_api_key + migration + sqlx prepare (commit feat(app-lib))
 - [x] 5.2 api/curseforge module: structs/api/normalize + murmur2 util
 - [x] 5.3 cache.rs CF types + fetch arms + Tauri commands (get_curseforge_*)
 - [x] 5.4 Storage source dimension: ContentEntry source+cf_project_id/cf_version_id, FileMetadata source+cf ids, ContentSourceKind::CurseforgeModpack, Instance.preferred_source (migration 20260906130000; commit 66981eaf8)
-- [x] 5.5 Fingerprint recognition (murmur2) wiring in content listing (detect_curseforge_metadata in list_content.rs; commit 66981eaf8). Note: ContentFilter::OnlySource deferred to 5.7 frontend filter work
-- [x] 5.6 Phase 2 frontend: browse source switch, theming, pinned tabs (commit 275cc4d7c: curseforge-search.ts composable, use-browse-search activeSource + CF branches, sidebar/layout toggle + filter branches, Browse.vue CF search callback + categories, use-curseforge-key composable, --color-source-* tokens, pinned_browse_tabs settings auto-remember/restore; also CF sortField/sortOrder 'asc/desc' fix + CFAuthor in Rust)
-- [ ] 5.7 Phase 3: instance source filter + CF key settings UI
-- [ ] 5.8 Phase 4: project pages dual-source + switch-source
-- [ ] 5.9 Phase 5: CF modpack import/management/updates
-- [ ] 5.10 Phase 6: ads removal
-- [ ] 5.11 Phase 7: verification + final report (confirm before push)
+- [x] 5.5 Fingerprint recognition (murmur2) wiring in content listing (detect_curseforge_metadata in list_content.rs; commit 66981eaf8)
+- [x] 5.6 Browse source switch, theming, pinned tabs (commit 275cc4d7c)
+- [x] 5.7 Instance source filter + CF key settings UI (commit b27dd30eb: IntegrationsSettings.vue, ContentItem package_source/cf ids/external_url, source metadata filter, CF chip in ContentCardItem)
+- [x] 5.8 Project pages dual-source + switch-source + CF install (commit 9c39368cd; switch-source button + CF modpack install commit 19982c621)
+- [x] 5.9 CF modpack import/management/updates (commit 19982c621: install_curseforge.rs, InstanceLink::CurseforgeModpack, check/apply CF updates, CF App import preferred_source, .zip manifest import, linked modpack UI parity)
+- [x] 5.10 Ads removal (commit 9566166b1: ads.rs + occlusion + helpers/ads.js + consent UI + personalized_ads + PromotionWrapper)
+- [x] 5.11 Verification sweep (cargo test 30/30, prepr:lib/app green) + review pass: 11 fixes committed (c129a1a26: Tauri arg types, CF search camelCase, update channel/loader filtering, quilt loader parse, duplicate-pack detection, switch-version cleanup)
 
 ### Phase 6: Final report + push confirmation
-**Status:** pending
+**Status:** in_progress
 
 ## Next Step
-Task 5.6: frontend browse source switch — Rust-side SourceProject DTOs + Tauri commands already exist (get_curseforge_search_results etc.); wire Browse.vue/use-browse-search to a source toggle (Modrinth default, CurseForge when API key set), CF categories via get_curseforge_categories, --color-source-* theming, pinned filter tabs in settings.
+Write final report and get user confirmation before pushing feat/curseforge-source to the GitHub fork (9 commits, b54470d8a..c129a1a26).
 
 ## Decisions Made
 | Decision | Rationale |

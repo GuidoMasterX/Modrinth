@@ -17,3 +17,8 @@
 - App.vue: consent popup, holds, fullscreen ads logic, showAd/providePageContext showAds, watch, template removed. PageContext showAds/adConsentAvailable removed (ui + frontend + app).
 - SurveyPopup/image-viewer-editor holds removed; PrivacySettings ads section removed; generated app-events hand-edited; locales ads keys removed from all files.
 - Verified: cargo check both crates, cargo test 30 pass, pnpm prepr (app-frontend, ui, frontend) 17 tasks OK.
+
+## Session 3 (final)
+- Phase 5 (modpack import/updates) committed 19982c621; Phase 6 ads removal committed 9566166b1; review fixes committed c129a1a26.
+- Full verification: cargo test -p theseus --lib 30/30; cargo check both crates; pnpm prepr:frontend:lib + :app green.
+- Branch feat/curseforge-source ready: 9 commits b54470d8a..c129a1a26. Awaiting user confirmation before push.
