@@ -58,6 +58,9 @@ pub async fn get_install_candidates(
     let state = State::get().await?;
     crate::state::get_instance_install_candidates(
         project_id,
+        project_id
+            .strip_prefix("cf-")
+            .and_then(|s| s.parse::<i64>().ok()),
         project_type,
         &targets,
         &state.pool,

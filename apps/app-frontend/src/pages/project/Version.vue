@@ -202,6 +202,11 @@ async function refreshEnrichment() {
 		}
 	}
 
+	if (version.value.id.startsWith('cf-')) {
+		enrichment.value = { projects: [], versions: [] }
+		return
+	}
+
 	if (projectIds.size === 0 && versionIds.size === 0) {
 		enrichment.value = { projects: [], versions: [] }
 		return

@@ -2,7 +2,9 @@ use super::sync_content_files::{
     project_type_for_file, sync_instance_content_files,
 };
 use crate::State;
-use crate::api::curseforge::normalize::{Source, SourceProject, SourceVersionFile};
+use crate::api::curseforge::normalize::{
+    Source, SourceProject, SourceVersionFile,
+};
 use crate::pack::install_from::{PackFileHash, PackFormat};
 use crate::state::instances::adapters::sqlite;
 use crate::state::instances::{
@@ -112,6 +114,7 @@ struct InstanceInstallCandidateRow {
 
 pub(crate) async fn get_instance_install_candidates(
     project_id: &str,
+    cf_project_id: Option<i64>,
     project_type: ProjectType,
     targets: &[InstanceInstallTarget],
     pool: &SqlitePool,
@@ -132,7 +135,8 @@ pub(crate) async fn get_instance_install_candidates(
 					INNER JOIN instance_files file
 						ON file.id = entry.file_id
 					WHERE entry.content_set_id = cs.id
-						AND entry.project_id = ?
+						AND (entry.project_id = ?
+							OR entry.cf_project_id = ?)
 						AND file.missing = 0
 				)
 					THEN 1
@@ -150,6 +154,7 @@ pub(crate) async fn get_instance_install_candidates(
 		ORDER BY i.name ASC
 		"#,
         project_id,
+        cf_project_id,
     )
     .fetch_all(pool)
     .await?;
@@ -906,59 +911,53 @@ async fn content_files_to_content_items(
         .iter()
         .map(String::as_str)
         .collect::<Vec<_>>();
-    let (cf_projects_by_id, cf_files_by_id) = if !project_keys.is_empty() || !file_keys.is_empty() {
-        let (cf_projects, cf_files) = tokio::try_join!(
-            async {
-                if project_keys.is_empty() {
-                    Ok(Vec::new())
-                } else {
-                    CachedEntry::get_curseforge_project_many(
-                        &project_keys,
-                        cache_behaviour,
-                        &state.pool,
-                        &state.api_semaphore,
-                    )
-                    .await
+    let (cf_projects_by_id, cf_files_by_id) =
+        if !project_keys.is_empty() || !file_keys.is_empty() {
+            let (cf_projects, cf_files) = tokio::try_join!(
+                async {
+                    if project_keys.is_empty() {
+                        Ok(Vec::new())
+                    } else {
+                        CachedEntry::get_curseforge_project_many(
+                            &project_keys,
+                            cache_behaviour,
+                            &state.pool,
+                            &state.api_semaphore,
+                        )
+                        .await
+                    }
+                },
+                async {
+                    if file_keys.is_empty() {
+                        Ok(Vec::new())
+                    } else {
+                        CachedEntry::get_curseforge_file_many(
+                            &file_keys,
+                            cache_behaviour,
+                            &state.pool,
+                            &state.api_semaphore,
+                        )
+                        .await
+                    }
                 }
-            },
-            async {
-                if file_keys.is_empty() {
-                    Ok(Vec::new())
-                } else {
-                    CachedEntry::get_curseforge_file_many(
-                        &file_keys,
-                        cache_behaviour,
-                        &state.pool,
-                        &state.api_semaphore,
-                    )
-                    .await
-                }
-            }
-        )?;
-        (
-            cf_projects
-                .into_iter()
-                .filter_map(|project| {
-                    project
-                        .id
-                        .parse::<i64>()
-                        .ok()
-                        .map(|id| (id, project))
-                })
-                .collect::<HashMap<i64, SourceProject>>(),
-            cf_files
-                .into_iter()
-                .filter_map(|file| {
-                    file.id
-                        .parse::<i64>()
-                        .ok()
-                        .map(|id| (id, file))
-                })
-                .collect::<HashMap<i64, SourceVersionFile>>(),
-        )
-    } else {
-        (HashMap::new(), HashMap::new())
-    };
+            )?;
+            (
+                cf_projects
+                    .into_iter()
+                    .filter_map(|project| {
+                        project.id.parse::<i64>().ok().map(|id| (id, project))
+                    })
+                    .collect::<HashMap<i64, SourceProject>>(),
+                cf_files
+                    .into_iter()
+                    .filter_map(|file| {
+                        file.id.parse::<i64>().ok().map(|id| (id, file))
+                    })
+                    .collect::<HashMap<i64, SourceVersionFile>>(),
+            )
+        } else {
+            (HashMap::new(), HashMap::new())
+        };
     let meta = resolve_metadata(
         &project_ids,
         &version_ids,
@@ -1000,7 +999,8 @@ async fn content_files_to_content_items(
             let metadata = file.metadata.as_ref();
             let modrinth_metadata =
                 metadata.filter(|metadata| metadata.source == Source::Modrinth);
-            let cf_metadata = metadata.filter(|metadata| metadata.source == Source::CurseForge);
+            let cf_metadata = metadata
+                .filter(|metadata| metadata.source == Source::CurseForge);
             let cf_project = cf_metadata
                 .and_then(|metadata| metadata.cf_project_id)
                 .and_then(|id| cf_projects_by_id.get(&id));
@@ -1041,29 +1041,29 @@ async fn content_files_to_content_items(
                 enabled: file.enabled,
                 locked: file.locked,
                 project_type: file.project_type,
-                project: project
-                    .map(content_item_project)
-                    .or_else(|| {
-                        cf_project.map(|project| ContentItemProject {
-                            id: format!("cf-{}", project.id),
-                            slug: project.slug.clone(),
-                            title: project.title.clone(),
-                            icon_url: project.icon_url.clone(),
-                            license: License {
-                                id: String::new(),
-                                name: String::new(),
-                                url: None,
-                            },
-                            categories: project.categories.clone(),
-                            additional_categories: Vec::new(),
-                        })
-                    }),
+                project: project.map(content_item_project).or_else(|| {
+                    cf_project.map(|project| ContentItemProject {
+                        id: format!("cf-{}", project.id),
+                        slug: project.slug.clone(),
+                        title: project.title.clone(),
+                        icon_url: project.icon_url.clone(),
+                        license: License {
+                            id: String::new(),
+                            name: String::new(),
+                            url: None,
+                        },
+                        categories: project.categories.clone(),
+                        additional_categories: Vec::new(),
+                    })
+                }),
                 version: version
                     .map(|version| ContentItemVersion {
                         id: version.id.clone(),
                         version_number: version.version_number.clone(),
                         file_name: file.file_name.clone(),
-                        date_published: Some(version.date_published.to_rfc3339()),
+                        date_published: Some(
+                            version.date_published.to_rfc3339(),
+                        ),
                     })
                     .or_else(|| {
                         cf_file.map(|file| ContentItemVersion {
@@ -1086,8 +1086,10 @@ async fn content_files_to_content_items(
                 package_source: metadata
                     .map(|metadata| metadata.source)
                     .unwrap_or(Source::Modrinth),
-                cf_project_id: cf_metadata.and_then(|metadata| metadata.cf_project_id),
-                cf_version_id: cf_metadata.and_then(|metadata| metadata.cf_version_id),
+                cf_project_id: cf_metadata
+                    .and_then(|metadata| metadata.cf_project_id),
+                cf_version_id: cf_metadata
+                    .and_then(|metadata| metadata.cf_version_id),
                 external_url,
                 embedded_metadata: embedded_metadata.get(&file.hash).cloned(),
             }

@@ -99,6 +99,29 @@ pub async fn add_project_from_version(
 }
 
 #[tracing::instrument]
+pub async fn add_project_from_curseforge_file(
+    instance_id: &str,
+    cf_project_id: i64,
+    cf_file_id: i64,
+    reason: fetch::DownloadReason,
+) -> crate::Result<String> {
+    let state = State::get().await?;
+    ensure_instance_content_unlocked(instance_id, &state).await?;
+    let project_path =
+        crate::state::instances::commands::add_project_from_curseforge_file(
+            instance_id,
+            cf_project_id,
+            cf_file_id,
+            reason,
+            &state,
+        )
+        .await?;
+    emit_instance(instance_id, InstancePayloadType::Edited).await?;
+
+    Ok(project_path)
+}
+
+#[tracing::instrument]
 pub async fn install_project_with_dependencies(
     instance_id: &str,
     request: InstallProjectWithDependenciesRequest,

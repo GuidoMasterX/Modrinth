@@ -298,6 +298,12 @@ import {
 	get_version_many,
 } from '@/helpers/cache.js'
 import {
+	getCfProject,
+	getCfVersions,
+	isCfProjectId,
+	parseCfId,
+} from '@/helpers/curseforge-project'
+import {
 	get as getInstance,
 	get_projects as getInstanceProjects,
 	getInstanceIconUrl,
@@ -588,7 +594,7 @@ const installButtonIconClass = computed(() =>
 const serverProjectHeaderMoreActions = computed(() => [
 	{
 		id: 'open-in-browser',
-		label: formatMessage(commonMessages.openInModrinthButton),
+		label: formatMessage(isCfProjectId(data.value?.id) ? commonMessages.openInBrowserButton : commonMessages.openInModrinthButton),
 		icon: ExternalIcon,
 		action: openProjectInBrowser,
 	},
@@ -622,7 +628,7 @@ const projectHeaderMoreActions = computed(() => [
 	},
 	{
 		id: 'open-in-browser',
-		label: formatMessage(commonMessages.openInModrinthButton),
+		label: formatMessage(isCfProjectId(data.value?.id) ? commonMessages.openInBrowserButton : commonMessages.openInModrinthButton),
 		icon: ExternalIcon,
 		action: openProjectInBrowser,
 	},
@@ -693,12 +699,20 @@ function openProjectInBrowser() {
 
 function reportProject() {
 	if (!data.value) return
+	if (isCfProjectId(data.value.id)) {
+		void openUrl(data.value.body_url || `https://www.curseforge.com/projects/${data.value.slug}`)
+		return
+	}
 	void openUrl(`https://modrinth.com/report?item=project&itemID=${data.value.id}`)
 }
 
 async function fetchProjectData() {
 	const requestedId = String(route.params.id ?? '')
 	projectBreadcrumbLabel.value = getProjectBreadcrumbLabel(requestedId)
+	if (isCfProjectId(requestedId)) {
+		await fetchCfProjectData(requestedId)
+		return
+	}
 	const [project, projectV3Result] = await Promise.all([
 		get_project(requestedId, 'must_revalidate').catch(handleError),
 		get_project_v3(requestedId, 'must_revalidate').catch(handleError),
@@ -759,6 +773,46 @@ async function fetchProjectData() {
 	serverStatusOnline.value = !!projectV3.value?.minecraft_java_server?.ping?.data
 
 	fetchDeferredServerData(project)
+}
+
+async function fetchCfProjectData(requestedId: string) {
+	const [project, cfVersions] = await Promise.all([
+		getCfProject(requestedId).catch(handleError),
+		getCfVersions(requestedId).catch(handleError),
+	])
+	if (String(route.params.id ?? '') !== requestedId) return
+
+	if (!project) {
+		handleError('Error loading project')
+		return
+	}
+
+	data.value = project
+	projectV3.value = null
+	projectBreadcrumbLabel.value = project.title
+	;[versions.value, members.value, categories.value, instance.value, instanceProjects.value] =
+		await Promise.all([
+			Promise.resolve(cfVersions.sort((a, b) => dayjs(b.date_published) - dayjs(a.date_published))),
+			Promise.resolve([]),
+			Promise.resolve([]),
+			route.query.i ? getInstance(route.query.i).catch(handleError) : Promise.resolve(),
+			route.query.i ? getInstanceProjects(route.query.i).catch(handleError) : Promise.resolve(),
+		])
+	if (String(route.params.id ?? '') !== requestedId) return
+
+	const installedFile = instanceProjects.value
+		? Object.values(instanceProjects.value).find(
+				(x) => x.metadata && x.metadata.cf_project_id === parseCfId(requestedId),
+			)
+		: undefined
+	installed.value = !!installedFile
+	installedVersion.value = installedFile?.metadata.cf_version_id
+		? `cf-${installedFile.metadata.cf_version_id}`
+		: null
+
+	organization.value = null
+	isServerProject.value = false
+	serverStatusOnline.value = false
 }
 
 function fetchDeferredServerData(project) {
@@ -932,7 +986,7 @@ const handleRightClick = (event) => {
 		{ type: 'divider' },
 		{
 			id: 'open_link',
-			label: formatMessage(commonMessages.openInModrinthButton),
+			label: formatMessage(isCfProjectId(data.value?.id) ? commonMessages.openInBrowserButton : commonMessages.openInModrinthButton),
 			icon: GlobeIcon,
 			action: () => openProjectLink(project),
 		},
@@ -944,7 +998,10 @@ const handleRightClick = (event) => {
 		},
 	])
 }
-const getProjectLink = (project) => `https://modrinth.com/${project.project_type}/${project.slug}`
+const getProjectLink = (project) =>
+	isCfProjectId(project.id)
+		? project.body_url || project.website_url || `https://www.curseforge.com/projects/${project.slug}`
+		: `https://modrinth.com/${project.project_type}/${project.slug}`
 const openProjectLink = (project) => openUrl(getProjectLink(project))
 const copyProjectLink = (project) => navigator.clipboard.writeText(getProjectLink(project))
 </script>

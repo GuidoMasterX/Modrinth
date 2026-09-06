@@ -17,9 +17,28 @@ use modrinth_content_management::{
 };
 use std::path::{Path, PathBuf};
 
+use crate::api::curseforge::normalize::Source;
+
 pub(crate) struct ContentScope {
     pub instance: Instance,
     pub content_set_id: String,
+}
+
+#[derive(Clone, Copy, Debug, Default)]
+pub(crate) struct EntryOrigin {
+    pub source: Source,
+    pub cf_project_id: Option<i64>,
+    pub cf_version_id: Option<i64>,
+}
+
+impl EntryOrigin {
+    pub fn curseforge(cf_project_id: i64, cf_version_id: Option<i64>) -> Self {
+        Self {
+            source: Source::CurseForge,
+            cf_project_id: Some(cf_project_id),
+            cf_version_id,
+        }
+    }
 }
 
 pub(crate) struct InstalledContentFile {
@@ -459,6 +478,7 @@ pub(crate) async fn add_downloaded_project_version(
         source_kind,
         Some(project_id.as_str()),
         Some(version_id.as_str()),
+        EntryOrigin::default(),
         state,
     )
     .await
@@ -486,6 +506,97 @@ pub(crate) async fn add_project_from_path(
         ContentSourceKind::Local,
         None,
         None,
+        EntryOrigin::default(),
+        state,
+    )
+    .await
+}
+
+pub(crate) async fn add_project_from_curseforge_file(
+    instance_id: &str,
+    cf_project_id: i64,
+    cf_file_id: i64,
+    reason: DownloadReason,
+    state: &State,
+) -> crate::Result<String> {
+    let scope = resolve_content_scope(instance_id, None, state).await?;
+    let content_set =
+        content_rows::get_content_set(&scope.content_set_id, &state.pool)
+            .await?
+            .ok_or_else(|| {
+                crate::ErrorKind::InputError(format!(
+                    "Unknown content set {}",
+                    scope.content_set_id
+                ))
+            })?;
+    let project = CachedEntry::get_curseforge_project(
+        &cf_project_id.to_string(),
+        None,
+        &state.pool,
+        &state.api_semaphore,
+    )
+    .await?
+    .ok_or_else(|| {
+        crate::ErrorKind::InputError(format!(
+            "Unable to install CurseForge project {cf_project_id}. Not found."
+        ))
+    })?;
+    let file = CachedEntry::get_curseforge_file(
+        &cf_file_id.to_string(),
+        None,
+        &state.pool,
+        &state.api_semaphore,
+    )
+    .await?
+    .ok_or_else(|| {
+        crate::ErrorKind::InputError(format!(
+            "Unable to install CurseForge file {cf_file_id}. Not found."
+        ))
+    })?;
+    let project_type = match project.project_type {
+        crate::api::curseforge::normalize::SourceProjectType::Mod => {
+            ProjectType::Mod
+        }
+        crate::api::curseforge::normalize::SourceProjectType::ResourcePack => {
+            ProjectType::ResourcePack
+        }
+        crate::api::curseforge::normalize::SourceProjectType::ShaderPack => {
+            ProjectType::ShaderPack
+        }
+        crate::api::curseforge::normalize::SourceProjectType::Modpack => {
+            return Err(crate::ErrorKind::InputError(
+                "CurseForge modpacks cannot be installed as single files"
+                    .to_string(),
+            )
+            .into());
+        }
+    };
+    let download_meta = DownloadMeta {
+        reason,
+        game_version: content_set.game_version,
+        loader: content_set.loader.as_str().to_string(),
+        dependent_on: None,
+    };
+    let bytes = fetch::fetch(
+        &file.url,
+        file.sha1.as_deref(),
+        Some(&download_meta),
+        None,
+        &state.fetch_semaphore,
+        &state.pool,
+    )
+    .await?;
+
+    add_project_bytes(
+        instance_id,
+        &file.filename,
+        bytes,
+        file.sha1.as_deref(),
+        Some(project_type),
+        ContentSourceKind::Local,
+        None,
+        None,
+        EntryOrigin::curseforge(cf_project_id, Some(cf_file_id)),
         state,
     )
     .await
@@ -500,6 +611,7 @@ pub(crate) async fn add_project_bytes(
     source_kind: ContentSourceKind,
     project_id: Option<&str>,
     version_id: Option<&str>,
+    origin: EntryOrigin,
     state: &State,
 ) -> crate::Result<String> {
     if !path_util::is_safe_file_name(file_name) {
@@ -566,6 +678,7 @@ pub(crate) async fn add_project_bytes(
         project_id,
         version_id,
         source_kind,
+        origin,
         &mut tx,
     )
     .await?;
@@ -584,6 +697,7 @@ pub(crate) async fn record_project_file(
     source_kind: ContentSourceKind,
     project_id: Option<&str>,
     version_id: Option<&str>,
+    origin: EntryOrigin,
     state: &State,
 ) -> crate::Result<()> {
     let _content_lock = state.lock_instance_content(instance_id).await;
@@ -614,6 +728,7 @@ pub(crate) async fn record_project_file(
         project_id,
         version_id,
         source_kind,
+        origin,
         &mut tx,
     )
     .await?;
@@ -716,6 +831,7 @@ pub(crate) async fn toggle_disable_project(
             None,
             None,
             ContentSourceKind::Local,
+            EntryOrigin::default(),
             &mut tx,
         )
         .await?;
@@ -938,6 +1054,7 @@ async fn index_existing_file(
         None,
         None,
         ContentSourceKind::Local,
+        EntryOrigin::default(),
         tx,
     )
     .await?;
@@ -952,6 +1069,7 @@ async fn upsert_entry_for_file(
     project_id: Option<&str>,
     version_id: Option<&str>,
     source_kind: ContentSourceKind,
+    origin: EntryOrigin,
     tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
 ) -> crate::Result<()> {
     content_rows::upsert_content_entry_from_parts(
@@ -963,9 +1081,9 @@ async fn upsert_entry_for_file(
             project_id,
             version_id,
             source_kind,
-            source: crate::api::curseforge::normalize::Source::Modrinth,
-            cf_project_id: None,
-            cf_version_id: None,
+            source: origin.source,
+            cf_project_id: origin.cf_project_id,
+            cf_version_id: origin.cf_version_id,
             server_requirement: ContentRequirement::Required,
             client_requirement: ContentRequirement::Required,
             enabled: file.enabled,

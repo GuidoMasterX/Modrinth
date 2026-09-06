@@ -77,6 +77,7 @@ pub fn init<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
             instance_update_all,
             instance_update_project,
             instance_add_project_from_version,
+            instance_add_project_from_curseforge_file,
             instance_install_project_with_dependencies,
             instance_switch_project_version_with_dependencies,
             instance_add_project_from_path,
@@ -1025,6 +1026,22 @@ pub async fn instance_add_project_from_version(
         version_id,
         reason,
         dependent_on_version_id,
+    )
+    .await?)
+}
+
+#[tauri::command]
+pub async fn instance_add_project_from_curseforge_file(
+    instance_id: &str,
+    cf_project_id: i64,
+    cf_file_id: i64,
+    reason: Option<DownloadReason>,
+) -> Result<String> {
+    Ok(theseus::instance::add_project_from_curseforge_file(
+        instance_id,
+        cf_project_id,
+        cf_file_id,
+        reason.unwrap_or(DownloadReason::Standalone),
     )
     .await?)
 }

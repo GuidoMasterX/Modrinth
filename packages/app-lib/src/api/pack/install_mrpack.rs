@@ -934,6 +934,7 @@ pub(crate) async fn install_zipped_mrpack_files_with_reporter(
                                     file_info.map(|file| {
                                         file.version_id.as_str()
                                     }),
+                                    Default::default(),
                                     state,
                                 )
                                 .await,
@@ -1121,6 +1122,7 @@ pub(crate) async fn install_zipped_mrpack_files_with_reporter(
                             modpack_source_kind(version_id.as_deref()),
                             None,
                             None,
+                            Default::default(),
                             state,
                         )
                         .await,

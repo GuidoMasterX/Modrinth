@@ -1313,6 +1313,9 @@
   "app.project.coming-soon": {
     "message": "Coming soon"
   },
+  "app.project.description.read-on-curseforge": {
+    "message": "Read more on CurseForge"
+  },
   "app.project.install-button.already-installed": {
     "message": "This project is already installed"
   },

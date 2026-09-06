@@ -188,7 +188,8 @@ impl Settings {
         let extra_launch_args = serde_json::to_string(&self.extra_launch_args)?;
         let custom_env_vars = serde_json::to_string(&self.custom_env_vars)?;
         let feature_flags = serde_json::to_string(&self.feature_flags)?;
-        let pinned_browse_tabs = serde_json::to_string(&self.pinned_browse_tabs)?;
+        let pinned_browse_tabs =
+            serde_json::to_string(&self.pinned_browse_tabs)?;
         let version = self.version as i64;
 
         sqlx::query!(

@@ -457,6 +457,20 @@ export async function add_project_from_version(
 	})
 }
 
+export async function add_project_from_curseforge_file(
+	instanceId: string,
+	cfProjectId: number,
+	cfFileId: number,
+	reason: DownloadReason = 'standalone',
+): Promise<string> {
+	return await invoke('plugin:instance|instance_add_project_from_curseforge_file', {
+		instanceId,
+		cfProjectId,
+		cfFileId,
+		reason,
+	})
+}
+
 export async function install_project_with_dependencies(
 	instanceId: string,
 	request: ResolveContentRequest,

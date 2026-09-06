@@ -20,12 +20,14 @@ import {
 	get_team,
 	get_version_many,
 } from '@/helpers/cache.js'
+import { getCfProject, getCfVersions, isCfProjectId, parseCfId } from '@/helpers/curseforge-project'
 import {
 	install_create_instance,
 	install_create_modpack_instance,
 	installJobInstanceId,
 } from '@/helpers/install'
 import {
+	add_project_from_curseforge_file,
 	add_project_from_version,
 	get,
 	get_install_candidates,
@@ -573,13 +575,17 @@ export function createContentInstall(opts: {
 	}
 
 	async function prepareNewInstance(projectId: string) {
-		const project: Labrinth.Projects.v2.Project = await get_project(projectId, 'must_revalidate')
+		const project: Labrinth.Projects.v2.Project | null = isCfProjectId(projectId)
+			? ((await getCfProject(projectId)) as Labrinth.Projects.v2.Project | null)
+			: await get_project(projectId, 'must_revalidate')
 		if (!project || project.project_type === 'modpack') {
 			throw new Error(`Project cannot be prepared as a new instance: '${projectId}'`)
 		}
 
-		const versions = (
-			(await get_version_many(project.versions)) as Labrinth.Versions.v2.Version[]
+		const versions: Labrinth.Versions.v2.Version[] = (
+			isCfProjectId(projectId)
+				? await getCfVersions(projectId)
+				: ((await get_version_many(project.versions)) as Labrinth.Versions.v2.Version[])
 		).sort((a, b) => dayjs(b.date_published).valueOf() - dayjs(a.date_published).valueOf())
 
 		await showModInstallModal(project, versions, () => {}, {
@@ -604,6 +610,27 @@ export function createContentInstall(opts: {
 		}
 
 		return targets
+	}
+
+	async function installProjectVersion(
+		instanceId: string,
+		project: Labrinth.Projects.v2.Project,
+		version: Labrinth.Versions.v2.Version,
+	): Promise<ResolveContentPlan | null> {
+		if (isCfProjectId(project.id)) {
+			await add_project_from_curseforge_file(
+				instanceId,
+				parseCfId(project.id),
+				parseCfId(version.id),
+				'standalone',
+			)
+			return null
+		}
+		return await install_project_with_dependencies(instanceId, {
+			project_id: project.id,
+			version_id: version.id,
+			content_type: resolveContentType(project.project_type),
+		})
 	}
 
 	async function handleInstallToInstance(instance: ContentInstallInstance) {
@@ -643,20 +670,17 @@ export function createContentInstall(opts: {
 		addInstallingItem(instance.id, currentProject, version)
 
 		try {
-			const request = {
-				project_id: currentProject.id,
-				version_id: version.id,
-				content_type: resolveContentType(currentProject.project_type),
+			const plan = await installProjectVersion(instance.id, currentProject, version)
+			if (plan) {
+				plannedProjectIds = resolvedProjectIds(plan)
+				await addInstallingItemsForPlan(instance.id, plan, currentProject, version)
+				installedProjectIds.splice(
+					0,
+					installedProjectIds.length,
+					plan.primary.project_id,
+					...plan.dependencies.map((dependency) => dependency.project_id),
+				)
 			}
-			const plan = await install_project_with_dependencies(instance.id, request)
-			plannedProjectIds = resolvedProjectIds(plan)
-			await addInstallingItemsForPlan(instance.id, plan, currentProject, version)
-			installedProjectIds.splice(
-				0,
-				installedProjectIds.length,
-				plan.primary.project_id,
-				...plan.dependencies.map((dependency) => dependency.project_id),
-			)
 			if (storeInstance) {
 				storeInstance.installed = true
 				storeInstance.installing = false
@@ -717,7 +741,16 @@ export function createContentInstall(opts: {
 		incompatibilityWarningInstalling.value = true
 		addInstallingItem(incompatibilityWarningInstance.id, incompatibilityWarningProject, version)
 		try {
-			await add_project_from_version(incompatibilityWarningInstance.id, version.id, 'standalone')
+			if (isCfProjectId(incompatibilityWarningProject.id)) {
+				await add_project_from_curseforge_file(
+					incompatibilityWarningInstance.id,
+					parseCfId(incompatibilityWarningProject.id),
+					parseCfId(version.id),
+					'standalone',
+				)
+			} else {
+				await add_project_from_version(incompatibilityWarningInstance.id, version.id, 'standalone')
+			}
 		} catch (err) {
 			opts.handleError(err)
 			incompatibilityWarningInstalling.value = false
@@ -781,12 +814,10 @@ export function createContentInstall(opts: {
 			createdInstanceId = id
 			addInstallingItem(id, currentProject!, version)
 
-			const plan = await install_project_with_dependencies(id, {
-				project_id: currentProject!.id,
-				version_id: version.id,
-				content_type: resolveContentType(currentProject!.project_type),
-			})
-			await addInstallingItemsForPlan(id, plan, currentProject!, version)
+			const plan = await installProjectVersion(id, currentProject!, version)
+			if (plan) {
+				await addInstallingItemsForPlan(id, plan, currentProject!, version)
+			}
 			await opts.router.push(`/instance/${encodeURIComponent(id)}`)
 
 			trackEvent('InstanceCreate', {
@@ -802,7 +833,7 @@ export function createContentInstall(opts: {
 				source: 'ProjectInstallModal',
 			})
 
-			currentCallback(version.id, resolvedProjectIds(plan))
+			currentCallback(version.id, plan ? resolvedProjectIds(plan) : [currentProject!.id])
 			modalRef?.hide()
 		} catch (err) {
 			if (createdInstanceId && currentProject) {
@@ -831,7 +862,9 @@ export function createContentInstall(opts: {
 		createInstanceCallback: (instanceId: string) => void = () => {},
 		hints?: { preferredLoader?: string; preferredGameVersion?: string; showProjectInfo?: boolean },
 	) {
-		const project: Labrinth.Projects.v2.Project = await get_project(projectId, 'must_revalidate')
+		const project: Labrinth.Projects.v2.Project | null = isCfProjectId(projectId)
+			? ((await getCfProject(projectId)) as Labrinth.Projects.v2.Project | null)
+			: await get_project(projectId, 'must_revalidate')
 
 		if (!project) {
 			opts.handleError(`Project not found: '${projectId}'`)
@@ -839,6 +872,12 @@ export function createContentInstall(opts: {
 		}
 
 		if (project.project_type === 'modpack') {
+			if (isCfProjectId(projectId)) {
+				opts.handleError(
+					new Error('Installing CurseForge modpacks from the project page is not supported yet'),
+				)
+				return
+			}
 			let version = versionId ?? null
 			if (!version) {
 				const hasHints = !!(hints?.preferredGameVersion || hints?.preferredLoader)
@@ -886,9 +925,11 @@ export function createContentInstall(opts: {
 			const [instanceOrNull, instanceProjects, versions] = await Promise.all([
 				get(instanceId),
 				get_projects(instanceId),
-				get_version_many(project.versions, 'must_revalidate') as Promise<
-					Labrinth.Versions.v2.Version[]
-				>,
+				isCfProjectId(projectId)
+					? getCfVersions(projectId)
+					: (get_version_many(project.versions, 'must_revalidate') as Promise<
+							Labrinth.Versions.v2.Version[]
+						>),
 			])
 			if (!instanceOrNull) return
 
@@ -904,7 +945,10 @@ export function createContentInstall(opts: {
 
 			if (isVersionCompatible(version, project, instance)) {
 				for (const [path, file] of Object.entries(instanceProjects)) {
-					if (file.metadata?.project_id === project.id) {
+					const matchesProject = isCfProjectId(project.id)
+						? file.metadata?.cf_project_id === parseCfId(project.id)
+						: file.metadata?.project_id === project.id
+					if (matchesProject) {
 						await remove_project(instance.id, path)
 					}
 				}
@@ -913,20 +957,17 @@ export function createContentInstall(opts: {
 				let plannedProjectIds: string[] = [project.id]
 				addInstallingItem(instanceId, project, version)
 				try {
-					const request = {
-						project_id: project.id,
-						version_id: version.id,
-						content_type: resolveContentType(project.project_type),
+					const plan = await installProjectVersion(instance.id, project, version)
+					if (plan) {
+						plannedProjectIds = resolvedProjectIds(plan)
+						await addInstallingItemsForPlan(instanceId, plan, project, version)
+						installedProjectIds.splice(
+							0,
+							installedProjectIds.length,
+							plan.primary.project_id,
+							...plan.dependencies.map((dependency) => dependency.project_id),
+						)
 					}
-					const plan = await install_project_with_dependencies(instance.id, request)
-					plannedProjectIds = resolvedProjectIds(plan)
-					await addInstallingItemsForPlan(instanceId, plan, project, version)
-					installedProjectIds.splice(
-						0,
-						installedProjectIds.length,
-						plan.primary.project_id,
-						...plan.dependencies.map((dependency) => dependency.project_id),
-					)
 
 					trackEvent('ProjectInstall', {
 						loader: instance.loader,
@@ -947,8 +988,10 @@ export function createContentInstall(opts: {
 				await showIncompatibilityWarning(instance, project, projectVersions, version, callback)
 			}
 		} else {
-			let versions = (
-				(await get_version_many(project.versions)) as Labrinth.Versions.v2.Version[]
+			const versions: Labrinth.Versions.v2.Version[] = (
+				isCfProjectId(projectId)
+					? await getCfVersions(projectId)
+					: ((await get_version_many(project.versions)) as Labrinth.Versions.v2.Version[])
 			).sort((a, b) => dayjs(b.date_published).valueOf() - dayjs(a.date_published).valueOf())
 			if (versionId) versions = versions.filter((v) => v.id === versionId)
 			await showModInstallModal(project, versions, callback, hints)

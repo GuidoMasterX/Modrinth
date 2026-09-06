@@ -34,6 +34,7 @@
 					<CheckIcon v-else />
 				</IconButton>
 				<ButtonLink
+					v-if="!project.id.startsWith('cf-')"
 					v-tooltip="formatMessage(commonMessages.openInBrowserButton)"
 					type="quiet"
 					:href="`https://modrinth.com/${project.project_type}/${project.slug}/version/${version.id}`"
