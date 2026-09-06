@@ -133,23 +133,7 @@
   },
   "app.action-bar.view-logs": {
     "message": "Mostra i log"
-  },
-  "app.ads-consent.accept": {
-    "message": "Accetta tutto"
-  },
-  "app.ads-consent.body": {
-    "message": "Le pubblicità sostengono Modrinth e finanziano i creatori. I nostri partner potrebbero memorizzare o accedere ai cookie per personalizzare gli annunci e misurarne le prestazioni."
-  },
-  "app.ads-consent.manage": {
-    "message": "Gestisci i consensi"
-  },
-  "app.ads-consent.reject": {
-    "message": "Rifiuta tutto"
-  },
-  "app.ads-consent.title": {
-    "message": "Privacy e pubblicità su Modrinth"
-  },
-  "app.appearance-settings.compact-mode.description": {
+  },  "app.appearance-settings.compact-mode.description": {
     "message": "Mostra le istanze nella libreria in righe compatte."
   },
   "app.appearance-settings.compact-mode.title": {
@@ -1393,11 +1377,7 @@
   },
   "app.settings.operating-system.macos": {
     "message": "macOS"
-  },
-  "app.settings.privacy.ads-consent.intro": {
-    "message": "Le pubblicità aiutano Modrinth a crescere e a finanziare i creatori. I nostri partner potrebbero memorizzare o accedere ai cookie nell'app per personalizzare e misurarne le prestazioni. Di seguito puoi scegliere di disdire o di gestire le opzioni."
-  },
-  "app.settings.privacy.discord-rich-presence.description": {
+  },  "app.settings.privacy.discord-rich-presence.description": {
     "message": "Mostra Modrinth App come attività su Discord. Ciò non blocca le mod che mostrano la loro Rich Presence. Richiede un riavvio."
   },
   "app.settings.privacy.discord-rich-presence.title": {

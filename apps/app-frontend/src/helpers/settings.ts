@@ -49,7 +49,6 @@ export type AppSettings = {
 
 	telemetry: boolean
 	discord_rpc: boolean
-	personalized_ads: boolean
 
 	curseforge_api_key: string | null
 	pinned_browse_tabs: Record<string, { filter_type: string; option: string; negative: boolean }[]>
