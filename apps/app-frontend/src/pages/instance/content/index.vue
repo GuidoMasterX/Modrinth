@@ -1662,7 +1662,9 @@ provideContentManager({
 					link: contentOwnerLink(item.owner),
 				}
 			: undefined,
-		external: item.external ?? !item.project,
+		external: item.external ?? (!item.project && item.package_source !== 'curseforge'),
+		package_source: item.package_source ?? 'modrinth',
+		external_url: item.external_url,
 		enabled: canMutateContent(item) ? item.enabled : undefined,
 		locked: item.locked,
 		installing: item.installing,

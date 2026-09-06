@@ -58,6 +58,8 @@ export interface ContentCardTableItem {
 	versionLink?: string | RouteLocationRaw
 	owner?: ContentOwner
 	source?: ContentSource
+	package_source?: 'modrinth' | 'curseforge'
+	external_url?: string
 	external?: boolean
 	enabled?: boolean
 	locked?: boolean

@@ -3,6 +3,7 @@ import {
 	CoffeeIcon,
 	GaugeIcon,
 	HeartHandshakeIcon,
+	KeyIcon,
 	LanguagesIcon,
 	ModrinthIcon,
 	PaintbrushIcon,
@@ -26,6 +27,7 @@ import { getVersion } from '@tauri-apps/api/app'
 import { platform as getOsPlatform, version as getOsVersion } from '@tauri-apps/plugin-os'
 import { computed, provide, ref, watch } from 'vue'
 
+import IntegrationsSettings from '@/components/ui/settings/account/IntegrationsSettings.vue'
 import PrivacySettings from '@/components/ui/settings/account/PrivacySettings.vue'
 import ProfileSettings from '@/components/ui/settings/account/ProfileSettings.vue'
 import SocialSettings from '@/components/ui/settings/account/SocialSettings.vue'
@@ -127,6 +129,15 @@ const tabs = [
 		category: tabCategories.account,
 		icon: ShieldIcon,
 		content: PrivacySettings,
+	},
+	{
+		name: defineMessage({
+			id: 'app.settings.tabs.integrations',
+			defaultMessage: 'Integrations',
+		}),
+		category: tabCategories.account,
+		icon: KeyIcon,
+		content: IntegrationsSettings,
 	},
 	{
 		name: defineMessage({

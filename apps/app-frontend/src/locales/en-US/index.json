@@ -1619,6 +1619,21 @@
   "app.settings.downloading": {
     "message": "Downloading v{version}"
   },
+  "app.settings.integrations.curseforge.console-link": {
+    "message": "Open the CurseForge developer console"
+  },
+  "app.settings.integrations.curseforge.description": {
+    "message": "Enter your personal CurseForge API key to browse and install CurseForge mods, resource packs, shader packs, and modpacks. You can generate a key from the CurseForge developer console."
+  },
+  "app.settings.integrations.curseforge.placeholder": {
+    "message": "Paste your CurseForge API key"
+  },
+  "app.settings.integrations.curseforge.title": {
+    "message": "CurseForge"
+  },
+  "app.settings.integrations.title": {
+    "message": "Integrations"
+  },
   "app.settings.java-installations.location.title": {
     "message": "Java {version, number} location"
   },
@@ -1759,6 +1774,9 @@
   },
   "app.settings.tabs.behavior": {
     "message": "Behavior"
+  },
+  "app.settings.tabs.integrations": {
+    "message": "Integrations"
   },
   "app.settings.tabs.java-installations": {
     "message": "Java installations"

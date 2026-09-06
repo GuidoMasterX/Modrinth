@@ -9,31 +9,41 @@ Add CurseForge as an alternate metadata/package source to the Modrinth desktop l
 
 ## Phases
 
-### Phase 1: Research — app architecture
-**Status:** in_progress
-Map how app-frontend/app-lib use the Modrinth API: search/browse, project detail pages, instance content management, modpack import/export, "unknown" project handling, ads, filter tabs.
+### Phase 1: Research � app architecture
+**Status:** complete
+Map how app-frontend/app-lib use the Modrinth API: search/browse, project detail pages, instance content management, modpack import/export, "unknown" project handling, ads, filter tabs. (See findings.md.)
 
-### Phase 2: Research — CurseForge API & other launchers
-**Status:** pending
-CF API access model (api.curseforge.com requires approved key; alternatives: cfwidget, curse.tools), endpoints for search/categories/project/files, modpack manifest format, how Prism/ATLauncher/gdlauncher integrate.
+### Phase 2: Research � CurseForge API and other launchers
+**Status:** complete
+CF API: user-supplied x-api-key; CDN downloads require key since 2026-07-16. Endpoints + modpack manifest format researched (findings.md).
 
 ### Phase 3: Clarifying questions + design approval
-**Status:** in_progress
+**Status:** complete
 - ANSWERED: API access = user-supplied key in settings (user has personal key from console.curseforge.com). CDN downloads need key since 2026-07-16.
 
 ### Phase 4: Spec + implementation plan
-**Status:** pending
-Write design doc to docs/superpowers/specs/2026-09-06-curseforge-source-design.md, then writing-plans.
+**Status:** complete
+docs/superpowers/specs/2026-09-06-curseforge-source-design.md + docs/superpowers/plans/2026-09-06-curseforge-source.md.
 
 ### Phase 5: Implementation
-**Status:** pending
-Sub-phases TBD after design.
+**Status:** in_progress
+- [x] 5.1 Settings: curseforge_api_key + migration + sqlx prepare (commit feat(app-lib))
+- [x] 5.2 api/curseforge module: structs/api/normalize + murmur2 util
+- [x] 5.3 cache.rs CF types + fetch arms + Tauri commands (get_curseforge_*)
+- [x] 5.4 Storage source dimension: ContentEntry source+cf_project_id/cf_version_id, FileMetadata source+cf ids, ContentSourceKind::CurseforgeModpack, Instance.preferred_source (migration 20260906130000; commit 66981eaf8)
+- [x] 5.5 Fingerprint recognition (murmur2) wiring in content listing (detect_curseforge_metadata in list_content.rs; commit 66981eaf8). Note: ContentFilter::OnlySource deferred to 5.7 frontend filter work
+- [x] 5.6 Phase 2 frontend: browse source switch, theming, pinned tabs (commit 275cc4d7c: curseforge-search.ts composable, use-browse-search activeSource + CF branches, sidebar/layout toggle + filter branches, Browse.vue CF search callback + categories, use-curseforge-key composable, --color-source-* tokens, pinned_browse_tabs settings auto-remember/restore; also CF sortField/sortOrder 'asc/desc' fix + CFAuthor in Rust)
+- [ ] 5.7 Phase 3: instance source filter + CF key settings UI
+- [ ] 5.8 Phase 4: project pages dual-source + switch-source
+- [ ] 5.9 Phase 5: CF modpack import/management/updates
+- [ ] 5.10 Phase 6: ads removal
+- [ ] 5.11 Phase 7: verification + final report (confirm before push)
 
 ### Phase 6: Final report + push confirmation
 **Status:** pending
 
 ## Next Step
-Run codebase research agents and CurseForge web research.
+Task 5.6: frontend browse source switch — Rust-side SourceProject DTOs + Tauri commands already exist (get_curseforge_search_results etc.); wire Browse.vue/use-browse-search to a source toggle (Modrinth default, CurseForge when API key set), CF categories via get_curseforge_categories, --color-source-* theming, pinned filter tabs in settings.
 
 ## Decisions Made
 | Decision | Rationale |

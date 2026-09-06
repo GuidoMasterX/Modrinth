@@ -95,6 +95,18 @@ const messages = defineMessages({
 		id: 'content.metadata-filter.state',
 		defaultMessage: 'State',
 	},
+	source: {
+		id: 'content.metadata-filter.source',
+		defaultMessage: 'Source',
+	},
+	modrinthSource: {
+		id: 'content.metadata-filter.source.modrinth',
+		defaultMessage: 'Modrinth',
+	},
+	curseforgeSource: {
+		id: 'content.metadata-filter.source.curseforge',
+		defaultMessage: 'CurseForge',
+	},
 	warnings: {
 		id: 'content.metadata-filter.warnings',
 		defaultMessage: 'Warnings',
@@ -157,7 +169,13 @@ export function useContentMetadataFilters(
 	}
 
 	function isExternal(item: ContentItem) {
-		return item.external || !item.project?.license
+		return item.external || (!item.project?.license && item.package_source !== 'curseforge')
+	}
+
+	function getSourceLabel(item: ContentItem) {
+		return item.package_source === 'curseforge'
+			? formatMessage(messages.curseforgeSource)
+			: formatMessage(messages.modrinthSource)
 	}
 
 	function getEnvironmentFilterLabel(value: EnvironmentFilterValue) {
@@ -208,6 +226,11 @@ export function useContentMetadataFilters(
 								? option('enabled', formatMessage(messages.enabled))
 								: option('disabled', formatMessage(messages.disabled)),
 						],
+		},
+		{
+			key: 'source',
+			label: formatMessage(messages.source),
+			values: (item) => [option(item.package_source ?? 'modrinth', getSourceLabel(item))],
 		},
 		{
 			key: 'warnings',

@@ -377,6 +377,9 @@
   "content.card.select-project": {
     "defaultMessage": "Select {project}"
   },
+  "content.card.source.curseforge": {
+    "defaultMessage": "CurseForge"
+  },
   "content.card.uploaded": {
     "defaultMessage": "Uploaded"
   },
@@ -650,8 +653,17 @@
   "content.metadata-filter.shared-content": {
     "defaultMessage": "Shared content"
   },
+  "content.metadata-filter.source": {
+    "defaultMessage": "Source"
+  },
+  "content.metadata-filter.source.curseforge": {
+    "defaultMessage": "CurseForge"
+  },
   "content.metadata-filter.source.external": {
     "defaultMessage": "External"
+  },
+  "content.metadata-filter.source.modrinth": {
+    "defaultMessage": "Modrinth"
   },
   "content.metadata-filter.state": {
     "defaultMessage": "State"

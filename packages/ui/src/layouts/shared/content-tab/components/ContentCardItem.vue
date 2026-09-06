@@ -49,6 +49,10 @@ const messages = defineMessages({
 		id: 'content.card.frozen',
 		defaultMessage: 'This project is locked to its current version until unfrozen.',
 	},
+	curseforge: {
+		id: 'content.card.source.curseforge',
+		defaultMessage: 'CurseForge',
+	},
 })
 
 interface Props {
@@ -58,6 +62,8 @@ interface Props {
 	versionLink?: string | RouteLocationRaw
 	owner?: ContentOwner
 	source?: ContentSource
+	packageSource?: 'modrinth' | 'curseforge'
+	externalUrl?: string
 	external?: boolean
 	enabled?: boolean
 	locked?: boolean
@@ -85,6 +91,8 @@ const props = withDefaults(defineProps<Props>(), {
 	versionLink: undefined,
 	owner: undefined,
 	source: undefined,
+	packageSource: undefined,
+	externalUrl: undefined,
 	external: false,
 	enabled: undefined,
 	locked: false,
@@ -215,6 +223,24 @@ const installTooltip = computed(() => {
 							{{ project.title }}
 						</AutoLink>
 						<slot name="title-badges" />
+						<AutoLink
+							v-if="packageSource === 'curseforge'"
+							v-tooltip="formatMessage(messages.curseforge)"
+							:to="externalUrl"
+							target="_blank"
+							class="inline-flex shrink-0 items-center gap-1 rounded-full px-1.5 py-0.5 text-[0.65rem] font-semibold leading-none"
+							:style="{
+								backgroundColor:
+									'color-mix(in srgb, var(--color-source-curseforge) 18%, transparent)',
+								color: 'var(--color-source-curseforge)',
+							}"
+						>
+							<span
+								class="size-1.5 rounded-full"
+								:style="{ backgroundColor: 'var(--color-source-curseforge)' }"
+							/>
+							{{ formatMessage(messages.curseforge) }}
+						</AutoLink>
 						<span
 							v-if="isClientOnly"
 							v-tooltip="formatMessage(clientWarningMessage)"
