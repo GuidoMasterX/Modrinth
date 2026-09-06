@@ -144,6 +144,39 @@ function getProjectCardTags(result: Labrinth.Search.v3.ResultSearchProject, disp
 		:replace="ctx.variant === 'app'"
 	/>
 
+	<div
+		v-if="ctx.curseforgeAvailable?.value"
+		class="flex w-max overflow-hidden rounded-[--radius-md] border-[1px] border-solid border-surface-5 bg-surface-3"
+	>
+		<button
+			class="flex cursor-pointer items-center gap-2 border-none px-4 py-2 text-sm font-semibold transition-colors"
+			:class="
+				ctx.isCfSource.value
+					? 'bg-transparent text-secondary'
+					: 'bg-[color-mix(in_srgb,var(--color-source-modrinth)_18%,transparent)] text-contrast'
+			"
+			@click="ctx.switchSource('modrinth')"
+		>
+			<span class="size-2.5 rounded-full" :style="{ background: 'var(--color-source-modrinth)' }" />
+			Modrinth
+		</button>
+		<button
+			class="flex cursor-pointer items-center gap-2 border-none px-4 py-2 text-sm font-semibold transition-colors"
+			:class="
+				ctx.isCfSource.value
+					? 'bg-[color-mix(in_srgb,var(--color-source-curseforge)_18%,transparent)] text-contrast'
+					: 'bg-transparent text-secondary'
+			"
+			@click="ctx.switchSource('curseforge')"
+		>
+			<span
+				class="size-2.5 rounded-full"
+				:style="{ background: 'var(--color-source-curseforge)' }"
+			/>
+			CurseForge
+		</button>
+	</div>
+
 	<Input
 		v-model="ctx.query.value"
 		:icon="SearchIcon"
@@ -237,6 +270,14 @@ function getProjectCardTags(result: Labrinth.Search.v3.ResultSearchProject, disp
 		v-if="ctx.isServerType.value"
 		v-model:selected-filters="ctx.serverCurrentFilters.value"
 		:filters="ctx.serverFilterTypes.value"
+		:project-type="ctx.projectType.value"
+		:provided-filters="[]"
+		:overridden-provided-filter-types="[]"
+	/>
+	<SearchFilterControl
+		v-else-if="ctx.isCfSource.value"
+		v-model:selected-filters="ctx.curseforgeCurrentFilters.value"
+		:filters="ctx.curseforgeFilterTypes.value"
 		:project-type="ctx.projectType.value"
 		:provided-filters="[]"
 		:overridden-provided-filter-types="[]"

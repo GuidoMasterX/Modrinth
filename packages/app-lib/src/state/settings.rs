@@ -28,6 +28,8 @@ pub struct Settings {
 
     pub curseforge_api_key: Option<String>,
 
+    pub pinned_browse_tabs: HashMap<String, Vec<PinnedBrowseTab>>,
+
     pub extra_launch_args: Vec<String>,
     pub custom_env_vars: Vec<(String, String)>,
     pub memory: MemorySettings,
@@ -48,6 +50,15 @@ pub struct Settings {
     pub auto_download_updates: Option<bool>,
 
     pub version: usize,
+}
+
+/// A persisted browse filter selection, keyed by project type in
+/// `Settings::pinned_browse_tabs`.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct PinnedBrowseTab {
+    pub filter_type: String,
+    pub option: String,
+    pub negative: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, Eq, Hash, PartialEq)]
@@ -84,11 +95,12 @@ impl Settings {
         exec: impl sqlx::Executor<'_, Database = sqlx::Sqlite>,
     ) -> crate::Result<Self> {
         let res = sqlx::query!(
-            "
+            r#"
             SELECT
                 max_concurrent_writes, max_concurrent_downloads,
                 theme, locale, default_page, collapsed_navigation, hide_nametag_skins_page, advanced_rendering, native_decorations,
                 discord_rpc, developer_mode, telemetry, personalized_ads, curseforge_api_key,
+                json(pinned_browse_tabs) as "pinned_browse_tabs?: String",
                 json(extra_launch_args) extra_launch_args, json(custom_env_vars) custom_env_vars,
                 mc_memory_max, mc_force_fullscreen, mc_game_resolution_x, mc_game_resolution_y, hide_on_process_start,
                 hook_pre_launch, hook_wrapper, hook_post_exit,
@@ -97,7 +109,7 @@ impl Settings {
                 sync_theme_across_devices, sync_behavior_across_devices,
                 version
             FROM settings
-            "
+            "#
         )
             .fetch_one(exec)
             .await?;
@@ -118,6 +130,11 @@ impl Settings {
             developer_mode: res.developer_mode == 1,
             personalized_ads: res.personalized_ads == 1,
             curseforge_api_key: res.curseforge_api_key,
+            pinned_browse_tabs: res
+                .pinned_browse_tabs
+                .as_ref()
+                .and_then(|x| serde_json::from_str(x).ok())
+                .unwrap_or_default(),
             extra_launch_args: res
                 .extra_launch_args
                 .as_ref()
@@ -171,6 +188,7 @@ impl Settings {
         let extra_launch_args = serde_json::to_string(&self.extra_launch_args)?;
         let custom_env_vars = serde_json::to_string(&self.custom_env_vars)?;
         let feature_flags = serde_json::to_string(&self.feature_flags)?;
+        let pinned_browse_tabs = serde_json::to_string(&self.pinned_browse_tabs)?;
         let version = self.version as i64;
 
         sqlx::query!(
@@ -221,7 +239,9 @@ impl Settings {
 
                 curseforge_api_key = $34,
 
-                version = $35
+                pinned_browse_tabs = $35,
+
+                version = $36
             ",
             max_concurrent_writes,
             max_concurrent_downloads,
@@ -257,6 +277,7 @@ impl Settings {
             self.sync_theme_across_devices,
             self.sync_behavior_across_devices,
             self.curseforge_api_key,
+            pinned_browse_tabs,
             version,
         )
         .execute(exec)

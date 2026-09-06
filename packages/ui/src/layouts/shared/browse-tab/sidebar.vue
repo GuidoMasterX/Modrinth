@@ -240,6 +240,31 @@ function getFilterOpenByDefault(filterId: string): boolean {
 				</template>
 			</SearchSidebarFilter>
 		</template>
+		<template v-else-if="ctx.isCfSource.value">
+			<SearchSidebarFilter
+				v-for="filterType in ctx.curseforgeFilterTypes.value.filter(
+					(f) => f.options.length > 0 && !hiddenFilterTypes.includes(f.id),
+				)"
+				:key="`cf-filter-${filterType.id}`"
+				v-model:selected-filters="ctx.curseforgeCurrentFilters.value"
+				v-model:toggled-groups="ctx.curseforgeToggledGroups.value"
+				:provided-filters="[]"
+				:filter-type="filterType"
+				:project-type="ctx.projectType.value"
+				:class="filterClass"
+				:button-class="buttonClass"
+				:content-class="contentClass"
+				:inner-panel-class="innerPanelClass"
+				:selected-project-class="selectedProjectClass"
+				:open-by-default="getFilterOpenByDefault(filterType.id)"
+			>
+				<template #header>
+					<h3 :class="isApp ? 'text-base m-0' : 'm-0 text-base font-semibold'">
+						{{ filterType.formatted_name }}
+					</h3>
+				</template>
+			</SearchSidebarFilter>
+		</template>
 		<template v-else>
 			<SearchSidebarFilter
 				v-for="filter in ctx.filters.value.filter(

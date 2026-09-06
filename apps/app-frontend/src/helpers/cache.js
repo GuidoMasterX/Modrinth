@@ -64,6 +64,22 @@ export async function get_search_results_v3_many(ids, cacheBehaviour) {
 	return await invoke('plugin:cache|get_search_results_v3_many', { ids, cacheBehaviour })
 }
 
+export async function get_curseforge_search_results(id, cacheBehaviour) {
+	return await invoke('plugin:cache|get_curseforge_search_results', { id, cacheBehaviour })
+}
+
+export async function get_curseforge_categories(cacheBehaviour) {
+	return await invoke('plugin:cache|get_curseforge_categories', { cacheBehaviour })
+}
+
+export async function get_curseforge_project(id, cacheBehaviour) {
+	return await invoke('plugin:cache|get_curseforge_project', { id, cacheBehaviour })
+}
+
+export async function get_curseforge_project_versions(id, cacheBehaviour) {
+	return await invoke('plugin:cache|get_curseforge_project_versions', { id, cacheBehaviour })
+}
+
 export async function purge_cache_types(cacheTypes) {
 	return await invoke('plugin:cache|purge_cache_types', { cacheTypes })
 }

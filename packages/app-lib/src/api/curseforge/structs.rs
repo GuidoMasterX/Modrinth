@@ -62,7 +62,17 @@ pub struct CFProject {
     pub date_modified: Option<String>,
     pub logo: CFProjectLogo,
     pub categories: Vec<CFCategory>,
+    pub authors: Vec<CFAuthor>,
     pub class_id: Option<i64>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+#[serde(rename_all = "camelCase", default)]
+pub struct CFAuthor {
+    pub id: i64,
+    pub name: Option<String>,
+    pub url: Option<String>,
+    pub avatar_url: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]

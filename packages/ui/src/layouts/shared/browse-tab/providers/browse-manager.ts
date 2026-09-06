@@ -8,6 +8,7 @@ import type { FilterType, FilterValue, SortType } from '#ui/utils/search'
 import type {
 	BrowseInstallContext,
 	BrowseSearchResponse,
+	BrowseSource,
 	CardAction,
 	ServerModpackContent,
 } from '../types'
@@ -21,6 +22,14 @@ export interface BrowseManagerContext {
 	projectType: Ref<string>
 
 	query: Ref<string>
+
+	activeSource: Ref<BrowseSource>
+	isCfSource: ComputedRef<boolean>
+	switchSource: (source: BrowseSource) => void
+	curseforgeFilterTypes: ComputedRef<FilterType[]>
+	curseforgeCurrentFilters: Ref<FilterValue[]>
+	curseforgeToggledGroups: Ref<string[]>
+
 	filters: ComputedRef<FilterType[]>
 	currentFilters: Ref<FilterValue[]>
 	toggledGroups: Ref<string[]>
@@ -58,6 +67,8 @@ export interface BrowseManagerContext {
 	showProjectTypeTabs: ComputedRef<boolean>
 
 	variant: 'app' | 'web'
+
+	curseforgeAvailable?: ComputedRef<boolean>
 
 	getCardActions?: (
 		result: Labrinth.Search.v3.ResultSearchProject,

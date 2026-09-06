@@ -113,7 +113,7 @@ pub async fn search(
         params.push_str(&format!(
             "&sortField={}&sortOrder={}",
             sort_field,
-            i32::from(sort_descending)
+            if sort_descending { "desc" } else { "asc" }
         ));
     }
     params.push_str(&format!("&index={}&pageSize={}", index, page_size));

@@ -13,6 +13,7 @@ import {
 	sameOptionIds,
 	useAdvancedPrefs,
 } from '#ui/utils/advanced-filter-preferences'
+import { type CurseforgeCategory, useCurseforgeSearch } from '#ui/utils/curseforge-search'
 import type {
 	EnvironmentSearchOverride,
 	FilterType,
@@ -25,6 +26,8 @@ import { useServerSearch } from '#ui/utils/server-search'
 
 import type { BrowseSearchResponse } from '../types'
 
+export type BrowseSource = 'modrinth' | 'curseforge'
+
 export interface UseBrowseSearchOptions {
 	projectType: Ref<string>
 	tags: Ref<{
@@ -36,6 +39,8 @@ export interface UseBrowseSearchOptions {
 	environmentOverride?: ComputedRef<EnvironmentSearchOverride | undefined>
 	active?: ComputedRef<boolean>
 	search: (params: string) => Promise<BrowseSearchResponse>
+	searchCurseforge?: (params: string) => Promise<BrowseSearchResponse>
+	curseforgeCategories?: Ref<CurseforgeCategory[]>
 	persistentQueryParams: string[]
 	getExtraQueryParams?: () => Record<string, string | undefined>
 	maxResultsOptions?: ComputedRef<number[]>
@@ -45,6 +50,10 @@ export interface UseBrowseSearchOptions {
 export interface BrowseSearchState {
 	query: Ref<string>
 
+	activeSource: Ref<BrowseSource>
+	isCfSource: ComputedRef<boolean>
+	switchSource: (source: BrowseSource) => void
+
 	filters: ComputedRef<FilterType[]>
 	currentFilters: Ref<FilterValue[]>
 	toggledGroups: Ref<string[]>
@@ -53,6 +62,10 @@ export interface BrowseSearchState {
 	serverFilterTypes: ComputedRef<FilterType[]>
 	serverCurrentFilters: Ref<FilterValue[]>
 	serverToggledGroups: Ref<string[]>
+
+	curseforgeFilterTypes: ComputedRef<FilterType[]>
+	curseforgeCurrentFilters: Ref<FilterValue[]>
+	curseforgeToggledGroups: Ref<string[]>
 
 	effectiveSortTypes: ComputedRef<readonly SortType[]>
 	effectiveCurrentSortType: Ref<SortType>
@@ -127,19 +140,64 @@ export function useBrowseSearch(options: UseBrowseSearchOptions): BrowseSearchSt
 		providedFilters: options.providedFilters,
 	})
 
+	const activeSource = ref<BrowseSource>(
+		route.query.source === 'curseforge' && options.searchCurseforge ? 'curseforge' : 'modrinth',
+	)
+	const isCfSource = computed(
+		() => activeSource.value === 'curseforge' && !!options.searchCurseforge,
+	)
+
+	const {
+		curseforgeCurrentSortType,
+		curseforgeCurrentFilters,
+		curseforgeToggledGroups,
+		curseforgeSortTypes,
+		curseforgeFilterTypes,
+		curseforgeRequestParams,
+		createCurseforgePageParams,
+	} = useCurseforgeSearch({
+		projectType: options.projectType,
+		tags: options.tags,
+		categories: options.curseforgeCategories ?? ref([]),
+		query,
+		maxResults,
+		currentPage,
+	})
+
 	const effectiveRequestParams = computed(() =>
-		isServerType.value ? serverRequestParams.value : requestParams.value,
+		isServerType.value
+			? serverRequestParams.value
+			: isCfSource.value
+				? curseforgeRequestParams.value
+				: requestParams.value,
 	)
 	const effectiveSortTypes = computed(() =>
-		isServerType.value ? (serverSortTypes as readonly SortType[]) : sortTypes,
+		isServerType.value
+			? (serverSortTypes as readonly SortType[])
+			: isCfSource.value
+				? curseforgeSortTypes
+				: sortTypes,
 	)
 	const effectiveCurrentSortType = computed({
-		get: () => (isServerType.value ? serverCurrentSortType.value : currentSortType.value),
+		get: () =>
+			isServerType.value
+				? serverCurrentSortType.value
+				: isCfSource.value
+					? curseforgeCurrentSortType.value
+					: currentSortType.value,
 		set: (v: SortType) => {
 			if (isServerType.value) serverCurrentSortType.value = v
+			else if (isCfSource.value) curseforgeCurrentSortType.value = v
 			else currentSortType.value = v
 		},
 	})
+
+	function switchSource(source: BrowseSource) {
+		if (source === activeSource.value) return
+		if (source === 'curseforge' && !options.searchCurseforge) return
+		activeSource.value = source
+		currentPage.value = 1
+	}
 
 	const effectiveMaxResultsOptions = computed(
 		() => options.maxResultsOptions?.value ?? [5, 10, 15, 20, 50, 100],
@@ -209,10 +267,18 @@ export function useBrowseSearch(options: UseBrowseSearchOptions): BrowseSearchSt
 
 	const providedFiltersOrEmpty = computed(() => options.providedFilters?.value ?? [])
 	const effectiveCurrentFilters = computed(() =>
-		isServerType.value ? serverCurrentFilters.value : currentFilters.value,
+		isServerType.value
+			? serverCurrentFilters.value
+			: isCfSource.value
+				? curseforgeCurrentFilters.value
+				: currentFilters.value,
 	)
 	const effectiveFilterTypes = computed(() =>
-		isServerType.value ? serverFilterTypes.value : filters.value,
+		isServerType.value
+			? serverFilterTypes.value
+			: isCfSource.value
+				? curseforgeFilterTypes.value
+				: filters.value,
 	)
 
 	const advancedPrefs = useAdvancedPrefs()
@@ -230,6 +296,8 @@ export function useBrowseSearch(options: UseBrowseSearchOptions): BrowseSearchSt
 	function setEffectiveFilters(nextFilters: FilterValue[]) {
 		if (isServerType.value) {
 			serverCurrentFilters.value = nextFilters
+		} else if (isCfSource.value) {
+			curseforgeCurrentFilters.value = nextFilters
 		} else {
 			currentFilters.value = nextFilters
 		}
@@ -341,7 +409,9 @@ export function useBrowseSearch(options: UseBrowseSearchOptions): BrowseSearchSt
 		}
 
 		try {
-			const response = await options.search(effectiveRequestParams.value)
+			const searchFn =
+				isCfSource.value && options.searchCurseforge ? options.searchCurseforge : options.search
+			const response = await searchFn(effectiveRequestParams.value)
 
 			if (!active.value) {
 				return
@@ -399,7 +469,11 @@ export function useBrowseSearch(options: UseBrowseSearchOptions): BrowseSearchSt
 
 		const params = {
 			...persistentParams,
-			...(isServerType.value ? createServerPageParams() : createPageParams()),
+			...(isServerType.value
+				? createServerPageParams()
+				: isCfSource.value
+					? { ...createCurseforgePageParams(), source: ['curseforge'] }
+					: createPageParams()),
 		}
 
 		router.replace({ path: route.path, query: params })
@@ -437,6 +511,9 @@ export function useBrowseSearch(options: UseBrowseSearchOptions): BrowseSearchSt
 
 	return {
 		query,
+		activeSource,
+		isCfSource,
+		switchSource,
 		filters,
 		currentFilters,
 		toggledGroups,
@@ -444,6 +521,9 @@ export function useBrowseSearch(options: UseBrowseSearchOptions): BrowseSearchSt
 		serverFilterTypes,
 		serverCurrentFilters,
 		serverToggledGroups,
+		curseforgeFilterTypes,
+		curseforgeCurrentFilters,
+		curseforgeToggledGroups,
 		effectiveSortTypes,
 		effectiveCurrentSortType,
 		loading,

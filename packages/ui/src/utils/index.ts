@@ -2,6 +2,7 @@ export { createAttributionGroupTitle } from '../components/external_files/extern
 export * from './advanced-filter-preferences'
 export * from './auto-icons'
 export * from './common-messages'
+export * from './curseforge-search'
 export * from './disclosures'
 export * from './events'
 export * from './file-extensions'

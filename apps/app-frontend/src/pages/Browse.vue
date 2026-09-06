@@ -9,7 +9,13 @@ import {
 	ServerStackIcon,
 	SpinnerIcon,
 } from '@modrinth/assets'
-import type { BrowseInstallContentType, CardAction, ProjectType, Tags } from '@modrinth/ui'
+import type {
+	BrowseInstallContentType,
+	CardAction,
+	CurseforgeCategory,
+	ProjectType,
+	Tags,
+} from '@modrinth/ui'
 import {
 	BrowsePageLayout,
 	BrowseSidebar,
@@ -41,7 +47,14 @@ import { useRoute, useRouter } from 'vue-router'
 import { useAppServerBrowse } from '@/composables/browse/use-app-server-browse'
 import { useAppEvent } from '@/composables/use-app-event'
 import { useAppSettings } from '@/composables/use-app-settings.ts'
-import { get_project, get_search_results_v3, get_version_many } from '@/helpers/cache.js'
+import { useCurseforgeKey } from '@/composables/use-curseforge-key'
+import {
+	get_curseforge_categories,
+	get_curseforge_search_results,
+	get_project,
+	get_search_results_v3,
+	get_version_many,
+} from '@/helpers/cache.js'
 import {
 	get_installed_project_ids as getInstalledProjectIds,
 	getInstanceIconUrl,
@@ -1148,12 +1161,76 @@ const lockedFilterMessages = computed(() => ({
 	providedBy: formatMessage(messages.providedByInstance),
 }))
 
+const curseforgeApiKey = useCurseforgeKey()
+const curseforgeEnabled = computed(() => !!curseforgeApiKey.value)
+const curseforgeCategories = ref<CurseforgeCategory[]>([])
+
+async function searchCurseforge(requestParams: string) {
+	debugLog('searching curseforge', requestParams)
+	const raw = (await queryClient.fetchQuery({
+		queryKey: ['search', 'curseforge', requestParams],
+		queryFn: () => get_curseforge_search_results(requestParams, 'must_revalidate'),
+		staleTime: 30_000,
+	})) as {
+		data: {
+			id: number
+			name: string
+			slug: string | null
+			summary: string
+			download_count: number
+			date_created: string | null
+			date_modified: string | null
+			logo: { url: string | null; thumbnailUrl: string | null } | null
+			categories: { name: string }[]
+			authors: { name: string | null }[]
+		}[]
+		pagination: { total_count: number } | null
+	} | null
+
+	const hits = (raw?.data ?? []).map(
+		(cf): Labrinth.Search.v3.ResultSearchProject => ({
+			project_id: `cf-${cf.id}`,
+			project_types: [projectType.value],
+			all_project_types: [projectType.value],
+			slug: cf.slug,
+			author: cf.authors?.[0]?.name ?? '',
+			author_id: null,
+			organization: null,
+			organization_id: null,
+			name: cf.name,
+			summary: cf.summary,
+			categories: (cf.categories ?? []).map((c) => c.name),
+			display_categories: (cf.categories ?? []).map((c) => c.name),
+			downloads: cf.download_count ?? 0,
+			follows: 0,
+			icon_url: cf.logo?.url ?? cf.logo?.thumbnailUrl ?? null,
+			date_created: cf.date_created ?? '',
+			date_modified: cf.date_modified ?? '',
+			license: '',
+			gallery: [],
+			featured_gallery: null,
+			color: null,
+			loaders: [],
+			disclosure_types: [],
+		}),
+	)
+
+	return {
+		projectHits: hits,
+		serverHits: [],
+		total_hits: raw?.pagination?.total_count ?? hits.length,
+		per_page: 20,
+	}
+}
+
 const searchState = useBrowseSearch({
 	projectType,
 	tags,
 	active: browseRouteActive,
 	providedFilters: combinedProvidedFilters,
 	search,
+	searchCurseforge,
+	curseforgeCategories,
 	persistentQueryParams: ['i', 'ai', 'shi', 'sid', 'wid', 'from'],
 	getExtraQueryParams: () => ({
 		sid: serverIdQuery.value || undefined,
@@ -1199,6 +1276,104 @@ if (instance.value?.game_version) {
 }
 
 void searchState.refreshSearch()
+
+const NON_FILTER_QUERY_KEYS = new Set([
+	'i',
+	'ai',
+	'shi',
+	'sid',
+	'wid',
+	'from',
+	'source',
+	'page',
+	'm',
+	'q',
+	'ss',
+	'cs',
+])
+
+function hasExplicitFilterParams(): boolean {
+	return Object.keys(route.query).some((key) => !NON_FILTER_QUERY_KEYS.has(key))
+}
+
+function toPinnedTab(filter: { type: string; option: string; negative?: boolean }) {
+	return { filter_type: filter.type, option: filter.option, negative: !!filter.negative }
+}
+
+function pinnedTabsKey(source: string): string {
+	return `${source}:${projectType.value}`
+}
+
+let pinnedTabsSaveTimer: ReturnType<typeof setTimeout> | null = null
+
+async function savePinnedTabs() {
+	if (projectType.value === 'server') return
+	try {
+		const settings = await getSettings()
+		const tabs = settings.pinned_browse_tabs ?? {}
+		tabs[pinnedTabsKey('modrinth')] = searchState.currentFilters.value.map(toPinnedTab)
+		tabs[pinnedTabsKey('curseforge')] = searchState.curseforgeCurrentFilters.value.map(toPinnedTab)
+		settings.pinned_browse_tabs = tabs
+		await setSettings(settings)
+	} catch (err) {
+		handleError(err)
+	}
+}
+
+watch(
+	[
+		() => searchState.currentFilters.value,
+		() => searchState.curseforgeCurrentFilters.value,
+		projectType,
+	],
+	() => {
+		if (pinnedTabsSaveTimer) clearTimeout(pinnedTabsSaveTimer)
+		pinnedTabsSaveTimer = setTimeout(savePinnedTabs, 800)
+	},
+	{ deep: true },
+)
+
+if (projectType.value !== 'server') {
+	getSettings()
+		.then((settings) => {
+			if (hasExplicitFilterParams()) return
+			const isCf = searchState.isCfSource.value
+			const source = isCf ? 'curseforge' : 'modrinth'
+			const pinned = settings.pinned_browse_tabs?.[pinnedTabsKey(source)] ?? []
+			const target = isCf
+				? searchState.curseforgeCurrentFilters.value
+				: searchState.currentFilters.value
+			for (const tab of pinned) {
+				if (target.some((f) => f.type === tab.filter_type && f.option === tab.option)) continue
+				target.push({
+					type: tab.filter_type,
+					option: tab.option,
+					negative: tab.negative || undefined,
+				})
+			}
+		})
+		.catch(handleError)
+}
+
+watch(curseforgeEnabled, async (enabled) => {
+	if (!enabled) return
+	if (route.query.source === 'curseforge') {
+		searchState.switchSource('curseforge')
+	}
+	try {
+		curseforgeCategories.value =
+			((await get_curseforge_categories('must_revalidate')) as {
+				id: number
+				name: string
+				iconUrl: string | null
+				classId: number | null
+				parentCategoryId: number | null
+				isClass: boolean
+			}[]) ?? []
+	} catch (err) {
+		console.error('Failed to load CurseForge categories:', err)
+	}
+})
 
 useAppEvent('instance', async (event) => {
 	if (event.event === 'created' || event.event === 'removed') {
@@ -1273,6 +1448,7 @@ provideBrowseManager({
 	selectableProjectTypes,
 	showProjectTypeTabs: computed(() => !isServerContext.value),
 	variant: 'app',
+	curseforgeAvailable: curseforgeEnabled,
 	getCardActions,
 	installContext,
 	providedFilters: combinedProvidedFilters,
