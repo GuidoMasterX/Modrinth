@@ -1037,7 +1037,7 @@ export function createContentInstall(opts: {
 				await showIncompatibilityWarning(instance, project, projectVersions, version, callback)
 			}
 		} else {
-			const versions: Labrinth.Versions.v2.Version[] = (
+			let versions: Labrinth.Versions.v2.Version[] = (
 				isCfProjectId(projectId)
 					? await getCfVersions(projectId)
 					: ((await get_version_many(project.versions)) as Labrinth.Versions.v2.Version[])
