@@ -2,6 +2,7 @@
 pub mod fetch;
 pub mod io;
 pub mod jre;
+pub mod murmur2;
 pub mod network;
 pub mod platform;
 pub mod protocol_version;

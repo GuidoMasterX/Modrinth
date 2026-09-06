@@ -26,6 +26,8 @@ pub struct Settings {
     pub discord_rpc: bool,
     pub personalized_ads: bool,
 
+    pub curseforge_api_key: Option<String>,
+
     pub extra_launch_args: Vec<String>,
     pub custom_env_vars: Vec<(String, String)>,
     pub memory: MemorySettings,
@@ -86,7 +88,7 @@ impl Settings {
             SELECT
                 max_concurrent_writes, max_concurrent_downloads,
                 theme, locale, default_page, collapsed_navigation, hide_nametag_skins_page, advanced_rendering, native_decorations,
-                discord_rpc, developer_mode, telemetry, personalized_ads,
+                discord_rpc, developer_mode, telemetry, personalized_ads, curseforge_api_key,
                 json(extra_launch_args) extra_launch_args, json(custom_env_vars) custom_env_vars,
                 mc_memory_max, mc_force_fullscreen, mc_game_resolution_x, mc_game_resolution_y, hide_on_process_start,
                 hook_pre_launch, hook_wrapper, hook_post_exit,
@@ -115,6 +117,7 @@ impl Settings {
             discord_rpc: res.discord_rpc == 1,
             developer_mode: res.developer_mode == 1,
             personalized_ads: res.personalized_ads == 1,
+            curseforge_api_key: res.curseforge_api_key,
             extra_launch_args: res
                 .extra_launch_args
                 .as_ref()
@@ -216,7 +219,9 @@ impl Settings {
                 sync_theme_across_devices = $32,
                 sync_behavior_across_devices = $33,
 
-                version = $34
+                curseforge_api_key = $34,
+
+                version = $35
             ",
             max_concurrent_writes,
             max_concurrent_downloads,
@@ -251,6 +256,7 @@ impl Settings {
             self.auto_download_updates,
             self.sync_theme_across_devices,
             self.sync_behavior_across_devices,
+            self.curseforge_api_key,
             version,
         )
         .execute(exec)

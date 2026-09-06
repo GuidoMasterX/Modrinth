@@ -1,6 +1,11 @@
+use crate::api::curseforge::normalize::{
+    SourceProject, SourceVersion, SourceVersionFile,
+};
+use crate::api::curseforge::structs::CFCategory;
 use crate::state::{
-    CacheBehaviour, CacheValueType, CachedEntry, Organization, Project,
-    ProjectV3, SearchResults, SearchResultsV3, TeamMember, User, Version,
+    CacheBehaviour, CacheValueType, CachedCFFingerprints,
+    CachedCFSearchResults, CachedEntry, Organization, Project, ProjectV3,
+    SearchResults, SearchResultsV3, TeamMember, User, Version,
 };
 
 macro_rules! impl_cache_methods {
@@ -42,7 +47,11 @@ impl_cache_methods!(
     (Team, Vec<TeamMember>),
     (Organization, Organization),
     (SearchResults, SearchResults),
-    (SearchResultsV3, SearchResultsV3)
+    (SearchResultsV3, SearchResultsV3),
+    (CurseforgeSearchResults, CachedCFSearchResults),
+    (CurseforgeProject, SourceProject),
+    (CurseforgeFile, SourceVersionFile),
+    (CurseforgeFingerprints, CachedCFFingerprints)
 );
 
 pub async fn purge_cache_types(
@@ -64,6 +73,35 @@ pub async fn get_project_versions(
     let state = crate::State::get().await?;
     CachedEntry::get_project_versions(
         project_id,
+        cache_behaviour,
+        &state.pool,
+        &state.api_semaphore,
+    )
+    .await
+}
+
+#[tracing::instrument]
+pub async fn get_curseforge_project_versions(
+    project_id: &str,
+    cache_behaviour: Option<CacheBehaviour>,
+) -> crate::Result<Option<Vec<SourceVersion>>> {
+    let state = crate::State::get().await?;
+    Ok(CachedEntry::get_curseforge_project_versions(
+        project_id,
+        cache_behaviour,
+        &state.pool,
+        &state.api_semaphore,
+    )
+    .await?
+    .map(|versions| versions.versions))
+}
+
+#[tracing::instrument]
+pub async fn get_curseforge_categories(
+    cache_behaviour: Option<CacheBehaviour>,
+) -> crate::Result<Option<Vec<CFCategory>>> {
+    let state = crate::State::get().await?;
+    CachedEntry::get_curseforge_categories(
         cache_behaviour,
         &state.pool,
         &state.api_semaphore,

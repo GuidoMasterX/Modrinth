@@ -1,3 +1,9 @@
+use crate::api::curseforge::{
+    normalize::{
+        SourceProject, SourceVersion, SourceVersionFile, parse_cf_date,
+    },
+    structs::{CFCategory, CFFingerprintData, CFSearchResponse},
+};
 use crate::state::{EmbeddedContentMetadata, ProjectType};
 use crate::util::fetch::{FetchSemaphore, fetch_json, sha1_async};
 use chrono::{DateTime, Utc};
@@ -41,6 +47,12 @@ pub enum CacheValueType {
     EmbeddedContentMetadata,
     /// Cached list of versions for a project (without changelogs for fast loading)
     ProjectVersions,
+    CurseforgeSearchResults,
+    CurseforgeProject,
+    CurseforgeProjectVersions,
+    CurseforgeCategories,
+    CurseforgeFile,
+    CurseforgeFingerprints,
 }
 
 impl CacheValueType {
@@ -70,6 +82,12 @@ impl CacheValueType {
                 "embedded_content_metadata"
             }
             CacheValueType::ProjectVersions => "project_versions",
+            CacheValueType::CurseforgeSearchResults => "cf_search_results",
+            CacheValueType::CurseforgeProject => "cf_project",
+            CacheValueType::CurseforgeProjectVersions => "cf_project_versions",
+            CacheValueType::CurseforgeCategories => "cf_categories",
+            CacheValueType::CurseforgeFile => "cf_file",
+            CacheValueType::CurseforgeFingerprints => "cf_fingerprints",
         }
     }
 
@@ -99,6 +117,12 @@ impl CacheValueType {
                 CacheValueType::EmbeddedContentMetadata
             }
             "project_versions" => CacheValueType::ProjectVersions,
+            "cf_search_results" => CacheValueType::CurseforgeSearchResults,
+            "cf_project" => CacheValueType::CurseforgeProject,
+            "cf_project_versions" => CacheValueType::CurseforgeProjectVersions,
+            "cf_categories" => CacheValueType::CurseforgeCategories,
+            "cf_file" => CacheValueType::CurseforgeFile,
+            "cf_fingerprints" => CacheValueType::CurseforgeFingerprints,
             _ => CacheValueType::Project,
         }
     }
@@ -114,9 +138,9 @@ impl CacheValueType {
             | CacheValueType::EmbeddedContentMetadata => {
                 100 * 365 * 24 * 60 * 60 // 100 years (effectively never)
             }
-            CacheValueType::SearchResults | CacheValueType::SearchResultsV3 => {
-                10 * 60 // 10 minutes
-            }
+            CacheValueType::SearchResults
+            | CacheValueType::SearchResultsV3
+            | CacheValueType::CurseforgeSearchResults => 10 * 60, // 10 minutes
             _ => 30 * 60, // 30 minutes
         }
     }
@@ -156,7 +180,13 @@ impl CacheValueType {
             | CacheValueType::SearchResultsV3
             | CacheValueType::ModpackFiles
             | CacheValueType::EmbeddedContentMetadata
-            | CacheValueType::ProjectVersions => None,
+            | CacheValueType::ProjectVersions
+            | CacheValueType::CurseforgeSearchResults
+            | CacheValueType::CurseforgeProject
+            | CacheValueType::CurseforgeProjectVersions
+            | CacheValueType::CurseforgeCategories
+            | CacheValueType::CurseforgeFile
+            | CacheValueType::CurseforgeFingerprints => None,
         }
     }
 }
@@ -175,6 +205,24 @@ pub struct CachedModpackFiles {
 pub struct CachedProjectVersions {
     pub project_id: String,
     pub versions: Vec<Version>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct CachedCFSearchResults {
+    pub search: String,
+    pub result: CFSearchResponse,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct CachedCFProjectVersions {
+    pub project_id: String,
+    pub versions: Vec<SourceVersion>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct CachedCFFingerprints {
+    pub fingerprints_key: String,
+    pub data: CFFingerprintData,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -223,6 +271,12 @@ pub enum CacheValue {
     EmbeddedContentMetadata(CachedEmbeddedContentMetadata),
     ProjectVersions(CachedProjectVersions),
     ProjectV3(ProjectV3),
+    CurseforgeSearchResults(CachedCFSearchResults),
+    CurseforgeProject(SourceProject),
+    CurseforgeProjectVersions(CachedCFProjectVersions),
+    CurseforgeCategories(Vec<CFCategory>),
+    CurseforgeFile(SourceVersionFile),
+    CurseforgeFingerprints(CachedCFFingerprints),
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -736,6 +790,22 @@ impl CacheValue {
                 CacheValueType::EmbeddedContentMetadata
             }
             CacheValue::ProjectVersions(_) => CacheValueType::ProjectVersions,
+            CacheValue::CurseforgeSearchResults(_) => {
+                CacheValueType::CurseforgeSearchResults
+            }
+            CacheValue::CurseforgeProject(_) => {
+                CacheValueType::CurseforgeProject
+            }
+            CacheValue::CurseforgeProjectVersions(_) => {
+                CacheValueType::CurseforgeProjectVersions
+            }
+            CacheValue::CurseforgeCategories(_) => {
+                CacheValueType::CurseforgeCategories
+            }
+            CacheValue::CurseforgeFile(_) => CacheValueType::CurseforgeFile,
+            CacheValue::CurseforgeFingerprints(_) => {
+                CacheValueType::CurseforgeFingerprints
+            }
         }
     }
 
@@ -783,6 +853,16 @@ impl CacheValue {
                 metadata.cache_key.clone()
             }
             CacheValue::ProjectVersions(pv) => pv.project_id.clone(),
+            CacheValue::CurseforgeSearchResults(search) => {
+                search.search.clone()
+            }
+            CacheValue::CurseforgeProject(project) => project.id.clone(),
+            CacheValue::CurseforgeProjectVersions(pv) => pv.project_id.clone(),
+            CacheValue::CurseforgeCategories(_) => DEFAULT_ID.to_string(),
+            CacheValue::CurseforgeFile(file) => file.id.clone(),
+            CacheValue::CurseforgeFingerprints(fingerprints) => {
+                fingerprints.fingerprints_key.clone()
+            }
         }
     }
 
@@ -814,6 +894,12 @@ impl CacheValue {
             | CacheValue::ModpackFiles(_)
             | CacheValue::EmbeddedContentMetadata(_)
             | CacheValue::ProjectVersions(_) => None,
+            CacheValue::CurseforgeSearchResults(_)
+            | CacheValue::CurseforgeProject(_)
+            | CacheValue::CurseforgeProjectVersions(_)
+            | CacheValue::CurseforgeCategories(_)
+            | CacheValue::CurseforgeFile(_)
+            | CacheValue::CurseforgeFingerprints(_) => None,
         }
     }
 
@@ -853,6 +939,22 @@ impl CacheValue {
                 serde_json::to_value(metadata)
             }
             CacheValue::ProjectVersions(pv) => serde_json::to_value(pv),
+            CacheValue::CurseforgeSearchResults(search) => {
+                serde_json::to_value(search)
+            }
+            CacheValue::CurseforgeProject(project) => {
+                serde_json::to_value(project)
+            }
+            CacheValue::CurseforgeProjectVersions(pv) => {
+                serde_json::to_value(pv)
+            }
+            CacheValue::CurseforgeCategories(categories) => {
+                serde_json::to_value(categories)
+            }
+            CacheValue::CurseforgeFile(file) => serde_json::to_value(file),
+            CacheValue::CurseforgeFingerprints(fingerprints) => {
+                serde_json::to_value(fingerprints)
+            }
         }
         .map_err(|err| {
             crate::ErrorKind::OtherError(format!(
@@ -972,7 +1074,12 @@ impl_cache_methods!(
     (FileUpdate, CachedFileUpdate),
     (EmbeddedContentMetadata, CachedEmbeddedContentMetadata),
     (SearchResults, SearchResults),
-    (SearchResultsV3, SearchResultsV3)
+    (SearchResultsV3, SearchResultsV3),
+    (CurseforgeSearchResults, CachedCFSearchResults),
+    (CurseforgeProject, SourceProject),
+    (CurseforgeProjectVersions, CachedCFProjectVersions),
+    (CurseforgeFile, SourceVersionFile),
+    (CurseforgeFingerprints, CachedCFFingerprints)
 );
 
 impl_cache_method_singular!(
@@ -981,7 +1088,8 @@ impl_cache_method_singular!(
     (ReportTypes, Vec<String>),
     (Loaders, Vec<Loader>),
     (GameVersions, Vec<GameVersion>),
-    (DonationPlatforms, Vec<DonationPlatform>)
+    (DonationPlatforms, Vec<DonationPlatform>),
+    (CurseforgeCategories, Vec<CFCategory>)
 );
 
 impl CachedEntry {
@@ -2023,6 +2131,212 @@ impl CachedEntry {
                 })
                 .collect()
             }
+            CacheValueType::CurseforgeSearchResults => {
+                let fetch_urls = keys
+                    .iter()
+                    .map(|x| {
+                        (
+                            x.key().to_string(),
+                            format!(
+                                "{}mods/search{}",
+                                crate::api::curseforge::api::CURSEFORGE_API_URL,
+                                x.key()
+                            ),
+                        )
+                    })
+                    .collect::<Vec<_>>();
+
+                futures::future::try_join_all(fetch_urls.iter().map(
+                    |(_, url)| {
+                        crate::api::curseforge::api::cf_fetch_json(
+                            Method::GET,
+                            url,
+                            None,
+                            Some("curseforge/mods/search"),
+                            fetch_semaphore,
+                            pool,
+                        )
+                    },
+                ))
+                .await?
+                .into_iter()
+                .enumerate()
+                .map(|(index, result)| {
+                    (
+                        CacheValue::CurseforgeSearchResults(
+                            CachedCFSearchResults {
+                                search: fetch_urls[index].0.to_string(),
+                                result,
+                            },
+                        )
+                        .get_entry(),
+                        true,
+                    )
+                })
+                .collect()
+            }
+            CacheValueType::CurseforgeProject => {
+                let keys = keys
+                    .iter()
+                    .map(|key| key.key().to_string())
+                    .collect::<Vec<_>>();
+                let ids = keys
+                    .iter()
+                    .filter_map(|key| key.parse::<i64>().ok())
+                    .collect::<Vec<i64>>();
+                let projects = crate::api::curseforge::api::get_mods(
+                    &ids,
+                    fetch_semaphore,
+                    pool,
+                )
+                .await?;
+
+                keys.into_iter()
+                    .map(|key| {
+                        match projects
+                            .iter()
+                            .find(|project| project.id.to_string() == key)
+                        {
+                            Some(project) => (
+                                CacheValue::CurseforgeProject(
+                                    SourceProject::from_cf(project.clone()),
+                                )
+                                .get_entry(),
+                                true,
+                            ),
+                            None => (
+                                CacheValueType::CurseforgeProject
+                                    .get_empty_entry(key),
+                                true,
+                            ),
+                        }
+                    })
+                    .collect()
+            }
+            CacheValueType::CurseforgeProjectVersions => {
+                let keys = keys
+                    .iter()
+                    .map(|key| key.key().to_string())
+                    .collect::<Vec<_>>();
+
+                let values = futures::future::try_join_all(keys.iter().map(
+                    |key| async move {
+                        let mut versions: Vec<SourceVersion> = Vec::new();
+                        if let Some(id) = key.parse::<i64>().ok() {
+                            versions =
+                                crate::api::curseforge::api::get_mod_files(
+                                    id,
+                                    None,
+                                    fetch_semaphore,
+                                    pool,
+                                )
+                                .await?
+                                .into_iter()
+                                .map(|file| SourceVersion::from_cf(file, None))
+                                .collect();
+                        }
+                        versions.sort_by(|a, b| {
+                            parse_cf_date(&b.date_published)
+                                .cmp(&parse_cf_date(&a.date_published))
+                        });
+
+                        Ok::<_, crate::Error>(
+                            CacheValue::CurseforgeProjectVersions(
+                                CachedCFProjectVersions {
+                                    project_id: key.clone(),
+                                    versions,
+                                },
+                            )
+                            .get_entry(),
+                        )
+                    },
+                ))
+                .await?;
+
+                values.into_iter().map(|value| (value, true)).collect()
+            }
+            CacheValueType::CurseforgeCategories => {
+                let categories = crate::api::curseforge::api::get_categories(
+                    None,
+                    fetch_semaphore,
+                    pool,
+                )
+                .await?;
+
+                vec![(
+                    CacheValue::CurseforgeCategories(categories).get_entry(),
+                    true,
+                )]
+            }
+            CacheValueType::CurseforgeFile => {
+                let keys = keys
+                    .iter()
+                    .map(|key| key.key().to_string())
+                    .collect::<Vec<_>>();
+
+                let values = futures::future::try_join_all(keys.iter().map(
+                    |key| async move {
+                        let file = crate::api::curseforge::api::get_mod_file(
+                            key.parse::<i64>().map_err(|err| {
+                                crate::ErrorKind::OtherError(format!(
+                                    "Invalid CurseForge file id {key}: {err}"
+                                ))
+                            })?,
+                            fetch_semaphore,
+                            pool,
+                        )
+                        .await?;
+
+                        Ok::<_, crate::Error>(
+                            CacheValue::CurseforgeFile(
+                                SourceVersionFile::from_cf(&file),
+                            )
+                            .get_entry(),
+                        )
+                    },
+                ))
+                .await?;
+
+                values.into_iter().map(|value| (value, true)).collect()
+            }
+            CacheValueType::CurseforgeFingerprints => {
+                let keys = keys
+                    .iter()
+                    .map(|key| key.key().to_string())
+                    .collect::<Vec<_>>();
+
+                let values = futures::future::try_join_all(keys.iter().map(
+                    |key| async move {
+                        let fingerprints = key
+                            .split(',')
+                            .filter_map(|fingerprint| {
+                                fingerprint.parse::<i64>().ok()
+                            })
+                            .collect::<Vec<i64>>();
+                        let data =
+                            crate::api::curseforge::api::get_fingerprints(
+                                &fingerprints,
+                                fetch_semaphore,
+                                pool,
+                            )
+                            .await?
+                            .data;
+
+                        Ok::<_, crate::Error>(
+                            CacheValue::CurseforgeFingerprints(
+                                CachedCFFingerprints {
+                                    fingerprints_key: key.clone(),
+                                    data,
+                                },
+                            )
+                            .get_entry(),
+                        )
+                    },
+                ))
+                .await?;
+
+                values.into_iter().map(|value| (value, true)).collect()
+            }
         })
     }
 
@@ -2110,6 +2424,40 @@ impl CachedEntry {
             CacheValueType::ProjectVersions => CacheValue::ProjectVersions(
                 parse(data, id, "project_versions")?,
             ),
+            CacheValueType::CurseforgeSearchResults => {
+                CacheValue::CurseforgeSearchResults(parse(
+                    data,
+                    id,
+                    "cf_search_results",
+                )?)
+            }
+            CacheValueType::CurseforgeProject => {
+                CacheValue::CurseforgeProject(parse(data, id, "cf_project")?)
+            }
+            CacheValueType::CurseforgeProjectVersions => {
+                CacheValue::CurseforgeProjectVersions(parse(
+                    data,
+                    id,
+                    "cf_project_versions",
+                )?)
+            }
+            CacheValueType::CurseforgeCategories => {
+                CacheValue::CurseforgeCategories(parse(
+                    data,
+                    id,
+                    "cf_categories",
+                )?)
+            }
+            CacheValueType::CurseforgeFile => {
+                CacheValue::CurseforgeFile(parse(data, id, "cf_file")?)
+            }
+            CacheValueType::CurseforgeFingerprints => {
+                CacheValue::CurseforgeFingerprints(parse(
+                    data,
+                    id,
+                    "cf_fingerprints",
+                )?)
+            }
         };
 
         Ok(value)

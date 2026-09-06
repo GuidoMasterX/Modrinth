@@ -1,5 +1,6 @@
 //! API for interacting with Theseus
 pub mod cache;
+pub mod curseforge;
 pub mod friends;
 pub mod handler;
 pub mod instance;
@@ -20,6 +21,10 @@ pub mod users;
 pub mod worlds;
 
 pub mod data {
+    pub use crate::api::curseforge::normalize::{
+        SourceProject, SourceVersion, SourceVersionFile,
+    };
+    pub use crate::api::curseforge::structs::CFCategory;
     pub use crate::state::{
         AppliedContentSetPatch, CacheBehaviour, CacheValueType, ContentFile,
         ContentItem, ContentItemOwner, ContentItemProject, ContentItemVersion,
@@ -35,6 +40,7 @@ pub mod data {
         SharedInstanceRole, TeamMember, Theme, User, UserFriend, Version,
         WindowSize,
     };
+    pub use crate::state::{CachedCFFingerprints, CachedCFSearchResults};
     pub use ariadne::users::UserStatus;
     pub use modrinth_content_management::{
         ContentType, ResolutionPreferences, ResolveContentPlan,

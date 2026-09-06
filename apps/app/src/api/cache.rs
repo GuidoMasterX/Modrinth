@@ -1,4 +1,7 @@
 use crate::api::Result;
+use theseus::data::{
+    CFCategory, SourceProject, SourceVersion, SourceVersionFile,
+};
 use theseus::prelude::*;
 
 macro_rules! impl_cache_methods {
@@ -36,7 +39,11 @@ impl_cache_methods!(
     (Team, Vec<TeamMember>),
     (Organization, Organization),
     (SearchResults, SearchResults),
-    (SearchResultsV3, SearchResultsV3)
+    (SearchResultsV3, SearchResultsV3),
+    (CurseforgeSearchResults, CachedCFSearchResults),
+    (CurseforgeProject, SourceProject),
+    (CurseforgeFile, SourceVersionFile),
+    (CurseforgeFingerprints, CachedCFFingerprints)
 );
 
 pub fn init<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
@@ -60,6 +67,16 @@ pub fn init<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
             get_search_results_v3_many,
             purge_cache_types,
             get_project_versions,
+            get_curseforge_search_results,
+            get_curseforge_search_results_many,
+            get_curseforge_project,
+            get_curseforge_project_many,
+            get_curseforge_project_versions,
+            get_curseforge_categories,
+            get_curseforge_file,
+            get_curseforge_file_many,
+            get_curseforge_fingerprints,
+            get_curseforge_fingerprints_many,
         ])
         .build()
 }
@@ -78,4 +95,22 @@ pub async fn get_project_versions(
         theseus::cache::get_project_versions(project_id, cache_behaviour)
             .await?,
     )
+}
+
+#[tauri::command]
+pub async fn get_curseforge_project_versions(
+    project_id: &str,
+    cache_behaviour: Option<CacheBehaviour>,
+) -> Result<Option<Vec<SourceVersion>>> {
+    Ok(
+        theseus::cache::get_curseforge_project_versions(project_id, cache_behaviour)
+            .await?,
+    )
+}
+
+#[tauri::command]
+pub async fn get_curseforge_categories(
+    cache_behaviour: Option<CacheBehaviour>,
+) -> Result<Option<Vec<CFCategory>>> {
+    Ok(theseus::cache::get_curseforge_categories(cache_behaviour).await?)
 }
