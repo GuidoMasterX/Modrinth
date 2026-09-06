@@ -1,3 +1,4 @@
+use crate::api::curseforge::normalize::Source;
 use crate::launcher::get_loader_version_from_profile;
 use crate::state::instances::{
     ContentSet, ContentSetStatus, ContentSourceKind, Instance,
@@ -79,6 +80,7 @@ pub(crate) async fn create_instance(
             last_played: None,
             submitted_time_played: 0,
             recent_time_played: 0,
+            preferred_source: Source::default(),
         };
         let content_set = ContentSet {
             id: content_set_id,

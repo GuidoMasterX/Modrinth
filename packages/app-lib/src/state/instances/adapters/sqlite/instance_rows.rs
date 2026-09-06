@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 
+use crate::api::curseforge::normalize::Source;
 use crate::state::instances::{
     ContentSet, ContentSetStatus, ContentSetSyncStatus, ContentSourceKind,
     Instance, InstanceIconBackground, InstanceIconConfig,
@@ -32,6 +33,7 @@ pub(crate) struct InstanceRow {
     pub last_played: Option<i64>,
     pub submitted_time_played: i64,
     pub recent_time_played: i64,
+    pub preferred_source: String,
 }
 
 impl TryFrom<InstanceRow> for Instance {
@@ -60,6 +62,7 @@ impl TryFrom<InstanceRow> for Instance {
                 row.recent_time_played,
                 "recent_time_played",
             )?,
+            preferred_source: Source::from_str(&row.preferred_source),
         })
     }
 }
@@ -203,6 +206,7 @@ struct InstanceMetadataRow {
     last_played: Option<i64>,
     submitted_time_played: i64,
     recent_time_played: i64,
+    preferred_source: String,
     content_set_id: Option<String>,
     content_set_instance_id: Option<String>,
     content_set_name: Option<String>,
@@ -273,6 +277,7 @@ impl InstanceMetadataRow {
             last_played: self.last_played,
             submitted_time_played: self.submitted_time_played,
             recent_time_played: self.recent_time_played,
+            preferred_source: self.preferred_source,
         }
         .try_into()?;
         let applied_content_set = ContentSet {
@@ -672,6 +677,7 @@ macro_rules! query_instance_metadata {
                     i.last_played AS "last_played?: i64",
                     i.submitted_time_played AS "submitted_time_played!: i64",
                     i.recent_time_played AS "recent_time_played!: i64",
+                    i.preferred_source AS "preferred_source!: String",
                     cs.id AS "content_set_id?: String",
                     cs.instance_id AS "content_set_instance_id?: String",
                     cs.name AS "content_set_name?: String",
@@ -1218,6 +1224,7 @@ pub(crate) async fn insert_instance(
     )?;
     let recent_time_played =
         playtime_to_storage(instance.recent_time_played, "recent_time_played")?;
+    let preferred_source = instance.preferred_source.as_str();
 
     sqlx::query!(
         "
@@ -1234,9 +1241,10 @@ pub(crate) async fn insert_instance(
 			modified,
 			last_played,
 			submitted_time_played,
-			recent_time_played
+			recent_time_played,
+			preferred_source
 		)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		",
         id,
         path,
@@ -1251,6 +1259,7 @@ pub(crate) async fn insert_instance(
         last_played,
         submitted_time_played,
         recent_time_played,
+        preferred_source,
     )
     .execute(&mut **tx)
     .await?;
@@ -1337,6 +1346,7 @@ pub(crate) async fn update_instance(
     )?;
     let recent_time_played =
         playtime_to_storage(instance.recent_time_played, "recent_time_played")?;
+    let preferred_source = instance.preferred_source.as_str();
 
     sqlx::query!(
         "
@@ -1352,7 +1362,8 @@ pub(crate) async fn update_instance(
 			modified = ?,
 			last_played = ?,
 			submitted_time_played = ?,
-			recent_time_played = ?
+			recent_time_played = ?,
+			preferred_source = ?
 		WHERE id = ?
 		",
         path,
@@ -1366,6 +1377,7 @@ pub(crate) async fn update_instance(
         last_played,
         submitted_time_played,
         recent_time_played,
+        preferred_source,
         id,
     )
     .execute(&mut **tx)

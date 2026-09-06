@@ -136,6 +136,12 @@ pub struct ContentFile {
 pub struct FileMetadata {
     pub project_id: String,
     pub version_id: String,
+    #[serde(default)]
+    pub source: crate::api::curseforge::normalize::Source,
+    #[serde(default)]
+    pub cf_project_id: Option<i64>,
+    #[serde(default)]
+    pub cf_version_id: Option<i64>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Copy, PartialEq, Eq, Hash)]

@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n\t\tINSERT INTO instances (\n\t\t\tid,\n\t\t\tpath,\n\t\t\tapplied_content_set_id,\n\t\t\tinstall_stage,\n\t\t\tlauncher_feature_version,\n\t\t\tupdate_channel,\n\t\t\tname,\n\t\t\ticon_path,\n\t\t\tcreated,\n\t\t\tmodified,\n\t\t\tlast_played,\n\t\t\tsubmitted_time_played,\n\t\t\trecent_time_played,\n\t\t\tpreferred_source\n\t\t)\n\t\tVALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)\n\t\t",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 14
+    },
+    "nullable": []
+  },
+  "hash": "a4ef9e7e22431cd09a39c976b3c411c14ee0c5fde6ec0b415afacf53fbea5a74"
+}

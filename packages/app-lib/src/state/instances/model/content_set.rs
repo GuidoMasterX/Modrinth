@@ -13,6 +13,7 @@ pub enum ContentSourceKind {
     ModrinthHosting,
     ImportedModpack,
     SharedInstance,
+    CurseforgeModpack,
 }
 
 impl ContentSourceKind {
@@ -22,6 +23,7 @@ impl ContentSourceKind {
             Self::SharedInstance
                 | Self::ModrinthModpack
                 | Self::ImportedModpack
+                | Self::CurseforgeModpack
         )
     }
 
@@ -33,6 +35,7 @@ impl ContentSourceKind {
             Self::ModrinthHosting => "modrinth_hosting",
             Self::ImportedModpack => "imported_modpack",
             Self::SharedInstance => "shared_instance",
+            Self::CurseforgeModpack => "curseforge_modpack",
         }
     }
 
@@ -44,6 +47,7 @@ impl ContentSourceKind {
             "modrinth_hosting" => Ok(Self::ModrinthHosting),
             "imported_modpack" => Ok(Self::ImportedModpack),
             "shared_instance" => Ok(Self::SharedInstance),
+            "curseforge_modpack" => Ok(Self::CurseforgeModpack),
             other => Err(unknown_value("content source kind", other)),
         }
     }

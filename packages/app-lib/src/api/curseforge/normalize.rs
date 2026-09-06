@@ -11,11 +11,30 @@ use super::structs::{
     CFProject,
 };
 
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(
+    Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Hash, Default,
+)]
 #[serde(rename_all = "snake_case")]
 pub enum Source {
+    #[default]
     Modrinth,
     CurseForge,
+}
+
+impl Source {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Modrinth => "modrinth",
+            Self::CurseForge => "curseforge",
+        }
+    }
+
+    pub fn from_str(value: &str) -> Self {
+        match value {
+            "curseforge" => Self::CurseForge,
+            _ => Self::Modrinth,
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Hash)]

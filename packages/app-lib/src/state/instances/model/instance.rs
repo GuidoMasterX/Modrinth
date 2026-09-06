@@ -1,3 +1,4 @@
+use crate::api::curseforge::normalize::Source;
 use crate::state::{
     InstanceInstallStage, LauncherFeatureVersion, ReleaseChannel,
 };
@@ -77,6 +78,7 @@ pub struct Instance {
     pub last_played: Option<DateTime<Utc>>,
     pub submitted_time_played: u64,
     pub recent_time_played: u64,
+    pub preferred_source: Source,
 }
 
 pub(crate) fn playtime_to_storage(

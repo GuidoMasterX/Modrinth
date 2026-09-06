@@ -1,3 +1,4 @@
+use crate::api::curseforge::normalize::Source;
 use crate::state::ProjectType;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -44,6 +45,9 @@ pub struct ContentEntry {
     pub project_id: Option<String>,
     pub version_id: Option<String>,
     pub source_kind: ContentSourceKind,
+    pub source: Source,
+    pub cf_project_id: Option<i64>,
+    pub cf_version_id: Option<i64>,
     pub server_requirement: ContentRequirement,
     pub client_requirement: ContentRequirement,
     pub enabled: bool,

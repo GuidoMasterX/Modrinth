@@ -67,6 +67,11 @@
         "name": "recent_time_played",
         "ordinal": 12,
         "type_info": "Integer"
+      },
+      {
+        "name": "preferred_source",
+        "ordinal": 13,
+        "type_info": "Text"
       }
     ],
     "parameters": {
@@ -84,6 +89,7 @@
       false,
       false,
       true,
+      false,
       false,
       false
     ]

@@ -67,6 +67,21 @@
         "name": "modified_at",
         "ordinal": 12,
         "type_info": "Integer"
+      },
+      {
+        "name": "source",
+        "ordinal": 13,
+        "type_info": "Text"
+      },
+      {
+        "name": "cf_project_id",
+        "ordinal": 14,
+        "type_info": "Integer"
+      },
+      {
+        "name": "cf_version_id",
+        "ordinal": 15,
+        "type_info": "Integer"
       }
     ],
     "parameters": {
@@ -85,7 +100,10 @@
       false,
       false,
       false,
-      false
+      false,
+      false,
+      true,
+      true
     ]
   },
   "hash": "1f0fe2b4a4c39b3083cd34f4816d2d2c7babd876d979d275ad62cf70cde678fe"

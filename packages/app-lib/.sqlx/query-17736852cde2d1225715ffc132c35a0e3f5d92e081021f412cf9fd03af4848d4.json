@@ -1,0 +1,110 @@
+{
+  "db_name": "SQLite",
+  "query": "\n\t\t\tINSERT INTO instance_content_entries (\n\t\t\t\tid,\n\t\t\t\tinstance_id,\n\t\t\t\tcontent_set_id,\n\t\t\t\tfile_id,\n\t\t\t\tproject_type,\n\t\t\t\tproject_id,\n\t\t\t\tversion_id,\n\t\t\t\tsource_kind,\n\t\t\t\tsource,\n\t\t\t\tcf_project_id,\n\t\t\t\tcf_version_id,\n\t\t\t\tserver_requirement,\n\t\t\t\tclient_requirement,\n\t\t\t\tenabled,\n\t\t\t\tadded_at,\n\t\t\t\tmodified_at\n\t\t\t)\n\t\t\tVALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)\n\t\t\tON CONFLICT (content_set_id, file_id)\n\t\t\t\tWHERE file_id IS NOT NULL\n\t\t\tDO UPDATE SET\n\t\t\t\tinstance_id = excluded.instance_id,\n\t\t\t\tproject_type = excluded.project_type,\n\t\t\t\tproject_id = excluded.project_id,\n\t\t\t\tversion_id = excluded.version_id,\n\t\t\t\tsource_kind = excluded.source_kind,\n\t\t\t\tsource = excluded.source,\n\t\t\t\tcf_project_id = excluded.cf_project_id,\n\t\t\t\tcf_version_id = excluded.cf_version_id,\n\t\t\t\tserver_requirement = excluded.server_requirement,\n\t\t\t\tclient_requirement = excluded.client_requirement,\n\t\t\t\tenabled = excluded.enabled,\n\t\t\t\tmodified_at = excluded.modified_at\n\t\t\tRETURNING\n\t\t\t\tid,\n\t\t\t\tinstance_id,\n\t\t\t\tcontent_set_id,\n\t\t\t\tfile_id,\n\t\t\t\tproject_type,\n\t\t\t\tproject_id,\n\t\t\t\tversion_id,\n\t\t\t\tsource_kind,\n\t\t\t\tsource,\n\t\t\t\tcf_project_id,\n\t\t\t\tcf_version_id,\n\t\t\t\tserver_requirement,\n\t\t\t\tclient_requirement,\n\t\t\t\tenabled,\n\t\t\t\tadded_at,\n\t\t\t\tmodified_at\n\t\t\t",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "instance_id",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "content_set_id",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "file_id",
+        "ordinal": 3,
+        "type_info": "Text"
+      },
+      {
+        "name": "project_type",
+        "ordinal": 4,
+        "type_info": "Text"
+      },
+      {
+        "name": "project_id",
+        "ordinal": 5,
+        "type_info": "Text"
+      },
+      {
+        "name": "version_id",
+        "ordinal": 6,
+        "type_info": "Text"
+      },
+      {
+        "name": "source_kind",
+        "ordinal": 7,
+        "type_info": "Text"
+      },
+      {
+        "name": "source",
+        "ordinal": 8,
+        "type_info": "Text"
+      },
+      {
+        "name": "cf_project_id",
+        "ordinal": 9,
+        "type_info": "Integer"
+      },
+      {
+        "name": "cf_version_id",
+        "ordinal": 10,
+        "type_info": "Integer"
+      },
+      {
+        "name": "server_requirement",
+        "ordinal": 11,
+        "type_info": "Text"
+      },
+      {
+        "name": "client_requirement",
+        "ordinal": 12,
+        "type_info": "Text"
+      },
+      {
+        "name": "enabled",
+        "ordinal": 13,
+        "type_info": "Integer"
+      },
+      {
+        "name": "added_at",
+        "ordinal": 14,
+        "type_info": "Integer"
+      },
+      {
+        "name": "modified_at",
+        "ordinal": 15,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 16
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      false,
+      true,
+      true,
+      false,
+      false,
+      true,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "17736852cde2d1225715ffc132c35a0e3f5d92e081021f412cf9fd03af4848d4"
+}

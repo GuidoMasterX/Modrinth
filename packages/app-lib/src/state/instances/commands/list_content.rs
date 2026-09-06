@@ -2,10 +2,11 @@ use super::sync_content_files::{
     project_type_for_file, sync_instance_content_files,
 };
 use crate::State;
+use crate::api::curseforge::normalize::Source;
 use crate::pack::install_from::{PackFileHash, PackFormat};
 use crate::state::instances::adapters::sqlite;
 use crate::state::instances::{
-    ContentEntry, ContentSet, ContentSourceKind, Instance,
+    ContentEntry, ContentSet, ContentSourceKind, Instance, InstanceFile,
     InstanceInstallCandidate, InstanceInstallTarget, InstanceLink,
 };
 use crate::state::{
@@ -640,6 +641,15 @@ async fn content_projects_for_scope(
         .into_iter()
         .map(|file| (file.hash.clone(), file))
         .collect::<HashMap<_, _>>();
+    let cf_metadata_by_hash = detect_curseforge_metadata(
+        state,
+        &resolved.instance,
+        &files,
+        &entries_by_file_id,
+        &file_info_by_hash,
+        cache_behaviour,
+    )
+    .await?;
     let installed_channels = get_installed_update_channels(
         &file_info_by_hash,
         cache_behaviour,
@@ -694,6 +704,7 @@ async fn content_projects_for_scope(
         };
         let metadata = file_info_by_hash.get(&file.sha1).cloned();
         let entry = entries_by_file_id.get(file.id.as_str()).copied();
+        let cf_metadata = cf_metadata_by_hash.get(&file.sha1);
 
         match filter {
             ContentFilter::All => {}
@@ -759,7 +770,11 @@ async fn content_projects_for_scope(
                 }),
                 locked: locked_file_ids.contains(&file.id),
                 size: file.size,
-                metadata: file_metadata_from_entry_or_cache(entry, metadata),
+                metadata: file_metadata_from_entry_or_cache(
+                    entry,
+                    metadata,
+                    cf_metadata,
+                ),
                 project_type,
                 source_kind: entry.map(|entry| entry.source_kind),
             },
@@ -1118,7 +1133,24 @@ fn content_item_project(project: &Project) -> ContentItemProject {
 fn file_metadata_from_entry_or_cache(
     entry: Option<&ContentEntry>,
     cached: Option<CachedFile>,
+    cf: Option<&crate::state::FileMetadata>,
 ) -> Option<crate::state::FileMetadata> {
+    if let Some(entry) = entry {
+        if entry.source == Source::CurseForge {
+            return Some(crate::state::FileMetadata {
+                project_id: String::new(),
+                version_id: String::new(),
+                source: entry.source,
+                cf_project_id: entry.cf_project_id,
+                cf_version_id: entry.cf_version_id,
+            });
+        }
+    }
+
+    if let Some(cf) = cf {
+        return Some(cf.clone());
+    }
+
     let project_id = entry
         .and_then(|entry| entry.project_id.clone())
         .or_else(|| cached.as_ref().map(|file| file.project_id.clone()))?;
@@ -1129,7 +1161,100 @@ fn file_metadata_from_entry_or_cache(
     Some(crate::state::FileMetadata {
         project_id,
         version_id,
+        source: Source::Modrinth,
+        cf_project_id: None,
+        cf_version_id: None,
     })
+}
+
+async fn detect_curseforge_metadata(
+    state: &State,
+    instance: &Instance,
+    files: &[InstanceFile],
+    entries_by_file_id: &HashMap<&str, &ContentEntry>,
+    file_info_by_hash: &HashMap<String, CachedFile>,
+    cache_behaviour: Option<CacheBehaviour>,
+) -> crate::Result<HashMap<String, crate::state::FileMetadata>> {
+    let untracked: Vec<&InstanceFile> = files
+        .iter()
+        .filter(|file| !file.missing)
+        .filter(|file| project_type_for_file(file).is_some())
+        .filter(|file| !file_info_by_hash.contains_key(&file.sha1))
+        .filter(|file| {
+            entries_by_file_id
+                .get(file.id.as_str())
+                .is_none_or(|entry| entry.cf_project_id.is_none())
+        })
+        .collect();
+    if untracked.is_empty() {
+        return Ok(HashMap::new());
+    }
+
+    let instance_dir = state.directories.instances_dir().join(&instance.path);
+    let mut fingerprints = Vec::with_capacity(untracked.len());
+    for file in &untracked {
+        let fingerprint =
+            tokio::fs::read(instance_dir.join(&file.relative_path))
+                .await
+                .ok()
+                .map(|bytes| crate::util::murmur2::murmur2(&bytes));
+        fingerprints.push(fingerprint);
+    }
+
+    let mut unique: Vec<u32> = fingerprints.iter().flatten().copied().collect();
+    unique.sort_unstable();
+    unique.dedup();
+    if unique.is_empty() {
+        return Ok(HashMap::new());
+    }
+    let key = unique
+        .iter()
+        .map(ToString::to_string)
+        .collect::<Vec<_>>()
+        .join(",");
+    let Some(cached) = CachedEntry::get_curseforge_fingerprints(
+        &key,
+        cache_behaviour,
+        &state.pool,
+        &state.api_semaphore,
+    )
+    .await?
+    else {
+        return Ok(HashMap::new());
+    };
+
+    let matched = cached
+        .data
+        .exact_fingerprints
+        .iter()
+        .zip(cached.data.exact_matches.iter())
+        .map(|(fingerprint, fmatch)| {
+            (*fingerprint as u32, (fmatch.id, fmatch.file.id))
+        })
+        .collect::<HashMap<u32, (i64, i64)>>();
+
+    let mut by_hash = HashMap::new();
+    for (file, fingerprint) in untracked.into_iter().zip(&fingerprints) {
+        let Some(fingerprint) = fingerprint else {
+            continue;
+        };
+        let Some((cf_project_id, cf_version_id)) =
+            matched.get(fingerprint).copied()
+        else {
+            continue;
+        };
+        by_hash.insert(
+            file.sha1.clone(),
+            crate::state::FileMetadata {
+                project_id: String::new(),
+                version_id: String::new(),
+                source: Source::CurseForge,
+                cf_project_id: Some(cf_project_id),
+                cf_version_id: Some(cf_version_id),
+            },
+        );
+    }
+    Ok(by_hash)
 }
 
 fn is_imported_modpack_scope(link: &InstanceLink) -> bool {

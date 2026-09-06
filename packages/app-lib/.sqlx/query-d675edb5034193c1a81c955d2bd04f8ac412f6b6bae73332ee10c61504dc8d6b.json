@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "\n\t\tSELECT *\n\t\tFROM instance_content_entries\n\t\tWHERE id = ?\n\t\t",
+  "query": "\n\t\t\tINSERT INTO instance_content_entries (\n\t\t\t\tid,\n\t\t\t\tinstance_id,\n\t\t\t\tcontent_set_id,\n\t\t\t\tfile_id,\n\t\t\t\tproject_type,\n\t\t\t\tproject_id,\n\t\t\t\tversion_id,\n\t\t\t\tsource_kind,\n\t\t\t\tsource,\n\t\t\t\tcf_project_id,\n\t\t\t\tcf_version_id,\n\t\t\t\tserver_requirement,\n\t\t\t\tclient_requirement,\n\t\t\t\tenabled,\n\t\t\t\tadded_at,\n\t\t\t\tmodified_at\n\t\t\t)\n\t\t\tVALUES (?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)\n\t\t\tRETURNING\n\t\t\t\tid,\n\t\t\t\tinstance_id,\n\t\t\t\tcontent_set_id,\n\t\t\t\tfile_id,\n\t\t\t\tproject_type,\n\t\t\t\tproject_id,\n\t\t\t\tversion_id,\n\t\t\t\tsource_kind,\n\t\t\t\tsource,\n\t\t\t\tcf_project_id,\n\t\t\t\tcf_version_id,\n\t\t\t\tserver_requirement,\n\t\t\t\tclient_requirement,\n\t\t\t\tenabled,\n\t\t\t\tadded_at,\n\t\t\t\tmodified_at\n\t\t\t",
   "describe": {
     "columns": [
       {
@@ -44,48 +44,48 @@
         "type_info": "Text"
       },
       {
-        "name": "server_requirement",
+        "name": "source",
         "ordinal": 8,
         "type_info": "Text"
       },
       {
-        "name": "client_requirement",
-        "ordinal": 9,
-        "type_info": "Text"
-      },
-      {
-        "name": "enabled",
-        "ordinal": 10,
-        "type_info": "Integer"
-      },
-      {
-        "name": "added_at",
-        "ordinal": 11,
-        "type_info": "Integer"
-      },
-      {
-        "name": "modified_at",
-        "ordinal": 12,
-        "type_info": "Integer"
-      },
-      {
-        "name": "source",
-        "ordinal": 13,
-        "type_info": "Text"
-      },
-      {
         "name": "cf_project_id",
-        "ordinal": 14,
+        "ordinal": 9,
         "type_info": "Integer"
       },
       {
         "name": "cf_version_id",
+        "ordinal": 10,
+        "type_info": "Integer"
+      },
+      {
+        "name": "server_requirement",
+        "ordinal": 11,
+        "type_info": "Text"
+      },
+      {
+        "name": "client_requirement",
+        "ordinal": 12,
+        "type_info": "Text"
+      },
+      {
+        "name": "enabled",
+        "ordinal": 13,
+        "type_info": "Integer"
+      },
+      {
+        "name": "added_at",
+        "ordinal": 14,
+        "type_info": "Integer"
+      },
+      {
+        "name": "modified_at",
         "ordinal": 15,
         "type_info": "Integer"
       }
     ],
     "parameters": {
-      "Right": 1
+      "Right": 15
     },
     "nullable": [
       false,
@@ -97,14 +97,14 @@
       true,
       false,
       false,
-      false,
-      false,
-      false,
-      false,
-      false,
       true,
-      true
+      true,
+      false,
+      false,
+      false,
+      false,
+      false
     ]
   },
-  "hash": "eff7928f6ef38c2fa7d59897814a157bbe19a6f443e34c1452119f2bb6a3e1e1"
+  "hash": "d675edb5034193c1a81c955d2bd04f8ac412f6b6bae73332ee10c61504dc8d6b"
 }
