@@ -4,13 +4,12 @@ import { Button, defineMessages, injectNotificationManager, Input, useVIntl } fr
 import { openUrl } from '@tauri-apps/plugin-opener'
 import { ref, watch } from 'vue'
 
-import { useCurseforgeKey } from '@/composables/use-curseforge-key.ts'
+import { setCurseforgeKey } from '@/composables/use-curseforge-key.ts'
 import { get, set } from '@/helpers/settings.ts'
 
 const { formatMessage } = useVIntl()
 const { handleError } = injectNotificationManager()
 const settings = ref(await get())
-const { setCurseforgeKey } = useCurseforgeKey()
 
 const messages = defineMessages({
 	title: {

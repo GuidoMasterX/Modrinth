@@ -282,7 +282,6 @@ import relativeTime from 'dayjs/plugin/relativeTime'
 import { computed, ref, shallowRef, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
-import { ArrowLeftRightIcon } from '@/assets/icons/index.js'
 import InstanceIndicator from '@/components/ui/InstanceIndicator.vue'
 import {
 	fetchCachedServerStatus,
@@ -300,12 +299,7 @@ import {
 	get_version,
 	get_version_many,
 } from '@/helpers/cache.js'
-import {
-	getCfProject,
-	getCfVersions,
-	isCfProjectId,
-	parseCfId,
-} from '@/helpers/curseforge-project'
+import { getCfProject, getCfVersions, isCfProjectId, parseCfId } from '@/helpers/curseforge-project'
 import {
 	get as getInstance,
 	get_projects as getInstanceProjects,
@@ -609,7 +603,11 @@ const installButtonIconClass = computed(() =>
 const serverProjectHeaderMoreActions = computed(() => [
 	{
 		id: 'open-in-browser',
-		label: formatMessage(isCfProjectId(data.value?.id) ? commonMessages.openInBrowserButton : commonMessages.openInModrinthButton),
+		label: formatMessage(
+			isCfProjectId(data.value?.id)
+				? commonMessages.openInBrowserButton
+				: commonMessages.openInModrinthButton,
+		),
 		icon: ExternalIcon,
 		action: openProjectInBrowser,
 	},
@@ -643,7 +641,11 @@ const projectHeaderMoreActions = computed(() => [
 	},
 	{
 		id: 'open-in-browser',
-		label: formatMessage(isCfProjectId(data.value?.id) ? commonMessages.openInBrowserButton : commonMessages.openInModrinthButton),
+		label: formatMessage(
+			isCfProjectId(data.value?.id)
+				? commonMessages.openInBrowserButton
+				: commonMessages.openInModrinthButton,
+		),
 		icon: ExternalIcon,
 		action: openProjectInBrowser,
 	},
@@ -732,7 +734,9 @@ async function switchSource() {
 			`?query=${encodeURIComponent(project.title)}&limit=10`,
 			'must_revalidate',
 		).catch(handleError)
-		const match = results?.hits?.find((hit) => hit.name?.toLowerCase() === project.title.toLowerCase())
+		const match = results?.hits?.find(
+			(hit) => hit.name?.toLowerCase() === project.title.toLowerCase(),
+		)
 		if (match) {
 			await router.push(`/project/${match.project_id}`)
 		} else {
@@ -743,7 +747,9 @@ async function switchSource() {
 			`?gameId=432&searchFilter=${encodeURIComponent(project.title)}&pageSize=10`,
 			'must_revalidate',
 		).catch(handleError)
-		const match = results?.data?.find((hit) => hit.name?.toLowerCase() === project.title.toLowerCase())
+		const match = results?.data?.find(
+			(hit) => hit.name?.toLowerCase() === project.title.toLowerCase(),
+		)
 		if (match) {
 			await router.push(`/project/cf-${match.id}`)
 		} else {
@@ -830,7 +836,7 @@ async function fetchProjectData() {
 	fetchDeferredServerData(project)
 }
 
-async function fetchCfProjectData(requestedId: string) {
+async function fetchCfProjectData(requestedId) {
 	const [project, cfVersions] = await Promise.all([
 		getCfProject(requestedId).catch(handleError),
 		getCfVersions(requestedId).catch(handleError),
@@ -1041,7 +1047,11 @@ const handleRightClick = (event) => {
 		{ type: 'divider' },
 		{
 			id: 'open_link',
-			label: formatMessage(isCfProjectId(data.value?.id) ? commonMessages.openInBrowserButton : commonMessages.openInModrinthButton),
+			label: formatMessage(
+				isCfProjectId(data.value?.id)
+					? commonMessages.openInBrowserButton
+					: commonMessages.openInModrinthButton,
+			),
 			icon: GlobeIcon,
 			action: () => openProjectLink(project),
 		},
@@ -1055,7 +1065,9 @@ const handleRightClick = (event) => {
 }
 const getProjectLink = (project) =>
 	isCfProjectId(project.id)
-		? project.body_url || project.website_url || `https://www.curseforge.com/projects/${project.slug}`
+		? project.body_url ||
+			project.website_url ||
+			`https://www.curseforge.com/projects/${project.slug}`
 		: `https://modrinth.com/${project.project_type}/${project.slug}`
 const openProjectLink = (project) => openUrl(getProjectLink(project))
 const copyProjectLink = (project) => navigator.clipboard.writeText(getProjectLink(project))

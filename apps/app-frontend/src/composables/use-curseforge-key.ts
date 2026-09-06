@@ -1,6 +1,6 @@
 import { ref } from 'vue'
 
-import { getSettings } from '@/helpers/settings'
+import { get as getSettings } from '@/helpers/settings'
 
 const curseforgeApiKey = ref<string | null>(null)
 let loaded = false
