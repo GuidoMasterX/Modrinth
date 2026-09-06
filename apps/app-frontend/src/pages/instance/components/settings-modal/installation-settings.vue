@@ -19,6 +19,7 @@ import { useManagedContentPolicy } from '@/composables/instances/use-managed-con
 import { useAppSettings } from '@/composables/use-app-settings.ts'
 import { trackEvent } from '@/helpers/analytics'
 import { get_project_versions, get_version } from '@/helpers/cache'
+import { getCfVersions, parseCfId } from '@/helpers/curseforge-project'
 import {
 	install_existing_instance,
 	install_pack_to_existing_instance,
@@ -121,13 +122,16 @@ const isModrinthLinkedModpack = computed(
 			!!instance.value.link.modpack_version_id),
 )
 const isImportedModpack = computed(() => instance.value.link?.type === 'imported_modpack')
+const isCurseforgeLinkedModpack = computed(() => instance.value.link?.type === 'curseforge_modpack')
 const isSharedInstanceManagedModpack = managedContentPolicy.isManagedModpack
 const canUnlinkSharedInstance = managedContentPolicy.canUnlink
 
 const modpackInfoQuery = useQuery({
 	queryKey: computed(() => ['linkedModpackInfo', instance.value.id]),
 	queryFn: () => get_linked_modpack_info(instance.value.id, 'must_revalidate'),
-	enabled: computed(() => isModrinthLinkedModpack.value && !offline),
+	enabled: computed(
+		() => (isModrinthLinkedModpack.value || isCurseforgeLinkedModpack.value) && !offline,
+	),
 })
 const modpackInfo = modpackInfoQuery.data
 
@@ -233,6 +237,7 @@ provideInstallationSettings({
 	isLinked: computed(
 		() =>
 			isModrinthLinkedModpack.value ||
+			isCurseforgeLinkedModpack.value ||
 			isImportedModpack.value ||
 			instance.value.link?.type === 'server_project' ||
 			isSharedInstanceManagedModpack.value,
@@ -439,7 +444,9 @@ provideInstallationSettings({
 		debug('fetchModpackVersions: called', {
 			projectId: instance.value.link?.project_id,
 		})
-		const versions = await get_project_versions(instance.value.link!.project_id!).catch(handleError)
+		const versions = isCurseforgeLinkedModpack.value
+			? await getCfVersions(parseCfId(instance.value.link!.project_id!))
+			: await get_project_versions(instance.value.link!.project_id!).catch(handleError)
 		debug('fetchModpackVersions: done', { count: versions?.length ?? 0 })
 		return (versions ?? []) as Labrinth.Versions.v2.Version[]
 	},
@@ -476,7 +483,7 @@ provideInstallationSettings({
 	isApp: true,
 	showModpackVersionActions: computed(
 		() =>
-			isModrinthLinkedModpack.value &&
+			(isModrinthLinkedModpack.value || isCurseforgeLinkedModpack.value) &&
 			!isMinecraftServer.value &&
 			!isSharedInstanceManagedModpack.value,
 	),

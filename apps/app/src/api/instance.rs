@@ -182,6 +182,10 @@ pub enum InstanceLink {
         version_number: Option<String>,
         filename: Option<String>,
     },
+    CurseforgeModpack {
+        project_id: i64,
+        file_id: i64,
+    },
     ModrinthHosting {
         server_id: String,
         instance_ids: Vec<String>,
@@ -377,6 +381,13 @@ impl InstanceLink {
                     .collect(),
                 active_instance_id: active_instance_id.map(|id| id.to_string()),
             }),
+            CoreInstanceLink::CurseforgeModpack {
+                project_id,
+                file_id,
+            } => Some(Self::CurseforgeModpack {
+                project_id,
+                file_id,
+            }),
             CoreInstanceLink::SharedInstance {
                 modpack_project_id,
                 modpack_version_id,
@@ -456,6 +467,13 @@ impl InstanceLink {
                     })
                     .transpose()?,
             }),
+            Self::CurseforgeModpack {
+                project_id,
+                file_id,
+            } => Ok(CoreInstanceLink::CurseforgeModpack {
+                project_id,
+                file_id,
+            }),
             Self::SharedInstance {
                 modpack_project_id,
                 modpack_version_id,
@@ -503,6 +521,7 @@ fn edit_to_core(edit_instance: EditInstance) -> Result<CoreEditInstance> {
         last_played: None,
         submitted_time_played: None,
         recent_time_played: None,
+        preferred_source: None,
     })
 }
 

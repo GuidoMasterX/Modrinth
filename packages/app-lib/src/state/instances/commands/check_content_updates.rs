@@ -99,6 +99,15 @@ async fn check_content_updates_with_cache_behaviours(
         .into_iter()
         .map(|file| (file.hash.clone(), file))
         .collect::<HashMap<_, _>>();
+    let curseforge_updates = check_curseforge_content_updates(
+        instance.update_channel,
+        &content_set.game_version,
+        &files,
+        &entries_by_file_id,
+        &state.pool,
+        &state.api_semaphore,
+    )
+    .await?;
     let candidates = files
         .into_iter()
         .filter_map(|file| {
@@ -116,7 +125,7 @@ async fn check_content_updates_with_cache_behaviours(
         })
         .collect::<Vec<_>>();
 
-    if candidates.is_empty() {
+    if candidates.is_empty() && curseforge_updates.is_empty() {
         return Ok(Vec::new());
     }
 
@@ -180,6 +189,87 @@ async fn check_content_updates_with_cache_behaviours(
             output.push(ContentUpdate {
                 relative_path: candidate.file.relative_path,
                 current_version_id: candidate.current_version_id,
+                update_version_id,
+            });
+        }
+    }
+    output.extend(curseforge_updates);
+
+    Ok(output)
+}
+
+async fn check_curseforge_content_updates(
+    update_channel: ReleaseChannel,
+    game_version: &str,
+    files: &[InstanceFile],
+    entries_by_file_id: &HashMap<&str, &ContentEntry>,
+    pool: &sqlx::SqlitePool,
+    api_semaphore: &crate::util::fetch::FetchSemaphore,
+) -> crate::Result<Vec<ContentUpdate>> {
+    use crate::api::curseforge::normalize::{Source, parse_cf_date};
+
+    let mut project_entries: HashMap<i64, Vec<(&InstanceFile, &ContentEntry)>> =
+        HashMap::new();
+    for file in files {
+        if let Some(entry) = entries_by_file_id.get(file.id.as_str()) {
+            if entry.source == Source::CurseForge {
+                if let Some(cf_project_id) = entry.cf_project_id {
+                    project_entries
+                        .entry(cf_project_id)
+                        .or_default()
+                        .push((file, entry));
+                }
+            }
+        }
+    }
+
+    let mut output = Vec::new();
+    for (cf_project_id, pairs) in project_entries {
+        let cf_files = match crate::api::curseforge::api::get_mod_files(
+            cf_project_id,
+            Some(game_version),
+            api_semaphore,
+            pool,
+        )
+        .await
+        {
+            Ok(files) => files,
+            Err(err) => {
+                tracing::warn!(
+                    "Failed to check CurseForge updates for project {cf_project_id}: {err}"
+                );
+                continue;
+            }
+        };
+        let latest = cf_files
+            .iter()
+            .filter(|file| {
+                file.game_versions
+                    .iter()
+                    .any(|version| version == game_version)
+            })
+            .max_by_key(|file| parse_cf_date(&file.file_date));
+        let Some(latest) = latest else {
+            continue;
+        };
+        for (file, entry) in pairs {
+            let Some(cf_version_id) = entry.cf_version_id else {
+                continue;
+            };
+            if latest.id == cf_version_id {
+                continue;
+            }
+            let update_version_id = format!("cf-{}", latest.id);
+            content_rows::upsert_content_update_check(
+                &entry.id,
+                update_channel,
+                Some(&update_version_id),
+                pool,
+            )
+            .await?;
+            output.push(ContentUpdate {
+                relative_path: file.relative_path.clone(),
+                current_version_id: format!("cf-{cf_version_id}"),
                 update_version_id,
             });
         }

@@ -130,7 +130,9 @@ import { useAppEvent } from '@/composables/use-app-event'
 import { type FeatureFlag, useAppSettings } from '@/composables/use-app-settings.ts'
 import { trackEvent } from '@/helpers/analytics'
 import { get_project_versions, get_version, get_version_many } from '@/helpers/cache.js'
+import { getCfVersions, isCfProjectId, parseCfId } from '@/helpers/curseforge-project'
 import {
+	add_project_from_curseforge_file,
 	add_project_from_path,
 	edit,
 	get_linked_modpack_content,
@@ -143,6 +145,7 @@ import {
 	toggle_disable_project,
 	update_all,
 	update_managed_modrinth_version,
+	update_project,
 } from '@/helpers/instance'
 import { type InstanceContentData, loadInstanceContentData } from '@/helpers/instance-content'
 import { get as getSettings, set as setSettings } from '@/helpers/settings'
@@ -654,6 +657,11 @@ function mergeVersionIntoList(
 }
 
 async function getUpdaterProjectVersions(projectId: string, pinnedVersionId?: string) {
+	if (isCfProjectId(projectId)) {
+		const versions = await getCfVersions(parseCfId(projectId))
+		return sortVersionsByPublishedDate(versions)
+	}
+
 	let fetchError: unknown = null
 	let versions = (await get_project_versions(projectId, 'bypass').catch((err) => {
 		fetchError = err
@@ -977,11 +985,15 @@ async function updateProject(mod: ContentItem) {
 
 	try {
 		const updateVersionId = mod.update_version_id!
-		await switch_project_version_with_dependencies(
-			instance.value.id,
-			mod.file_path,
-			updateVersionId,
-		)
+		if (isCfProjectId(mod.project?.id)) {
+			await update_project(instance.value.id, mod.file_path)
+		} else {
+			await switch_project_version_with_dependencies(
+				instance.value.id,
+				mod.file_path,
+				updateVersionId,
+			)
+		}
 
 		trackEvent('InstanceProjectUpdate', {
 			loader: instance.value.loader,
@@ -1008,7 +1020,16 @@ async function switchProjectVersion(mod: ContentItem, version: Labrinth.Versions
 	const oldPath = mod.file_path
 
 	try {
-		await switch_project_version_with_dependencies(instance.value.id, oldPath, version.id)
+		if (isCfProjectId(mod.project?.id)) {
+			await add_project_from_curseforge_file(
+				instance.value.id,
+				parseCfId(mod.project.id),
+				parseCfId(version.id),
+				'update',
+			)
+		} else {
+			await switch_project_version_with_dependencies(instance.value.id, oldPath, version.id)
+		}
 
 		trackEvent('InstanceProjectUpdate', {
 			loader: instance.value.loader,
@@ -1333,7 +1354,7 @@ async function fetchAndSpliceVersion(
 }
 
 async function handleVersionSelect(version: Labrinth.Versions.v2.Version) {
-	if (version.changelog != null) return
+	if (version.changelog != null || isCfProjectId(version.id)) return
 	const requestId = activeUpdateRequestId.value
 	loadingChangelog.value = true
 	await fetchAndSpliceVersion(
@@ -1348,7 +1369,7 @@ async function handleVersionSelect(version: Labrinth.Versions.v2.Version) {
 }
 
 async function handleVersionHover(version: Labrinth.Versions.v2.Version) {
-	if (version.changelog != null) return
+	if (version.changelog != null || isCfProjectId(version.id)) return
 	await fetchAndSpliceVersion(version.id, undefined, undefined, activeUpdateRequestId.value)
 }
 
@@ -1623,7 +1644,9 @@ provideContentManager({
 	runManagedContentPrimaryAction:
 		instance.value.shared_instance?.role === 'member'
 			? instancePage.reviewSharedInstanceUpdate
-			: instance.value.link?.type === 'modrinth_modpack' && !isQuarantined.value
+			: (['modrinth_modpack', 'curseforge_modpack'] as const).includes(
+						instance.value.link?.type as 'modrinth_modpack' | 'curseforge_modpack',
+				  ) && !isQuarantined.value
 				? handleModpackUpdate
 				: undefined,
 	viewManagedContent: handleManagedContent,

@@ -502,30 +502,71 @@ pub(crate) async fn install_zipped_mrpack_files_with_reporter(
             modpack_details.clone(),
         )
         .await?;
-    reporter
-        .set_context(
-            InstallErrorContext::new("read modpack manifest")
-                .maybe_project_id(project_id.clone())
-                .maybe_version_id(version_id.clone())
-                .source_path(source_path.clone())
-                .entry_path("modrinth.index.json")
-                .build(),
+    let pack: PackFormat = if zip_reader
+        .file()
+        .entries()
+        .iter()
+        .any(|f| matches!(f.filename().as_str(), Ok("modrinth.index.json")))
+    {
+        reporter
+            .set_context(
+                InstallErrorContext::new("read modpack manifest")
+                    .maybe_project_id(project_id.clone())
+                    .maybe_version_id(version_id.clone())
+                    .source_path(source_path.clone())
+                    .entry_path("modrinth.index.json")
+                    .build(),
+            )
+            .await?;
+
+        // Extract index of modrinth.index.json
+        let manifest_idx = zip_reader
+            .file()
+            .entries()
+            .iter()
+            .position(|f| {
+                matches!(f.filename().as_str(), Ok("modrinth.index.json"))
+            })
+            .expect("checked above");
+
+        let mut manifest = String::new();
+        manifest
+            .push_str(&zip_reader.read_entry_to_string(manifest_idx).await?);
+
+        serde_json::from_str(&manifest)?
+    } else {
+        reporter
+            .set_context(
+                InstallErrorContext::new("read modpack manifest")
+                    .maybe_project_id(project_id.clone())
+                    .maybe_version_id(version_id.clone())
+                    .source_path(source_path.clone())
+                    .entry_path("manifest.json")
+                    .build(),
+            )
+            .await?;
+
+        // CurseForge modpack manifest fallback
+        let Some(manifest_idx) =
+            zip_reader.file().entries().iter().position(|f| {
+                matches!(f.filename().as_str(), Ok("manifest.json"))
+            })
+        else {
+            return Err(crate::Error::from(crate::ErrorKind::InputError(
+                "No pack manifest found in mrpack".to_string(),
+            )));
+        };
+
+        let mut manifest = String::new();
+        manifest
+            .push_str(&zip_reader.read_entry_to_string(manifest_idx).await?);
+
+        super::install_curseforge::pack_from_manifest(
+            &manifest,
+            description.curseforge.map(|(_, file_id)| file_id),
         )
-        .await?;
-
-    // Extract index of modrinth.index.json
-    let Some(manifest_idx) = zip_reader.file().entries().iter().position(|f| {
-        matches!(f.filename().as_str(), Ok("modrinth.index.json"))
-    }) else {
-        return Err(crate::Error::from(crate::ErrorKind::InputError(
-            "No pack manifest found in mrpack".to_string(),
-        )));
+        .await?
     };
-
-    let mut manifest = String::new();
-    manifest.push_str(&zip_reader.read_entry_to_string(manifest_idx).await?);
-
-    let pack: PackFormat = serde_json::from_str(&manifest)?;
     if &*pack.game != "minecraft" {
         return Err(crate::ErrorKind::InputError(
             "Pack does not support Minecraft".to_string(),
@@ -570,60 +611,63 @@ pub(crate) async fn install_zipped_mrpack_files_with_reporter(
     // Cache the modpack file hashes for later filtering of user-added content
     // Includes both manifest file hashes and computed hashes for override files
     if let Some(ref version_id) = version_id {
-        let mut file_hashes: Vec<String> = pack
-            .files
-            .iter()
-            .filter_map(|f| f.hashes.get(&PackFileHash::Sha1).cloned())
-            .collect();
+        if description.curseforge.is_none() {
+            let mut file_hashes: Vec<String> = pack
+                .files
+                .iter()
+                .filter_map(|f| f.hashes.get(&PackFileHash::Sha1).cloned())
+                .collect();
 
-        // Also hash files from overrides folders (these aren't in modrinth.index.json)
-        let override_entries: Vec<usize> = zip_reader
-            .file()
-            .entries()
-            .iter()
-            .enumerate()
-            .filter_map(|(index, entry)| {
-                let filename = entry.filename().as_str().ok()?;
-                let is_override = (filename.starts_with("overrides/")
-                    || filename.starts_with("client-overrides/")
-                    || filename.starts_with("server-overrides/"))
-                    && !filename.ends_with('/');
-                is_override.then_some(index)
-            })
-            .collect();
-
-        for index in override_entries {
-            let (_, hash) = zip_reader.hash_entry(index, None).await?;
-            file_hashes.push(hash);
-        }
-
-        let project_ids: Vec<String> = pack
-            .files
-            .iter()
-            .filter_map(|f| {
-                f.downloads.iter().find_map(|url| {
-                    let parts: Vec<&str> = url.split('/').collect();
-                    let data_idx = parts.iter().position(|&p| p == "data")?;
-                    parts.get(data_idx + 1).map(|s| s.to_string())
+            // Also hash files from overrides folders (these aren't in modrinth.index.json)
+            let override_entries: Vec<usize> = zip_reader
+                .file()
+                .entries()
+                .iter()
+                .enumerate()
+                .filter_map(|(index, entry)| {
+                    let filename = entry.filename().as_str().ok()?;
+                    let is_override = (filename.starts_with("overrides/")
+                        || filename.starts_with("client-overrides/")
+                        || filename.starts_with("server-overrides/"))
+                        && !filename.ends_with('/');
+                    is_override.then_some(index)
                 })
-            })
-            .collect::<std::collections::HashSet<_>>()
-            .into_iter()
-            .collect();
+                .collect();
 
-        tracing::info!(
-            "Caching {} modpack file hashes and {} project IDs for version {}",
-            file_hashes.len(),
-            project_ids.len(),
-            version_id
-        );
-        CachedEntry::cache_modpack_files(
-            version_id,
-            file_hashes,
-            project_ids,
-            &state.pool,
-        )
-        .await?;
+            for index in override_entries {
+                let (_, hash) = zip_reader.hash_entry(index, None).await?;
+                file_hashes.push(hash);
+            }
+
+            let project_ids: Vec<String> = pack
+                .files
+                .iter()
+                .filter_map(|f| {
+                    f.downloads.iter().find_map(|url| {
+                        let parts: Vec<&str> = url.split('/').collect();
+                        let data_idx =
+                            parts.iter().position(|&p| p == "data")?;
+                        parts.get(data_idx + 1).map(|s| s.to_string())
+                    })
+                })
+                .collect::<std::collections::HashSet<_>>()
+                .into_iter()
+                .collect();
+
+            tracing::info!(
+                "Caching {} modpack file hashes and {} project IDs for version {}",
+                file_hashes.len(),
+                project_ids.len(),
+                version_id
+            );
+            CachedEntry::cache_modpack_files(
+                version_id,
+                file_hashes,
+                project_ids,
+                &state.pool,
+            )
+            .await?;
+        }
     } else {
         tracing::warn!(
             "No version_id available, skipping modpack file hash caching"
@@ -917,7 +961,7 @@ pub(crate) async fn install_zipped_mrpack_files_with_reporter(
                             .reporter
                             .preserve_failure_context(
                                 context.clone(),
-                                crate::state::instances::commands::record_project_file(
+                                crate::state::instances::commands::                                record_project_file(
                                     &content_context.instance_id,
                                     project.path.as_str(),
                                     hash,
@@ -934,7 +978,18 @@ pub(crate) async fn install_zipped_mrpack_files_with_reporter(
                                     file_info.map(|file| {
                                         file.version_id.as_str()
                                     }),
-                                    Default::default(),
+                                    match (
+                                        project.cf_project_id,
+                                        project.cf_file_id,
+                                    ) {
+                                        (Some(cf_project_id), Some(cf_file_id)) => {
+                                            crate::state::instances::commands::EntryOrigin::curseforge(
+                                                cf_project_id,
+                                                Some(cf_file_id),
+                                            )
+                                        }
+                                        _ => Default::default(),
+                                    },
                                     state,
                                 )
                                 .await,
@@ -1173,10 +1228,12 @@ fn pack_source_path(file: &CreatePackFile) -> String {
 }
 
 fn modpack_source_kind(version_id: Option<&str>) -> ContentSourceKind {
-    if version_id.is_some() {
-        ContentSourceKind::ModrinthModpack
-    } else {
-        ContentSourceKind::ImportedModpack
+    match version_id {
+        Some(version_id) if version_id.starts_with("cf-") => {
+            ContentSourceKind::CurseforgeModpack
+        }
+        Some(_) => ContentSourceKind::ModrinthModpack,
+        None => ContentSourceKind::ImportedModpack,
     }
 }
 

@@ -575,6 +575,8 @@ pub async fn create_mrpack_json(
                 env: Some(env),
                 downloads,
                 file_size,
+                cf_project_id: None,
+                cf_file_id: None,
             }))
         })
         .collect::<crate::Result<Vec<PackFile>>>()?;

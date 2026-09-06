@@ -4,9 +4,13 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     State,
+    api::curseforge::normalize::Source,
     install::{InstallPhaseDetails, InstallProgressReporter},
     prelude::ModLoader,
-    state::{AppliedContentSetPatch, EditInstance, InstanceInstallStage},
+    state::{
+        AppliedContentSetPatch, EditInstance, InstanceInstallStage,
+        InstanceLink,
+    },
     util::{fetch::fetch, io},
 };
 
@@ -30,6 +34,10 @@ pub struct MinecraftInstanceModLoader {
 #[serde(rename_all = "camelCase")]
 pub struct InstalledModpack {
     pub thumbnail_url: Option<String>,
+    #[serde(rename = "addonID")]
+    pub addon_id: Option<i64>,
+    #[serde(rename = "fileID")]
+    pub file_id: Option<i64>,
 }
 
 // Check if folder has a minecraftinstance.json that parses
@@ -69,6 +77,24 @@ pub async fn import_curseforge(
     );
 
     let state = State::get().await?;
+
+    let cf_modpack_link = match &minecraft_instance.installed_modpack {
+        Some(InstalledModpack {
+            addon_id: Some(project_id),
+            file_id: Some(file_id),
+            ..
+        }) => Some(InstanceLink::CurseforgeModpack {
+            project_id: *project_id,
+            file_id: *file_id,
+        }),
+        _ => None,
+    };
+    let preferred_source = if cf_modpack_link.is_some() {
+        Some(Source::CurseForge)
+    } else {
+        None
+    };
+
     // Recache Curseforge Icon if it exists
     let mut icon = None;
 
@@ -76,6 +102,7 @@ pub async fn import_curseforge(
         icon = recache_icon(icon_path).await?;
     } else if let Some(InstalledModpack {
         thumbnail_url: Some(thumbnail_url),
+        ..
     }) = minecraft_instance.installed_modpack.clone()
     {
         let icon_bytes = fetch(
@@ -136,6 +163,8 @@ pub async fn import_curseforge(
                 icon_path: Some(
                     icon.clone().map(|x| x.to_string_lossy().to_string()),
                 ),
+                link: cf_modpack_link.clone(),
+                preferred_source,
                 content_set_patch: Some(AppliedContentSetPatch {
                     source_kind: None,
                     game_version: Some(game_version.clone()),
@@ -159,6 +188,7 @@ pub async fn import_curseforge(
                 icon_path: Some(
                     icon.clone().map(|x| x.to_string_lossy().to_string()),
                 ),
+                preferred_source,
                 content_set_patch: Some(AppliedContentSetPatch {
                     source_kind: None,
                     game_version: Some(minecraft_instance.game_version.clone()),

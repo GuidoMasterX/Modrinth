@@ -89,6 +89,11 @@ export type InstanceLink = InstanceLinkIdentity &
 				version_id: ModrinthId
 		  }
 		| {
+				type: 'curseforge_modpack'
+				project_id: ModrinthId
+				version_id: ModrinthId
+		  }
+		| {
 				type: 'server_project'
 				project_id: ModrinthId
 		  }

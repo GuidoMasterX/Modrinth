@@ -139,6 +139,28 @@ impl TryFrom<InstanceLinkRow> for InstanceLink {
                     "hosting_active_instance_id",
                 )?,
             }),
+            "curseforge_modpack" => Ok(Self::CurseforgeModpack {
+                project_id: required(
+                    row.modrinth_project_id,
+                    "modrinth_project_id",
+                )?
+                .parse()
+                .map_err(|_| {
+                    crate::Error::from(crate::ErrorKind::InputError(
+                        "Invalid CurseForge modpack project id".to_string(),
+                    ))
+                })?,
+                file_id: required(
+                    row.modrinth_version_id,
+                    "modrinth_version_id",
+                )?
+                .parse()
+                .map_err(|_| {
+                    crate::Error::from(crate::ErrorKind::InputError(
+                        "Invalid CurseForge modpack file id".to_string(),
+                    ))
+                })?,
+            }),
             "imported_modpack" => Ok(Self::ImportedModpack {
                 project_id: row.modrinth_project_id,
                 version_id: row.modrinth_version_id,
@@ -1690,6 +1712,23 @@ fn instance_link_columns(
             hosting_instance_ids: Some(serde_json::to_string(instance_ids)?),
             hosting_active_instance_id: active_instance_id
                 .map(|value| value.to_string()),
+            imported_name: None,
+            imported_version_number: None,
+            imported_filename: None,
+        }),
+        InstanceLink::CurseforgeModpack {
+            project_id,
+            file_id,
+        } => Ok(InstanceLinkColumns {
+            link_kind: "curseforge_modpack",
+            modrinth_project_id: Some(project_id.to_string()),
+            modrinth_version_id: Some(file_id.to_string()),
+            server_project_id: None,
+            content_project_id: None,
+            content_version_id: None,
+            hosting_server_id: None,
+            hosting_instance_ids: None,
+            hosting_active_instance_id: None,
             imported_name: None,
             imported_version_number: None,
             imported_filename: None,

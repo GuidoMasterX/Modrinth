@@ -41,6 +41,7 @@ pub struct EditInstance {
     pub last_played: Option<Option<DateTime<Utc>>>,
     pub submitted_time_played: Option<u64>,
     pub recent_time_played: Option<u64>,
+    pub preferred_source: Option<crate::api::curseforge::normalize::Source>,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
@@ -236,6 +237,9 @@ fn apply_instance_patch(
     }
     if let Some(update_channel) = patch.update_channel {
         instance.update_channel = update_channel;
+    }
+    if let Some(preferred_source) = patch.preferred_source {
+        instance.preferred_source = preferred_source;
     }
     if let Some(last_played) = &patch.last_played {
         instance.last_played = *last_played;

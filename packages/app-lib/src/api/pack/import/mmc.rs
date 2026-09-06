@@ -213,6 +213,7 @@ pub async fn import_mmc(
         version_id: None,
         instance_id: instance_id.to_string(),
         source_filename: None,
+        curseforge: None,
     };
 
     let mut minecraft_folder = mmc_instance_path.join("minecraft");

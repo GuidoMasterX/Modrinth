@@ -1334,6 +1334,9 @@
   "app.project.more-options": {
     "message": "More options"
   },
+  "app.project.switch-source-not-found": {
+    "message": "No matching project found on the other source."
+  },
   "app.project.tab.description": {
     "message": "Description"
   },
@@ -1354,6 +1357,12 @@
   },
   "app.project.versions.already-installed": {
     "message": "Already installed"
+  },
+  "app.project.view-on-curseforge": {
+    "message": "View on CurseForge"
+  },
+  "app.project.view-on-modrinth": {
+    "message": "View on Modrinth"
   },
   "app.quick-instance-switcher.actions.label": {
     "message": "Instance actions"

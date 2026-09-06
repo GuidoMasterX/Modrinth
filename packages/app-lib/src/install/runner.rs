@@ -13,6 +13,7 @@ use super::shared_instance::{
 };
 use super::{diagnostics, recovery, store};
 use crate::ErrorKind;
+use crate::api::pack::install_curseforge::generate_pack_from_curseforge;
 use crate::api::pack::install_from::{
     CreatePackLocation, generate_pack_from_file,
     generate_pack_from_version_id_with_reporter, get_instance_from_pack,
@@ -1344,6 +1345,30 @@ pub(super) async fn install_pack(
             )
             .await?
         }
+        CreatePackLocation::FromCurseforge {
+            cf_project_id,
+            cf_file_id,
+            title,
+            icon_url,
+        } => {
+            reporter
+                .set_context(
+                    InstallErrorContext::new("download modpack file")
+                        .project_id(format!("cf-{cf_project_id}"))
+                        .version_id(format!("cf-{cf_file_id}"))
+                        .build(),
+                )
+                .await?;
+            generate_pack_from_curseforge(
+                cf_project_id,
+                cf_file_id,
+                title,
+                icon_url,
+                instance_id.clone(),
+                reason,
+            )
+            .await?
+        }
         CreatePackLocation::FromFile { path } => {
             reporter
                 .set_context(
@@ -1512,6 +1537,9 @@ fn set_initial_display(job_state: &mut InstallJobState) {
                 CreatePackLocation::FromVersionId {
                     title, icon_url, ..
                 } => Some((title.clone(), icon_url.clone())),
+                CreatePackLocation::FromCurseforge {
+                    title, icon_url, ..
+                } => Some((title.clone(), icon_url.clone())),
                 CreatePackLocation::FromFile { path } => {
                     Some((get_local_pack_instance(path).name, None))
                 }
@@ -1639,6 +1667,16 @@ pub(super) fn modpack_details(
         } => InstallPhaseDetails::Modpack {
             project_id: Some(project_id.clone()),
             version_id: Some(version_id.clone()),
+            title: Some(title.clone()),
+        },
+        CreatePackLocation::FromCurseforge {
+            cf_project_id,
+            cf_file_id,
+            title,
+            ..
+        } => InstallPhaseDetails::Modpack {
+            project_id: Some(format!("cf-{cf_project_id}")),
+            version_id: Some(format!("cf-{cf_file_id}")),
             title: Some(title.clone()),
         },
         CreatePackLocation::FromFile { .. } => InstallPhaseDetails::Modpack {

@@ -294,6 +294,7 @@ fn server_play_project_id(link: &InstanceLink) -> Option<&String> {
         | InstanceLink::ModrinthModpack { .. }
         | InstanceLink::ModrinthHosting { .. }
         | InstanceLink::ImportedModpack { .. }
+        | InstanceLink::CurseforgeModpack { .. }
         | InstanceLink::SharedInstance { .. } => None,
     }
 }
@@ -342,6 +343,7 @@ pub async fn try_update_playtime_by_instance_id(
             | InstanceLink::ServerProject { .. }
             | InstanceLink::ModrinthHosting { .. }
             | InstanceLink::ImportedModpack { .. }
+            | InstanceLink::CurseforgeModpack { .. }
             | InstanceLink::SharedInstance { .. } => None,
         };
         let playtime_update_json = json!({

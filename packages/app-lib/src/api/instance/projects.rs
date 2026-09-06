@@ -412,6 +412,31 @@ pub async fn update_managed_modrinth_version(
     })?;
     ensure_metadata_content_unlocked(&metadata)?;
 
+    if let crate::state::InstanceLink::CurseforgeModpack {
+        project_id, ..
+    } = &metadata.link
+    {
+        let cf_file_id = version_id
+            .trim_start_matches("cf-")
+            .parse::<i64>()
+            .map_err(|_| {
+                crate::ErrorKind::InputError(format!(
+                    "Invalid CurseForge file id {version_id}"
+                ))
+            })?;
+        return crate::install::install_pack_to_existing_instance(
+            metadata.instance.id,
+            crate::api::pack::install_from::CreatePackLocation::FromCurseforge {
+                cf_project_id: *project_id,
+                cf_file_id,
+                title: metadata.instance.name.clone(),
+                icon_url: None,
+            },
+            None,
+        )
+        .await;
+    }
+
     let post_install_edit = match &metadata.link {
         crate::state::InstanceLink::ServerProjectModpack {
             server_project_id,
@@ -470,40 +495,64 @@ pub async fn repair_managed_modrinth(
     })?;
     ensure_metadata_content_unlocked(&metadata)?;
 
-    let post_install_edit = match &metadata.link {
-        crate::state::InstanceLink::ServerProjectModpack { .. } => {
-            Some(crate::install::InstallPostInstallEdit {
-                name: Some(metadata.instance.name.clone()),
-                icon_path: Some(metadata.instance.icon_path.clone()),
-                link: Some(metadata.link.clone()),
-            })
-        }
-        _ => None,
-    };
-
-    let (project_id, version_id) = match &metadata.link {
-        crate::state::InstanceLink::ModrinthModpack {
+    let (location, post_install_edit) =
+        if let crate::state::InstanceLink::CurseforgeModpack {
             project_id,
-            version_id,
-        } => (project_id.clone(), version_id.clone()),
-        crate::state::InstanceLink::ServerProjectModpack {
-            content_project_id,
-            content_version_id,
-            ..
-        } => (content_project_id.clone(), content_version_id.clone()),
-        _ => {
-            return Err(unmanaged_pack_error(&metadata.instance.id).into());
-        }
-    };
+            file_id,
+        } = &metadata.link
+        {
+            (
+            crate::api::pack::install_from::CreatePackLocation::FromCurseforge {
+                cf_project_id: *project_id,
+                cf_file_id: *file_id,
+                title: metadata.instance.name.clone(),
+                icon_url: None,
+            },
+            None,
+        )
+        } else {
+            let post_install_edit = match &metadata.link {
+                crate::state::InstanceLink::ServerProjectModpack { .. } => {
+                    Some(crate::install::InstallPostInstallEdit {
+                        name: Some(metadata.instance.name.clone()),
+                        icon_path: Some(metadata.instance.icon_path.clone()),
+                        link: Some(metadata.link.clone()),
+                    })
+                }
+                _ => None,
+            };
+
+            let (project_id, version_id) = match &metadata.link {
+                crate::state::InstanceLink::ModrinthModpack {
+                    project_id,
+                    version_id,
+                } => (project_id.clone(), version_id.clone()),
+                crate::state::InstanceLink::ServerProjectModpack {
+                    content_project_id,
+                    content_version_id,
+                    ..
+                } => (content_project_id.clone(), content_version_id.clone()),
+                _ => {
+                    return Err(
+                        unmanaged_pack_error(&metadata.instance.id).into()
+                    );
+                }
+            };
+
+            (
+            crate::api::pack::install_from::CreatePackLocation::FromVersionId {
+                project_id,
+                version_id,
+                title: metadata.instance.name.clone(),
+                icon_url: None,
+            },
+            post_install_edit,
+        )
+        };
 
     crate::install::install_pack_to_existing_instance(
         metadata.instance.id,
-        crate::api::pack::install_from::CreatePackLocation::FromVersionId {
-            project_id,
-            version_id,
-            title: metadata.instance.name.clone(),
-            icon_url: None,
-        },
+        location,
         post_install_edit,
     )
     .await

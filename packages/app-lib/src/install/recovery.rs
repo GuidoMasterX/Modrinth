@@ -405,6 +405,14 @@ fn display_from_request(state: &InstallJobState) -> Option<InstallJobDisplay> {
                 title: title.clone(),
                 icon: icon_url.clone(),
             }),
+            crate::api::pack::install_from::CreatePackLocation::FromCurseforge {
+                title,
+                icon_url,
+                ..
+            } => Some(InstallJobDisplay {
+                title: title.clone(),
+                icon: icon_url.clone(),
+            }),
             crate::api::pack::install_from::CreatePackLocation::FromFile {
                 ..
             } => None,

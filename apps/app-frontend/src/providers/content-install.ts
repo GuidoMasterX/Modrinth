@@ -873,9 +873,47 @@ export function createContentInstall(opts: {
 
 		if (project.project_type === 'modpack') {
 			if (isCfProjectId(projectId)) {
-				opts.handleError(
-					new Error('Installing CurseForge modpacks from the project page is not supported yet'),
-				)
+				let version = versionId ?? null
+				if (!version) {
+					const versions = await getCfVersions(projectId)
+					version =
+						versions
+							.slice()
+							.sort(
+								(a, b) => dayjs(b.date_published).valueOf() - dayjs(a.date_published).valueOf(),
+							)[0]?.id ?? null
+				}
+				if (!version) {
+					opts.handleError(new Error('No CurseForge modpack version available'))
+					return
+				}
+				const packs = await list()
+				const existingPack = packs.find((pack) => pack.link?.project_id === project.id)
+
+				if (existingPack && !appSettings.getFeatureFlag('skip_non_essential_warnings')) {
+					pendingModpackInstall = { project, version, source, callback, createInstanceCallback }
+					modpackAlreadyInstalledModalRef?.show(existingPack.name, existingPack.id)
+					return
+				}
+
+				const job = await install_create_modpack_instance({
+					type: 'fromCurseforge',
+					cf_project_id: parseCfId(projectId),
+					cf_file_id: parseCfId(version),
+					title: project.title,
+					icon_url: project.raw_icon_url ?? project.icon_url,
+				})
+				const instanceId = installJobInstanceId(job)
+				if (instanceId) {
+					createInstanceCallback(instanceId)
+				}
+				trackEvent('PackInstall', {
+					id: project.id,
+					version_id: version,
+					title: project.title,
+					source,
+				})
+				callback(version)
 				return
 			}
 			let version = versionId ?? null

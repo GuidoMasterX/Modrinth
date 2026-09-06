@@ -166,6 +166,7 @@ pub async fn import_atlauncher(
 
     // Create description from instance.cfg
     let description = CreatePackDescription {
+        curseforge: None,
         icon,
         override_title: Some(atinstance.launcher.name.clone()),
         project_id: None,

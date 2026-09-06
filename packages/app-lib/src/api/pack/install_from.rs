@@ -43,6 +43,11 @@ pub struct PackFile {
     pub env: Option<HashMap<EnvType, SideType>>,
     pub downloads: Vec<String>,
     pub file_size: u32,
+    /// CurseForge provenance for files resolved from a CF modpack manifest.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cf_project_id: Option<i64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cf_file_id: Option<i64>,
 }
 
 #[derive(Serialize, Deserialize, Eq, PartialEq, Hash)]
@@ -96,6 +101,13 @@ pub enum CreatePackLocation {
     FromVersionId {
         project_id: String,
         version_id: String,
+        title: String,
+        icon_url: Option<String>,
+    },
+    // Create a pack from a CurseForge modpack file ID
+    FromCurseforge {
+        cf_project_id: i64,
+        cf_file_id: i64,
         title: String,
         icon_url: Option<String>,
     },
@@ -174,6 +186,8 @@ pub struct CreatePackDescription {
     pub version_id: Option<String>,
     pub instance_id: String,
     pub source_filename: Option<String>,
+    /// CurseForge (project id, file id) when this pack is a CurseForge modpack.
+    pub curseforge: Option<(i64, i64)>,
 }
 
 pub async fn get_instance_from_pack(
@@ -191,6 +205,20 @@ pub async fn get_instance_from_pack(
             link: Some(InstanceLink::ModrinthModpack {
                 project_id,
                 version_id,
+            }),
+            ..Default::default()
+        }),
+        CreatePackLocation::FromCurseforge {
+            cf_project_id,
+            cf_file_id,
+            title,
+            icon_url,
+        } => Ok(CreatePackInstance {
+            name: title,
+            icon_url,
+            link: Some(InstanceLink::CurseforgeModpack {
+                project_id: cf_project_id,
+                file_id: cf_file_id,
             }),
             ..Default::default()
         }),
@@ -486,6 +514,7 @@ pub(crate) async fn generate_pack_from_version_id_with_reporter(
             version_id: Some(version_id),
             instance_id,
             source_filename: None,
+            curseforge: None,
         },
     })
 }
@@ -508,6 +537,7 @@ pub async fn generate_pack_from_file(
             version_id: None,
             instance_id,
             source_filename,
+            curseforge: None,
         },
     })
 }
@@ -566,23 +596,32 @@ pub async fn set_instance_information(
     } else {
         None
     };
-    let pack_link = match (&description.project_id, &description.version_id) {
-        (Some(project_id), Some(version_id)) => {
-            Some(InstanceLink::ModrinthModpack {
-                project_id: project_id.clone(),
-                version_id: version_id.clone(),
-            })
+    let pack_link = if let Some((cf_project_id, cf_file_id)) =
+        description.curseforge
+    {
+        Some(InstanceLink::CurseforgeModpack {
+            project_id: cf_project_id,
+            file_id: cf_file_id,
+        })
+    } else {
+        match (&description.project_id, &description.version_id) {
+            (Some(project_id), Some(version_id)) => {
+                Some(InstanceLink::ModrinthModpack {
+                    project_id: project_id.clone(),
+                    version_id: version_id.clone(),
+                })
+            }
+            _ if description.source_filename.is_some() => {
+                Some(InstanceLink::ImportedModpack {
+                    project_id: None,
+                    version_id: None,
+                    name: Some(backup_name.to_string()),
+                    version_number: pack_version_id.map(ToString::to_string),
+                    filename: description.source_filename.clone(),
+                })
+            }
+            _ => None,
         }
-        _ if description.source_filename.is_some() => {
-            Some(InstanceLink::ImportedModpack {
-                project_id: None,
-                version_id: None,
-                name: Some(backup_name.to_string()),
-                version_number: pack_version_id.map(ToString::to_string),
-                filename: description.source_filename.clone(),
-            })
-        }
-        _ => None,
     };
     let existing_link = crate::api::instance::get(&instance_id)
         .await?
@@ -609,6 +648,9 @@ pub async fn set_instance_information(
         }
         Some(InstanceLink::ImportedModpack { .. }) => {
             Some(ContentSourceKind::ImportedModpack)
+        }
+        Some(InstanceLink::CurseforgeModpack { .. }) => {
+            Some(ContentSourceKind::CurseforgeModpack)
         }
         Some(InstanceLink::SharedInstance { .. }) => {
             Some(ContentSourceKind::SharedInstance)

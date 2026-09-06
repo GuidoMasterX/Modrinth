@@ -132,7 +132,7 @@
 								native-type="button"
 								@click="goToVersions"
 							>
-								<SwapIcon />
+								<ArrowLeftRightIcon />
 								{{ formatMessage(messages.switchVersion) }}
 							</Button>
 							<Button
@@ -236,6 +236,7 @@
 
 <script setup>
 import {
+	ArrowLeftRightIcon,
 	BookmarkIcon,
 	CheckIcon,
 	ClipboardCopyIcon,
@@ -281,7 +282,7 @@ import relativeTime from 'dayjs/plugin/relativeTime'
 import { computed, ref, shallowRef, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
-import { SwapIcon } from '@/assets/icons/index.js'
+import { ArrowLeftRightIcon } from '@/assets/icons/index.js'
 import InstanceIndicator from '@/components/ui/InstanceIndicator.vue'
 import {
 	fetchCachedServerStatus,
@@ -290,9 +291,11 @@ import {
 import { useAppEvent } from '@/composables/use-app-event'
 import { useAppSettings } from '@/composables/use-app-settings.ts'
 import {
+	get_curseforge_search_results,
 	get_organization,
 	get_project,
 	get_project_v3,
+	get_search_results_v3,
 	get_team,
 	get_version,
 	get_version_many,
@@ -362,6 +365,18 @@ const messages = defineMessages({
 		defaultMessage: 'Project data could not be loaded.',
 	},
 	comingSoon: { id: 'app.project.coming-soon', defaultMessage: 'Coming soon' },
+	viewOnModrinth: {
+		id: 'app.project.view-on-modrinth',
+		defaultMessage: 'View on Modrinth',
+	},
+	viewOnCurseforge: {
+		id: 'app.project.view-on-curseforge',
+		defaultMessage: 'View on CurseForge',
+	},
+	switchSourceNotFound: {
+		id: 'app.project.switch-source-not-found',
+		defaultMessage: 'No matching project found on the other source.',
+	},
 	backToBrowse: {
 		id: 'app.project.install-context.back-to-browse',
 		defaultMessage: 'Back to discover',
@@ -633,6 +648,14 @@ const projectHeaderMoreActions = computed(() => [
 		action: openProjectInBrowser,
 	},
 	{
+		id: 'switch-source',
+		label: formatMessage(
+			isCfProjectId(data.value?.id) ? messages.viewOnModrinth : messages.viewOnCurseforge,
+		),
+		icon: ArrowLeftRightIcon,
+		action: switchSource,
+	},
+	{
 		type: 'divider',
 	},
 	{
@@ -693,8 +716,40 @@ function handleAddServerToInstance() {
 
 function openProjectInBrowser() {
 	if (!data.value) return
+	if (isCfProjectId(data.value.id)) {
+		void openUrl(data.value.body_url || `https://www.curseforge.com/projects/${data.value.slug}`)
+		return
+	}
 	const type = isServerProject.value ? 'project' : data.value.project_type
 	void openUrl(`https://modrinth.com/${type}/${data.value.slug}`)
+}
+
+async function switchSource() {
+	const project = data.value
+	if (!project) return
+	if (isCfProjectId(project.id)) {
+		const results = await get_search_results_v3(
+			`?query=${encodeURIComponent(project.title)}&limit=10`,
+			'must_revalidate',
+		).catch(handleError)
+		const match = results?.hits?.find((hit) => hit.name?.toLowerCase() === project.title.toLowerCase())
+		if (match) {
+			await router.push(`/project/${match.project_id}`)
+		} else {
+			handleError(formatMessage(messages.switchSourceNotFound))
+		}
+	} else {
+		const results = await get_curseforge_search_results(
+			`?gameId=432&searchFilter=${encodeURIComponent(project.title)}&pageSize=10`,
+			'must_revalidate',
+		).catch(handleError)
+		const match = results?.data?.find((hit) => hit.name?.toLowerCase() === project.title.toLowerCase())
+		if (match) {
+			await router.push(`/project/cf-${match.id}`)
+		} else {
+			handleError(formatMessage(messages.switchSourceNotFound))
+		}
+	}
 }
 
 function reportProject() {

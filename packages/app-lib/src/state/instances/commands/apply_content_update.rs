@@ -12,8 +12,9 @@ use std::collections::{HashMap, HashSet};
 
 use super::apply_content_install::{
     DownloadedProjectVersion, add_downloaded_project_version,
-    add_project_from_version, download_project_version, remove_project,
-    rename_project_companion_file, toggle_disable_project,
+    add_project_from_curseforge_file, add_project_from_version,
+    download_project_version, remove_project, rename_project_companion_file,
+    toggle_disable_project,
 };
 use super::check_content_updates::{ContentUpdate, check_content_updates};
 
@@ -92,15 +93,36 @@ async fn apply_content_update(
     update: &ContentUpdate,
     state: &State,
 ) -> crate::Result<String> {
-    let mut new_path = add_project_from_version(
-        instance_id,
-        &update.update_version_id,
-        DownloadReason::Update,
-        Some(update.current_version_id.clone()),
-        ContentSourceKind::Local,
-        state,
-    )
-    .await?;
+    let mut new_path = if let Some(cf_file_id) = update
+        .update_version_id
+        .strip_prefix("cf-")
+        .and_then(|id| id.parse::<i64>().ok())
+    {
+        let cf_project_id = curseforge_project_for_file(
+            instance_id,
+            update.current_version_id.trim_start_matches("cf-"),
+            state,
+        )
+        .await?;
+        add_project_from_curseforge_file(
+            instance_id,
+            cf_project_id,
+            cf_file_id,
+            DownloadReason::Update,
+            state,
+        )
+        .await?
+    } else {
+        add_project_from_version(
+            instance_id,
+            &update.update_version_id,
+            DownloadReason::Update,
+            Some(update.current_version_id.clone()),
+            ContentSourceKind::Local,
+            state,
+        )
+        .await?
+    };
 
     if project_path.ends_with(".disabled") {
         new_path =
@@ -689,4 +711,35 @@ fn is_dependency_version_compatible(
             .iter()
             .any(|loader| loader == content_set.loader.as_str())
             || version.loaders.iter().any(|loader| loader == "datapack"))
+}
+
+async fn curseforge_project_for_file(
+    instance_id: &str,
+    current_cf_file_id: &str,
+    state: &State,
+) -> crate::Result<i64> {
+    let current_file_id: i64 = current_cf_file_id.parse().map_err(|_| {
+        crate::Error::from(crate::ErrorKind::InputError(
+            "Invalid CurseForge version id".to_string(),
+        ))
+    })?;
+    let content_set =
+        content_rows::get_applied_content_set(instance_id, &state.pool)
+            .await?
+            .ok_or_else(|| {
+                crate::Error::from(crate::ErrorKind::InputError(
+                    "Instance has no applied content set".to_string(),
+                ))
+            })?;
+    let entries =
+        content_rows::get_content_entries(&content_set.id, &state.pool).await?;
+    entries
+        .iter()
+        .find(|entry| entry.cf_version_id == Some(current_file_id))
+        .and_then(|entry| entry.cf_project_id)
+        .ok_or_else(|| {
+            crate::Error::from(crate::ErrorKind::InputError(
+                "Unable to resolve CurseForge project for update".to_string(),
+            ))
+        })
 }
