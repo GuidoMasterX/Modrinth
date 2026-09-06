@@ -49,7 +49,13 @@ pub struct CFManifestModLoader {
 }
 
 fn loader_dependency(id: &str) -> Option<(PackDependency, String)> {
-    let (loader, version) = id.split_once('-')?;
+    let (loader, version) =
+        if let Some(version) = id.strip_prefix("quilt-loader-") {
+            ("quilt", version)
+        } else {
+            let (loader, version) = id.split_once('-')?;
+            (loader, version)
+        };
     match loader {
         "forge" => Some((PackDependency::Forge, version.to_string())),
         "neoforge" => Some((PackDependency::NeoForge, version.to_string())),
@@ -243,7 +249,7 @@ pub async fn generate_pack_from_curseforge(
             icon: None,
             override_title: Some(title),
             project_id: None,
-            version_id: None,
+            version_id: Some(format!("cf-{cf_file_id}")),
             instance_id,
             source_filename: None,
             curseforge: Some((cf_project_id, cf_file_id)),

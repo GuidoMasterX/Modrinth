@@ -372,6 +372,8 @@ pub(crate) async fn get_linked_modpack_info(
             *project_id,
             *file_id,
             &resolved.content_set.game_version,
+            resolved.content_set.loader.as_str(),
+            resolved.instance.update_channel,
             cache_behaviour,
             state,
         )
@@ -1757,6 +1759,8 @@ async fn get_curseforge_modpack_info(
     cf_project_id: i64,
     cf_file_id: i64,
     game_version: &str,
+    loader: &str,
+    update_channel: ReleaseChannel,
     cache_behaviour: Option<CacheBehaviour>,
     state: &State,
 ) -> crate::Result<LinkedModpackInfo> {
@@ -1781,12 +1785,13 @@ async fn get_curseforge_modpack_info(
     )
     .await
     .unwrap_or_default();
-    let latest = cf_files
-        .iter()
-        .filter(|file| file.game_versions.iter().any(|v| v == game_version))
-        .max_by_key(|file| {
-            crate::api::curseforge::normalize::parse_cf_date(&file.file_date)
-        });
+    let latest =
+        super::check_content_updates::curseforge_latest_compatible_file(
+            &cf_files,
+            game_version,
+            loader,
+            update_channel,
+        );
     let has_update = latest.map(|file| file.id != cf_file_id).unwrap_or(false);
     let update_version = latest.map(|file| Version {
         id: format!("cf-{}", file.id),

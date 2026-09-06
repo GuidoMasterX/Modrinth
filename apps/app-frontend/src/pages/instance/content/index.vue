@@ -130,7 +130,12 @@ import { useAppEvent } from '@/composables/use-app-event'
 import { type FeatureFlag, useAppSettings } from '@/composables/use-app-settings.ts'
 import { trackEvent } from '@/helpers/analytics'
 import { get_project_versions, get_version, get_version_many } from '@/helpers/cache.js'
-import { getCfVersions, isCfProjectId, parseCfId } from '@/helpers/curseforge-project'
+import {
+	getCfVersions,
+	isCfProjectId,
+	parseCfId,
+	toCfProjectId,
+} from '@/helpers/curseforge-project'
 import {
 	add_project_from_curseforge_file,
 	add_project_from_path,
@@ -1027,6 +1032,7 @@ async function switchProjectVersion(mod: ContentItem, version: Labrinth.Versions
 				parseCfId(version.id),
 				'update',
 			)
+			await remove_project(instance.value.id, oldPath)
 		} else {
 			await switch_project_version_with_dependencies(instance.value.id, oldPath, version.id)
 		}
@@ -1280,7 +1286,11 @@ async function handleModpackUpdate() {
 	await nextTick()
 
 	const initialVersionId =
-		linkedModpackUpdateVersionId.value ?? instance.value?.link?.version_id ?? undefined
+		linkedModpackUpdateVersionId.value ??
+		(instance.value?.link?.type === 'curseforge_modpack'
+			? toCfProjectId(instance.value.link.file_id)
+			: instance.value?.link?.version_id) ??
+		undefined
 	debug('handleModpackUpdate: opening modpack updater modal', {
 		type: 'modpack',
 		initialVersionId,
@@ -1333,7 +1343,10 @@ async function handleModpackUpdate() {
 			: null,
 		versionCount: versions.length,
 		linkedModpackUpdateVersionId: linkedModpackUpdateVersionId.value,
-		currentLinkedVersionId: instance.value.link.version_id,
+		currentLinkedVersionId:
+			instance.value.link.type === 'curseforge_modpack'
+				? toCfProjectId(instance.value.link.file_id)
+				: instance.value.link.version_id,
 	})
 
 	updatingProjectVersions.value = versions

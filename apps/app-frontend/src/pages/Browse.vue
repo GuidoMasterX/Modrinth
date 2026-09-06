@@ -1166,6 +1166,9 @@ const curseforgeEnabled = computed(() => !!curseforgeApiKey.value)
 const curseforgeCategories = ref<CurseforgeCategory[]>([])
 
 async function searchCurseforge(requestParams: string) {
+	if (!curseforgeEnabled.value) {
+		return { projectHits: [], serverHits: [], total_hits: 0, per_page: 20 }
+	}
 	debugLog('searching curseforge', requestParams)
 	const raw = (await queryClient.fetchQuery({
 		queryKey: ['search', 'curseforge', requestParams],
@@ -1177,14 +1180,14 @@ async function searchCurseforge(requestParams: string) {
 			name: string
 			slug: string | null
 			summary: string
-			download_count: number
-			date_created: string | null
-			date_modified: string | null
+			downloadCount: number
+			dateCreated: string | null
+			dateModified: string | null
 			logo: { url: string | null; thumbnailUrl: string | null } | null
 			categories: { name: string }[]
 			authors: { name: string | null }[]
 		}[]
-		pagination: { total_count: number } | null
+		pagination: { totalCount: number } | null
 	} | null
 
 	const hits = (raw?.data ?? []).map(
@@ -1201,11 +1204,11 @@ async function searchCurseforge(requestParams: string) {
 			summary: cf.summary,
 			categories: (cf.categories ?? []).map((c) => c.name),
 			display_categories: (cf.categories ?? []).map((c) => c.name),
-			downloads: cf.download_count ?? 0,
+			downloads: cf.downloadCount ?? 0,
 			follows: 0,
 			icon_url: cf.logo?.url ?? cf.logo?.thumbnailUrl ?? null,
-			date_created: cf.date_created ?? '',
-			date_modified: cf.date_modified ?? '',
+			date_created: cf.dateCreated ?? '',
+			date_modified: cf.dateModified ?? '',
 			license: '',
 			gallery: [],
 			featured_gallery: null,
@@ -1218,7 +1221,7 @@ async function searchCurseforge(requestParams: string) {
 	return {
 		projectHits: hits,
 		serverHits: [],
-		total_hits: raw?.pagination?.total_count ?? hits.length,
+		total_hits: raw?.pagination?.totalCount ?? hits.length,
 		per_page: 20,
 	}
 }
@@ -1355,25 +1358,29 @@ if (projectType.value !== 'server') {
 		.catch(handleError)
 }
 
-watch(curseforgeEnabled, async (enabled) => {
-	if (!enabled) return
-	if (route.query.source === 'curseforge') {
-		searchState.switchSource('curseforge')
-	}
-	try {
-		curseforgeCategories.value =
-			((await get_curseforge_categories('must_revalidate')) as {
-				id: number
-				name: string
-				iconUrl: string | null
-				classId: number | null
-				parentCategoryId: number | null
-				isClass: boolean
-			}[]) ?? []
-	} catch (err) {
-		console.error('Failed to load CurseForge categories:', err)
-	}
-})
+watch(
+	curseforgeEnabled,
+	async (enabled) => {
+		if (!enabled) return
+		if (route.query.source === 'curseforge') {
+			searchState.switchSource('curseforge')
+		}
+		try {
+			curseforgeCategories.value =
+				((await get_curseforge_categories('must_revalidate')) as {
+					id: number
+					name: string
+					iconUrl: string | null
+					classId: number | null
+					parentCategoryId: number | null
+					isClass: boolean
+				}[]) ?? []
+		} catch (err) {
+			console.error('Failed to load CurseForge categories:', err)
+		}
+	},
+	{ immediate: true },
+)
 
 useAppEvent('instance', async (event) => {
 	if (event.event === 'created' || event.event === 'removed') {

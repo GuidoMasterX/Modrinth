@@ -142,11 +142,11 @@ export function cfVersionToVersion(cf: CfSourceVersion): CfVersion {
 }
 
 export async function getCfProject(requestedId: string): Promise<CfProject | null> {
-	const cf = await get_curseforge_project(parseCfId(requestedId))
+	const cf = await get_curseforge_project(requestedId.slice(CF_ID_PREFIX.length))
 	return cf ? cfProjectToProject(cf as CfSourceProject) : null
 }
 
 export async function getCfVersions(requestedId: string): Promise<CfVersion[]> {
-	const cfVersions = await get_curseforge_project_versions(parseCfId(requestedId))
+	const cfVersions = await get_curseforge_project_versions(requestedId.slice(CF_ID_PREFIX.length))
 	return ((cfVersions ?? []) as CfSourceVersion[]).map(cfVersionToVersion)
 }

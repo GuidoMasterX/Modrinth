@@ -20,7 +20,13 @@ import {
 	get_team,
 	get_version_many,
 } from '@/helpers/cache.js'
-import { getCfProject, getCfVersions, isCfProjectId, parseCfId } from '@/helpers/curseforge-project'
+import {
+	getCfProject,
+	getCfVersions,
+	isCfProjectId,
+	parseCfId,
+	toCfProjectId,
+} from '@/helpers/curseforge-project'
 import {
 	install_create_instance,
 	install_create_modpack_instance,
@@ -888,7 +894,12 @@ export function createContentInstall(opts: {
 					return
 				}
 				const packs = await list()
-				const existingPack = packs.find((pack) => pack.link?.project_id === project.id)
+				const existingPack = packs.find(
+					(pack) =>
+						(pack.link?.type === 'curseforge_modpack'
+							? toCfProjectId(pack.link.project_id)
+							: pack.link?.project_id) === project.id,
+				)
 
 				if (existingPack && !appSettings.getFeatureFlag('skip_non_essential_warnings')) {
 					pendingModpackInstall = { project, version, source, callback, createInstanceCallback }

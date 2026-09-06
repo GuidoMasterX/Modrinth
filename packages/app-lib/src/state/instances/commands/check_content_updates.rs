@@ -102,6 +102,7 @@ async fn check_content_updates_with_cache_behaviours(
     let curseforge_updates = check_curseforge_content_updates(
         instance.update_channel,
         &content_set.game_version,
+        content_set.loader.as_str(),
         &files,
         &entries_by_file_id,
         &state.pool,
@@ -198,15 +199,44 @@ async fn check_content_updates_with_cache_behaviours(
     Ok(output)
 }
 
+pub(crate) fn curseforge_latest_compatible_file<'a>(
+    files: &'a [crate::api::curseforge::structs::CFFile],
+    game_version: &str,
+    loader: &str,
+    update_channel: ReleaseChannel,
+) -> Option<&'a crate::api::curseforge::structs::CFFile> {
+    use crate::api::curseforge::normalize::parse_cf_date;
+    let allowed_release_types = match update_channel {
+        ReleaseChannel::Release => 1..=1,
+        ReleaseChannel::Beta => 1..=2,
+        ReleaseChannel::Alpha => 1..=3,
+    };
+    files
+        .iter()
+        .filter(|file| {
+            file.game_versions
+                .iter()
+                .any(|version| version == game_version)
+        })
+        .filter(|file| {
+            file.loaders
+                .iter()
+                .any(|candidate| candidate.eq_ignore_ascii_case(loader))
+        })
+        .filter(|file| allowed_release_types.contains(&file.release_type))
+        .max_by_key(|file| parse_cf_date(&file.file_date))
+}
+
 async fn check_curseforge_content_updates(
     update_channel: ReleaseChannel,
     game_version: &str,
+    loader: &str,
     files: &[InstanceFile],
     entries_by_file_id: &HashMap<&str, &ContentEntry>,
     pool: &sqlx::SqlitePool,
     api_semaphore: &crate::util::fetch::FetchSemaphore,
 ) -> crate::Result<Vec<ContentUpdate>> {
-    use crate::api::curseforge::normalize::{Source, parse_cf_date};
+    use crate::api::curseforge::normalize::Source;
 
     let mut project_entries: HashMap<i64, Vec<(&InstanceFile, &ContentEntry)>> =
         HashMap::new();
@@ -241,14 +271,12 @@ async fn check_curseforge_content_updates(
                 continue;
             }
         };
-        let latest = cf_files
-            .iter()
-            .filter(|file| {
-                file.game_versions
-                    .iter()
-                    .any(|version| version == game_version)
-            })
-            .max_by_key(|file| parse_cf_date(&file.file_date));
+        let latest = curseforge_latest_compatible_file(
+            &cf_files,
+            game_version,
+            loader,
+            update_channel,
+        );
         let Some(latest) = latest else {
             continue;
         };
