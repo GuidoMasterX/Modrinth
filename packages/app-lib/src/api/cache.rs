@@ -97,6 +97,23 @@ pub async fn get_curseforge_project_versions(
 }
 
 #[tracing::instrument]
+pub async fn get_curseforge_description(
+    id: &str,
+) -> crate::Result<Option<String>> {
+    let Some(mod_id) = id.trim_start_matches("cf-").parse::<i64>().ok() else {
+        return Ok(None);
+    };
+    let state = crate::State::get().await?;
+    Ok(crate::api::curseforge::api::get_mod_description(
+        mod_id,
+        &state.api_semaphore,
+        &state.pool,
+    )
+    .await
+    .ok())
+}
+
+#[tracing::instrument]
 pub async fn get_curseforge_file_changelog(
     mod_id: i64,
     file_id: i64,

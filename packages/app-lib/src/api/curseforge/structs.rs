@@ -68,6 +68,20 @@ pub struct CFProject {
     pub allow_mod_distribution: Option<bool>,
     pub main_file_id: Option<i64>,
     pub latest_files_indexes: Vec<CFLatestFileIndex>,
+    pub screenshots: Vec<CFModAsset>,
+    pub date_released: Option<String>,
+    pub thumbs_up_count: Option<i64>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+#[serde(rename_all = "camelCase", default)]
+pub struct CFModAsset {
+    pub id: i64,
+    pub mod_id: i64,
+    pub title: Option<String>,
+    pub description: Option<String>,
+    pub thumbnail_url: Option<String>,
+    pub url: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
@@ -127,7 +141,7 @@ pub struct CFLatestFileIndex {
     pub file_id: i64,
     pub filename: Option<String>,
     pub release_type: Option<i32>,
-    pub mod_loader: Option<String>,
+    pub mod_loader: Option<i64>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]

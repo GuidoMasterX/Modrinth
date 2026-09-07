@@ -54,6 +54,7 @@ fn main() {
                         "get_curseforge_file_many",
                         "get_curseforge_fingerprints",
                         "get_curseforge_fingerprints_many",
+                        "get_curseforge_description",
                     ])
                     .default_permission(
                         DefaultPermissionRule::AllowAllCommands,

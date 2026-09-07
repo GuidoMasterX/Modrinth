@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 
 use super::structs::{
     CF_CLASS_DATA_PACK, CF_CLASS_MODPACK, CF_CLASS_RESOURCE_PACK,
-    CF_CLASS_SHADER_PACK, CFFile, CFProject,
+    CF_CLASS_SHADER_PACK, CFAuthor, CFFile, CFProject,
 };
 
 #[derive(
@@ -83,6 +83,10 @@ pub struct SourceProject {
     pub updated: Option<String>,
     pub date_created: Option<String>,
     pub website_url: Option<String>,
+    pub issues_url: Option<String>,
+    pub source_url: Option<String>,
+    pub wiki_url: Option<String>,
+    pub authors: Vec<CFAuthor>,
     pub project_type: SourceProjectType,
     pub gallery: Vec<SourceGalleryItem>,
 }
@@ -135,8 +139,26 @@ impl SourceProject {
             updated: project.date_modified,
             date_created: project.date_created,
             website_url: project.links.website_url,
+            issues_url: project.links.issues_url,
+            source_url: project.links.source_url,
+            wiki_url: project.links.wiki_url,
+            authors: project.authors,
             project_type: SourceProjectType::from_cf_class(project.class_id),
-            gallery: Vec::new(),
+            gallery: project
+                .screenshots
+                .iter()
+                .enumerate()
+                .map(|(index, screenshot)| SourceGalleryItem {
+                    url: screenshot
+                        .url
+                        .clone()
+                        .or_else(|| screenshot.thumbnail_url.clone())
+                        .unwrap_or_default(),
+                    featured: index == 0,
+                    title: screenshot.title.clone(),
+                    description: screenshot.description.clone(),
+                })
+                .collect(),
         }
     }
 }
@@ -192,6 +214,11 @@ pub fn parse_cf_date(date: &Option<String>) -> i64 {
                 chrono::DateTime::parse_from_rfc3339(date)
             {
                 date_time.timestamp_millis()
+            } else if let Ok(naive) = chrono::NaiveDateTime::parse_from_str(
+                date,
+                "%Y-%m-%dT%H:%M:%S%.f",
+            ) {
+                naive.and_utc().timestamp_millis()
             } else {
                 0
             }

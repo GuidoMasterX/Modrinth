@@ -42,9 +42,7 @@ pub fn project_type_str(project_type: SourceProjectType) -> &'static str {
         SourceProjectType::DataPack => "datapack",
     }
 }
-
 pub fn project_to_labrinth(project: &SourceProject) -> Project {
-    let website_url = project.website_url.clone().filter(|url| !url.is_empty());
     Project {
         id: format!("cf-{}", project.id),
         slug: project.slug.clone(),
@@ -65,9 +63,9 @@ pub fn project_to_labrinth(project: &SourceProject) -> Project {
         approved: None,
         status: "approved".to_string(),
         license: License {
-            id: String::new(),
-            name: String::new(),
-            url: website_url.clone(),
+            id: "all-rights-reserved".to_string(),
+            name: "All Rights Reserved".to_string(),
+            url: None,
         },
         client_side: SideType::Unknown,
         server_side: SideType::Unknown,
@@ -80,13 +78,51 @@ pub fn project_to_labrinth(project: &SourceProject) -> Project {
         versions: Vec::new(),
         icon_url: project.icon_url.clone(),
         raw_icon_url: None,
-        issues_url: None,
-        source_url: None,
-        wiki_url: None,
+        issues_url: project.issues_url.clone(),
+        source_url: project.source_url.clone(),
+        wiki_url: project.wiki_url.clone(),
         discord_url: None,
         donation_urls: None,
-        gallery: Vec::new(),
+        gallery: project
+            .gallery
+            .iter()
+            .enumerate()
+            .map(|(index, item)| crate::state::GalleryItem {
+                url: item.url.clone(),
+                raw_url: item.url.clone(),
+                featured: item.featured,
+                title: item.title.clone(),
+                description: item.description.clone(),
+                created: DateTime::from_timestamp_millis(parse_cf_date(
+                    &project.updated,
+                ))
+                .unwrap_or_default(),
+                ordering: index as i64,
+            })
+            .collect(),
         color: None,
+    }
+}
+
+/// The canonical CurseForge page for a project. CF's `websiteUrl` is
+/// author-controlled and may point off-site, so construct from the class
+/// when possible.
+pub fn canonical_project_url(project: &SourceProject) -> String {
+    let class_path = match project.project_type {
+        SourceProjectType::Mod => "mc-mods",
+        SourceProjectType::Modpack => "modpacks",
+        SourceProjectType::ResourcePack => "texture-packs",
+        SourceProjectType::ShaderPack => "shaders",
+        SourceProjectType::DataPack => "customization",
+    };
+    let slug = project.slug.clone().unwrap_or_else(|| project.id.clone());
+    let constructed =
+        format!("https://www.curseforge.com/minecraft/{class_path}/{slug}");
+    let website = project.website_url.as_deref().unwrap_or_default();
+    if website.starts_with("https://www.curseforge.com/") {
+        website.to_string()
+    } else {
+        constructed
     }
 }
 

@@ -74,6 +74,7 @@ pub fn init<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
             get_curseforge_file_many,
             get_curseforge_fingerprints,
             get_curseforge_fingerprints_many,
+            get_curseforge_description,
         ])
         .build()
 }
@@ -112,14 +113,55 @@ pub async fn get_curseforge_search_results(
 pub async fn get_curseforge_project(
     id: &str,
     cache_behaviour: Option<CacheBehaviour>,
-) -> Result<Option<Project>> {
-    Ok(theseus::cache::get_curseforge_project(id, cache_behaviour)
-        .await?
-        .map(|project| {
-            theseus::data::labrinth_map::project_to_labrinth(
-                &project,
-            )
-        }))
+) -> Result<Option<serde_json::Value>> {
+    let Some(source) = theseus::cache::get_curseforge_project(id, cache_behaviour).await?
+    else {
+        return Ok(None);
+    };
+    let mut project = serde_json::to_value(theseus::data::labrinth_map::project_to_labrinth(&source)).unwrap_or_default();
+    project["website_url"] =
+        serde_json::Value::String(theseus::data::labrinth_map::canonical_project_url(&source));
+
+    project["cf_members"] = serde_json::Value::Array(
+        source
+            .authors
+            .iter()
+            .enumerate()
+            .map(|(index, author)| {
+                let name = author.name.clone().unwrap_or_else(|| author.id.to_string());
+                serde_json::json!({
+                    "team_id": format!("cf-author-{}", author.id),
+                    "user": {
+                        "id": format!("cf-user-{}", author.id),
+                        "username": name,
+                        "avatar_url": author.avatar_url,
+                        "bio": serde_json::Value::Null,
+                        "created": "1970-01-01T00:00:00Z",
+                        "role": "Author",
+                        "badges": 0
+                    },
+                    "is_owner": index == 0,
+                    "role": "Author",
+                    "ordering": index as i64
+                })
+            })
+            .collect(),
+    );
+
+    if let Some(versions) =
+        theseus::cache::get_curseforge_project_versions(id, None).await?
+    {
+        project["versions"] = serde_json::Value::Array(
+            versions
+                .iter()
+                .map(|version| {
+                    serde_json::Value::String(format!("cf-{}", version.id))
+                })
+                .collect(),
+        );
+    }
+
+    Ok(Some(project))
 }
 
 #[tauri::command]
@@ -156,4 +198,11 @@ pub async fn get_curseforge_categories(
     cache_behaviour: Option<CacheBehaviour>,
 ) -> Result<Option<Vec<CFCategory>>> {
     Ok(theseus::cache::get_curseforge_categories(cache_behaviour).await?)
+}
+
+#[tauri::command]
+pub async fn get_curseforge_description(
+    id: &str,
+) -> Result<Option<String>> {
+    Ok(theseus::cache::get_curseforge_description(id).await?)
 }
