@@ -97,6 +97,19 @@ pub async fn get_curseforge_project_versions(
 }
 
 #[tracing::instrument]
+pub async fn get_curseforge_file_changelog(
+    mod_id: i64,
+    file_id: i64,
+) -> crate::Result<Option<String>> {
+    let state = crate::State::get().await?;
+    Ok(crate::api::curseforge::api::get_file_changelog(
+        mod_id, file_id, &state.api_semaphore, &state.pool,
+    )
+    .await
+    .ok())
+}
+
+#[tracing::instrument]
 pub async fn get_curseforge_categories(
     cache_behaviour: Option<CacheBehaviour>,
 ) -> crate::Result<Option<Vec<CFCategory>>> {

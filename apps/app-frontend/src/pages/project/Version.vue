@@ -5,7 +5,7 @@
 		</BackToParentLink>
 		<VersionPage
 			v-if="version"
-			:version="version"
+			:version="displayedVersion"
 			:enrichment="enrichment"
 			:enrichment-loading="enrichmentLoading"
 			:members="members"
@@ -101,7 +101,12 @@ import { computed, ref, shallowRef, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import { SwapIcon } from '@/assets/icons'
-import { get_project_many, get_version_many } from '@/helpers/cache.js'
+import {
+	get_curseforge_file_changelog,
+	get_project_many,
+	get_version_many,
+} from '@/helpers/cache.js'
+import { isCfProjectId, parseCfId } from '@/helpers/curseforge-project'
 import { useBreadcrumb } from '@/providers/breadcrumbs'
 
 const { formatMessage } = useVIntl()
@@ -162,6 +167,12 @@ useBreadcrumb({
 
 const enrichment = ref<Labrinth.Projects.v2.DependencyInfo | undefined>(undefined)
 const enrichmentLoading = ref(false)
+const cfChangelog = shallowRef<string | undefined>(undefined)
+const displayedVersion = computed(() =>
+	version.value && cfChangelog.value
+		? { ...version.value, changelog: cfChangelog.value }
+		: version.value,
+)
 
 function buildProjectHref(path: string): string {
 	const params = new URLSearchParams()
@@ -230,10 +241,29 @@ async function refreshEnrichment() {
 	}
 }
 
+async function refreshChangelog() {
+	const current = version.value
+	if (!current || !isCfProjectId(current.id) || !isCfProjectId(current.project_id)) return
+
+	try {
+		const changelog = await get_curseforge_file_changelog(
+			parseCfId(current.project_id),
+			parseCfId(current.id),
+		)
+		if (version.value === current && changelog) {
+			cfChangelog.value = changelog
+		}
+	} catch {
+		// no changelog available for this file - show nothing extra
+	}
+}
+
 watch([() => props.versions, () => route.params.version], async () => {
 	if (route.params.version) {
 		version.value = props.versions.find((v) => v.id === route.params.version)
+		cfChangelog.value = undefined
 		await refreshEnrichment()
+		await refreshChangelog()
 	}
 })
 

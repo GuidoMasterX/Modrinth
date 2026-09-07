@@ -80,6 +80,10 @@ export async function get_curseforge_project_versions(id, cacheBehaviour) {
 	return await invoke('plugin:cache|get_curseforge_project_versions', { id, cacheBehaviour })
 }
 
+export async function get_curseforge_file_changelog(modId, fileId) {
+	return await invoke('plugin:cache|get_curseforge_file_changelog', { modId, fileId })
+}
+
 export async function purge_cache_types(cacheTypes) {
 	return await invoke('plugin:cache|purge_cache_types', { cacheTypes })
 }
