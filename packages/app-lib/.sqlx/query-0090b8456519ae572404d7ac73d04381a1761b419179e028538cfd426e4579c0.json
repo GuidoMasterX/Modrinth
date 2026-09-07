@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT curseforge_api_key FROM settings",
+  "describe": {
+    "columns": [
+      {
+        "name": "curseforge_api_key",
+        "ordinal": 0,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "0090b8456519ae572404d7ac73d04381a1761b419179e028538cfd426e4579c0"
+}

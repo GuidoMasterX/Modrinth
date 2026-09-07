@@ -90,6 +90,16 @@ pub enum FeatureFlag {
 impl Settings {
     const CURRENT_VERSION: usize = 3;
 
+    /// Fetches only the CurseForge API key, for the fetch layer's CDN guard.
+    pub async fn get_curseforge_api_key(
+        exec: impl sqlx::Executor<'_, Database = sqlx::Sqlite>,
+    ) -> crate::Result<Option<String>> {
+        let res = sqlx::query!("SELECT curseforge_api_key FROM settings")
+            .fetch_one(exec)
+            .await?;
+        Ok(res.curseforge_api_key)
+    }
+
     pub async fn get(
         exec: impl sqlx::Executor<'_, Database = sqlx::Sqlite>,
     ) -> crate::Result<Self> {

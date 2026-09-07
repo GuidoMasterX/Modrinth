@@ -315,6 +315,26 @@ impl ApiRateLimit {
 static GLOBAL_API_RATE_LIMIT: LazyLock<ApiRateLimit> =
     LazyLock::new(ApiRateLimit::new);
 
+static GLOBAL_CF_API_RATE_LIMIT: LazyLock<ApiRateLimit> =
+    LazyLock::new(ApiRateLimit::new);
+
+const CURSEFORGE_API_BASE: &str = "https://api.curseforge.com";
+
+const CURSEFORGE_CDN_PREFIXES: [&str; 2] = [
+    "https://edge.forgecdn.net/",
+    "https://mediafilez.forgecdn.net/",
+];
+
+pub fn is_curseforge_api_url(url: &str) -> bool {
+    url.starts_with(CURSEFORGE_API_BASE)
+}
+
+pub fn is_curseforge_cdn_url(url: &str) -> bool {
+    CURSEFORGE_CDN_PREFIXES
+        .iter()
+        .any(|prefix| url.starts_with(prefix))
+}
+
 fn parse_retry_after(value: &str, now: SystemTime) -> Option<Duration> {
     if let Ok(seconds) = value.parse::<u64>() {
         return Some(Duration::from_secs(seconds));
@@ -633,6 +653,24 @@ async fn fetch_advanced_with_client_and_progress(
         || url.starts_with(env!("MODRINTH_API_URL_V3"));
     let fence_key = if is_api_url { uri_path } else { None };
 
+    let is_cf_api_url = is_curseforge_api_url(url);
+    let rate_limit: Option<&ApiRateLimit> = if is_api_url {
+        Some(&GLOBAL_API_RATE_LIMIT)
+    } else if is_cf_api_url {
+        Some(&GLOBAL_CF_API_RATE_LIMIT)
+    } else {
+        None
+    };
+
+    let cf_api_key = if header.is_none_or(|header| header.0 != "x-api-key")
+        && is_curseforge_cdn_url(url)
+    {
+        let state = crate::State::get().await?;
+        crate::state::Settings::get_curseforge_api_key(&state.pool).await?
+    } else {
+        None
+    };
+
     let creds = if header
         .as_ref()
         .is_none_or(|x| &*x.0.to_lowercase() != "authorization")
@@ -647,8 +685,8 @@ async fn fetch_advanced_with_client_and_progress(
         .map(|m| (DOWNLOAD_META_HEADER.to_string(), m.to_header_value()));
 
     for attempt in 1..=(FETCH_ATTEMPTS + 1) {
-        if is_api_url {
-            GLOBAL_API_RATE_LIMIT.check()?;
+        if let Some(rate_limit) = rate_limit {
+            rate_limit.check()?;
         }
 
         if let Some(fence_key) = fence_key
@@ -672,6 +710,10 @@ async fn fetch_advanced_with_client_and_progress(
             req = req.header(header.0, header.1);
         }
 
+        if let Some(key) = &cf_api_key {
+            req = req.header("x-api-key", key);
+        }
+
         if let Some(ref creds) = creds {
             req = req.header("Authorization", &creds.session);
         }
@@ -684,9 +726,8 @@ async fn fetch_advanced_with_client_and_progress(
         let result = req.send().await;
         match result {
             Ok(resp) => {
-                if is_api_url
-                    && let Some(error) =
-                        GLOBAL_API_RATE_LIMIT.handle_response(&resp)
+                if let Some(rate_limit) = rate_limit
+                    && let Some(error) = rate_limit.handle_response(&resp)
                 {
                     return Err(error.into());
                 }
@@ -1015,6 +1056,25 @@ pub async fn sha1_file_async_with_progress(
 mod tests {
     use super::*;
     use chrono::{TimeDelta, Utc};
+
+    #[test]
+    fn curseforge_url_detection() {
+        assert!(is_curseforge_api_url(
+            "https://api.curseforge.com/v1/mods/search?gameId=432"
+        ));
+        assert!(!is_curseforge_api_url(
+            "https://api.modrinth.com/v2/project"
+        ));
+        assert!(is_curseforge_cdn_url(
+            "https://edge.forgecdn.net/files/1/2/file.jar"
+        ));
+        assert!(is_curseforge_cdn_url(
+            "https://mediafilez.forgecdn.net/files/1/2/file.jar"
+        ));
+        assert!(!is_curseforge_cdn_url(
+            "https://cdn.modrinth.com/data/AABB/versions/1.0.0/x.jar"
+        ));
+    }
 
     #[test]
     fn test_fence_block_after_4_fails() {
