@@ -732,7 +732,7 @@ function openProjectInBrowser() {
 	void openUrl(`https://modrinth.com/${type}/${data.value.slug}`)
 }
 
-const CF_MODRINTH_TYPE_CLASS_IDS: Record<string, number> = {
+const CF_MODRINTH_TYPE_CLASS_IDS = {
 	mod: 6,
 	modpack: 4471,
 	resourcepack: 12,
