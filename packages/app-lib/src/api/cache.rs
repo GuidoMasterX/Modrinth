@@ -103,7 +103,10 @@ pub async fn get_curseforge_file_changelog(
 ) -> crate::Result<Option<String>> {
     let state = crate::State::get().await?;
     Ok(crate::api::curseforge::api::get_file_changelog(
-        mod_id, file_id, &state.api_semaphore, &state.pool,
+        mod_id,
+        file_id,
+        &state.api_semaphore,
+        &state.pool,
     )
     .await
     .ok())
