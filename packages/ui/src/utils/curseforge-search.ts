@@ -1,3 +1,4 @@
+import { getLoaderIcon } from '@modrinth/assets'
 import type { Ref } from 'vue'
 import { computed, ref, shallowRef } from 'vue'
 import { useRoute } from 'vue-router'
@@ -5,7 +6,7 @@ import { useRoute } from 'vue-router'
 import { defineMessage, useVIntl } from '../composables/i18n'
 import type { FilterType, FilterValue, SortType, Tags } from './search'
 import { findFilterOption } from './search'
-import { formatLoader, getLoaderIcon } from './tag-messages.ts'
+import { formatLoader } from './tag-messages.ts'
 
 export interface CurseforgeCategory {
 	id: number
