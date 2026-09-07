@@ -1,6 +1,6 @@
 use crate::api::Result;
 use theseus::data::{
-    CFCategory, SourceProject, SourceVersion, SourceVersionFile,
+    BrowseSearchResponse, CFCategory, Project, SourceVersionFile, Version,
 };
 use theseus::prelude::*;
 
@@ -40,8 +40,6 @@ impl_cache_methods!(
     (Organization, Organization),
     (SearchResults, SearchResults),
     (SearchResultsV3, SearchResultsV3),
-    (CurseforgeSearchResults, CachedCFSearchResults),
-    (CurseforgeProject, SourceProject),
     (CurseforgeFile, SourceVersionFile),
     (CurseforgeFingerprints, CachedCFFingerprints)
 );
@@ -68,9 +66,7 @@ pub fn init<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
             purge_cache_types,
             get_project_versions,
             get_curseforge_search_results,
-            get_curseforge_search_results_many,
             get_curseforge_project,
-            get_curseforge_project_many,
             get_curseforge_project_versions,
             get_curseforge_categories,
             get_curseforge_file,
@@ -98,14 +94,55 @@ pub async fn get_project_versions(
 }
 
 #[tauri::command]
+pub async fn get_curseforge_search_results(
+    id: &str,
+    cache_behaviour: Option<CacheBehaviour>,
+) -> Result<Option<BrowseSearchResponse>> {
+    Ok(theseus::cache::get_curseforge_search_results(id, cache_behaviour)
+        .await?
+        .map(|cached| {
+            theseus::data::labrinth_map::search_response_to_browse(
+                &cached.result,
+            )
+        }))
+}
+
+#[tauri::command]
+pub async fn get_curseforge_project(
+    id: &str,
+    cache_behaviour: Option<CacheBehaviour>,
+) -> Result<Option<Project>> {
+    Ok(theseus::cache::get_curseforge_project(id, cache_behaviour)
+        .await?
+        .map(|project| {
+            theseus::data::labrinth_map::project_to_labrinth(
+                &project,
+            )
+        }))
+}
+
+#[tauri::command]
 pub async fn get_curseforge_project_versions(
     id: &str,
     cache_behaviour: Option<CacheBehaviour>,
-) -> Result<Option<Vec<SourceVersion>>> {
-    Ok(theseus::cache::get_curseforge_project_versions(
-        id, cache_behaviour
+) -> Result<Option<Vec<Version>>> {
+    let mut versions = theseus::cache::get_curseforge_project_versions(
+        id,
+        cache_behaviour,
     )
-    .await?)
+    .await?
+    .map(|versions| {
+        versions
+            .iter()
+            .map(theseus::data::labrinth_map::version_to_labrinth)
+            .collect::<Vec<Version>>()
+    });
+
+    if let Some(versions) = versions.as_mut() {
+        versions.sort_by(|a, b| b.date_published.cmp(&a.date_published));
+    }
+
+    Ok(versions)
 }
 
 #[tauri::command]

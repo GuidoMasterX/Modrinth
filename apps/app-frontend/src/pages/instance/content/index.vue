@@ -663,7 +663,7 @@ function mergeVersionIntoList(
 
 async function getUpdaterProjectVersions(projectId: string, pinnedVersionId?: string) {
 	if (isCfProjectId(projectId)) {
-		const versions = await getCfVersions(parseCfId(projectId))
+		const versions = await getCfVersions(projectId)
 		return sortVersionsByPublishedDate(versions)
 	}
 

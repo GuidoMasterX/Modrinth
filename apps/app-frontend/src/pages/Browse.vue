@@ -1170,60 +1170,18 @@ async function searchCurseforge(requestParams: string) {
 		return { projectHits: [], serverHits: [], total_hits: 0, per_page: 20 }
 	}
 	debugLog('searching curseforge', requestParams)
-	const raw = (await queryClient.fetchQuery({
+	const response = (await queryClient.fetchQuery({
 		queryKey: ['search', 'curseforge', requestParams],
 		queryFn: () => get_curseforge_search_results(requestParams, 'must_revalidate'),
 		staleTime: 30_000,
 	})) as {
-		data: {
-			id: number
-			name: string
-			slug: string | null
-			summary: string
-			downloadCount: number
-			dateCreated: string | null
-			dateModified: string | null
-			logo: { url: string | null; thumbnailUrl: string | null } | null
-			categories: { name: string }[]
-			authors: { name: string | null }[]
-		}[]
-		pagination: { totalCount: number } | null
+		projectHits: Labrinth.Search.v3.ResultSearchProject[]
+		serverHits: unknown[]
+		total_hits: number
+		per_page: number
 	} | null
 
-	const hits = (raw?.data ?? []).map(
-		(cf): Labrinth.Search.v3.ResultSearchProject => ({
-			project_id: `cf-${cf.id}`,
-			project_types: [projectType.value],
-			all_project_types: [projectType.value],
-			slug: cf.slug,
-			author: cf.authors?.[0]?.name ?? '',
-			author_id: null,
-			organization: null,
-			organization_id: null,
-			name: cf.name,
-			summary: cf.summary,
-			categories: (cf.categories ?? []).map((c) => c.name),
-			display_categories: (cf.categories ?? []).map((c) => c.name),
-			downloads: cf.downloadCount ?? 0,
-			follows: 0,
-			icon_url: cf.logo?.url ?? cf.logo?.thumbnailUrl ?? null,
-			date_created: cf.dateCreated ?? '',
-			date_modified: cf.dateModified ?? '',
-			license: '',
-			gallery: [],
-			featured_gallery: null,
-			color: null,
-			loaders: [],
-			disclosure_types: [],
-		}),
-	)
-
-	return {
-		projectHits: hits,
-		serverHits: [],
-		total_hits: raw?.pagination?.totalCount ?? hits.length,
-		per_page: 20,
-	}
+	return response ?? { projectHits: [], serverHits: [], total_hits: 0, per_page: 20 }
 }
 
 const searchState = useBrowseSearch({

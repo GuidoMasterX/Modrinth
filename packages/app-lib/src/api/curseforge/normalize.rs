@@ -7,8 +7,8 @@
 use serde::{Deserialize, Serialize};
 
 use super::structs::{
-    CF_CLASS_MODPACK, CF_CLASS_RESOURCE_PACK, CF_CLASS_SHADER_PACK, CFFile,
-    CFProject,
+    CF_CLASS_DATA_PACK, CF_CLASS_MODPACK, CF_CLASS_RESOURCE_PACK,
+    CF_CLASS_SHADER_PACK, CFFile, CFProject,
 };
 
 #[derive(
@@ -44,6 +44,7 @@ pub enum SourceProjectType {
     Modpack,
     ResourcePack,
     ShaderPack,
+    DataPack,
 }
 
 impl SourceProjectType {
@@ -52,6 +53,7 @@ impl SourceProjectType {
             Some(CF_CLASS_MODPACK) => Self::Modpack,
             Some(CF_CLASS_RESOURCE_PACK) => Self::ResourcePack,
             Some(CF_CLASS_SHADER_PACK) => Self::ShaderPack,
+            Some(CF_CLASS_DATA_PACK) => Self::DataPack,
             _ => Self::Mod,
         }
     }
@@ -110,6 +112,8 @@ pub struct SourceVersion {
     pub version_type: String,
     pub files: Vec<SourceVersionFile>,
     pub dependencies: Vec<String>,
+    #[serde(default)]
+    pub downloads: u64,
 }
 
 impl SourceProject {
@@ -172,6 +176,7 @@ impl SourceVersion {
                 .iter()
                 .map(|dependency| dependency.mod_id.to_string())
                 .collect(),
+            downloads: file.download_count,
         }
     }
 }
@@ -195,7 +200,7 @@ pub fn parse_cf_date(date: &Option<String>) -> i64 {
     }
 }
 
-fn release_type_name(release_type: i32) -> &'static str {
+pub fn release_type_name(release_type: i32) -> &'static str {
     match release_type {
         2 => "beta",
         3 => "alpha",

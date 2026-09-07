@@ -9,6 +9,7 @@ pub const CF_CLASS_MOD: i64 = 6;
 pub const CF_CLASS_RESOURCE_PACK: i64 = 12;
 pub const CF_CLASS_MODPACK: i64 = 4471;
 pub const CF_CLASS_SHADER_PACK: i64 = 6552;
+pub const CF_CLASS_DATA_PACK: i64 = 6945;
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 #[serde(rename_all = "camelCase", default)]

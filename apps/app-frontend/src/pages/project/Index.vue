@@ -299,7 +299,13 @@ import {
 	get_version,
 	get_version_many,
 } from '@/helpers/cache.js'
-import { getCfProject, getCfVersions, isCfProjectId, parseCfId } from '@/helpers/curseforge-project'
+import {
+	cfProjectUrl,
+	getCfProject,
+	getCfVersions,
+	isCfProjectId,
+	parseCfId,
+} from '@/helpers/curseforge-project'
 import {
 	get as getInstance,
 	get_projects as getInstanceProjects,
@@ -719,7 +725,7 @@ function handleAddServerToInstance() {
 function openProjectInBrowser() {
 	if (!data.value) return
 	if (isCfProjectId(data.value.id)) {
-		void openUrl(data.value.body_url || `https://www.curseforge.com/projects/${data.value.slug}`)
+		void openUrl(cfProjectUrl(data.value))
 		return
 	}
 	const type = isServerProject.value ? 'project' : data.value.project_type
@@ -761,7 +767,7 @@ async function switchSource() {
 function reportProject() {
 	if (!data.value) return
 	if (isCfProjectId(data.value.id)) {
-		void openUrl(data.value.body_url || `https://www.curseforge.com/projects/${data.value.slug}`)
+		void openUrl(cfProjectUrl(data.value))
 		return
 	}
 	void openUrl(`https://modrinth.com/report?item=project&itemID=${data.value.id}`)
@@ -1065,9 +1071,7 @@ const handleRightClick = (event) => {
 }
 const getProjectLink = (project) =>
 	isCfProjectId(project.id)
-		? project.body_url ||
-			project.website_url ||
-			`https://www.curseforge.com/projects/${project.slug}`
+		? cfProjectUrl(project)
 		: `https://modrinth.com/${project.project_type}/${project.slug}`
 const openProjectLink = (project) => openUrl(getProjectLink(project))
 const copyProjectLink = (project) => navigator.clipboard.writeText(getProjectLink(project))

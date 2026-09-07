@@ -15,14 +15,13 @@ use crate::state::{
     CacheBehaviour, CachedEntry, CachedFile, ContentFile, ContentItem,
     ContentItemOwner, ContentItemProject, ContentItemVersion, Dependency,
     License, LinkedModpackInfo, ModLoader, Organization, OwnerType, Project,
-    ProjectType, ReleaseChannel, SideType, TeamMember, Version,
-    VersionEnvironment, VersionFile, VersionV3,
+    ProjectType, ReleaseChannel, TeamMember, Version, VersionEnvironment,
+    VersionV3,
 };
 use crate::util::fetch::{
     DownloadMeta, DownloadReason, FetchSemaphore, fetch_mirrors, sha1_async,
 };
 use async_zip::base::read::seek::ZipFileReader;
-use chrono::DateTime;
 use dashmap::DashMap;
 use sqlx::SqlitePool;
 use std::collections::{HashMap, HashSet};
@@ -1793,112 +1792,18 @@ async fn get_curseforge_modpack_info(
             update_channel,
         );
     let has_update = latest.map(|file| file.id != cf_file_id).unwrap_or(false);
-    let update_version = latest.map(|file| Version {
-        id: format!("cf-{}", file.id),
-        project_id: format!("cf-{}", file.mod_id),
-        author_id: String::new(),
-        featured: false,
-        name: file.display_name.clone(),
-        version_number: file.display_name.clone(),
-        changelog: None,
-        changelog_url: None,
-        date_published: DateTime::from_timestamp_millis(
-            crate::api::curseforge::normalize::parse_cf_date(&file.file_date),
-        )
-        .unwrap_or_default(),
-        downloads: file.download_count as u32,
-        version_type: match file.release_type {
-            2 => "beta".to_string(),
-            3 => "alpha".to_string(),
-            _ => "release".to_string(),
-        },
-        files: vec![VersionFile {
-            hashes: file
-                .hashes
-                .iter()
-                .filter(|hash| hash.algo == 1)
-                .map(|hash| ("sha1".to_string(), hash.value.clone()))
-                .collect(),
-            url: crate::api::curseforge::api::get_download_url(file),
-            filename: file.file_name.clone(),
-            primary: true,
-            size: file.file_length as u32,
-            file_type: None,
-        }],
-        dependencies: Vec::new(),
-        game_versions: file.game_versions.clone(),
-        loaders: file.loaders.clone(),
+    let update_version = latest.map(|file| {
+        crate::api::curseforge::labrinth_map::cf_file_to_version(file, None)
     });
 
     Ok(LinkedModpackInfo {
-        project: curseforge_project_to_project(&source_project),
+        project: crate::api::curseforge::labrinth_map::project_to_labrinth(
+            &source_project,
+        ),
         version: None,
         owner: None,
         has_update,
         update_version_id: latest.map(|file| format!("cf-{}", file.id)),
         update_version,
     })
-}
-
-pub(crate) fn curseforge_project_to_project(
-    project: &SourceProject,
-) -> Project {
-    let website_url = project.website_url.clone().filter(|url| !url.is_empty());
-    let project_type = match project.project_type {
-        crate::api::curseforge::normalize::SourceProjectType::Mod => "mod",
-        crate::api::curseforge::normalize::SourceProjectType::Modpack => {
-            "modpack"
-        }
-        crate::api::curseforge::normalize::SourceProjectType::ResourcePack => {
-            "resourcepack"
-        }
-        crate::api::curseforge::normalize::SourceProjectType::ShaderPack => {
-            "shader"
-        }
-    };
-    Project {
-        id: format!("cf-{}", project.id),
-        slug: project.slug.clone(),
-        project_type: project_type.to_string(),
-        team: String::new(),
-        organization: None,
-        title: project.title.clone(),
-        description: project.description.clone(),
-        body: project.description.clone(),
-        published: DateTime::from_timestamp_millis(
-            crate::api::curseforge::normalize::parse_cf_date(
-                &project.date_created,
-            ),
-        )
-        .unwrap_or_default(),
-        updated: DateTime::from_timestamp_millis(
-            crate::api::curseforge::normalize::parse_cf_date(&project.updated),
-        )
-        .unwrap_or_default(),
-        approved: None,
-        status: "approved".to_string(),
-        license: License {
-            id: String::new(),
-            name: String::new(),
-            url: website_url.clone(),
-        },
-        client_side: SideType::Unknown,
-        server_side: SideType::Unknown,
-        downloads: project.downloads as u32,
-        followers: 0,
-        categories: project.categories.clone(),
-        additional_categories: Vec::new(),
-        game_versions: Vec::new(),
-        loaders: Vec::new(),
-        versions: Vec::new(),
-        icon_url: project.icon_url.clone(),
-        raw_icon_url: None,
-        issues_url: None,
-        source_url: None,
-        wiki_url: None,
-        discord_url: None,
-        donation_urls: None,
-        gallery: Vec::new(),
-        color: None,
-    }
 }

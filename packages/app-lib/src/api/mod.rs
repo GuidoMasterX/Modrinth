@@ -21,6 +21,8 @@ pub mod users;
 pub mod worlds;
 
 pub mod data {
+    pub use crate::api::curseforge::labrinth_map;
+    pub use crate::api::curseforge::labrinth_map::BrowseSearchResponse;
     pub use crate::api::curseforge::normalize::{
         SourceProject, SourceVersion, SourceVersionFile,
     };
