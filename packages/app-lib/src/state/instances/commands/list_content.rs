@@ -1779,6 +1779,7 @@ async fn get_curseforge_modpack_info(
     let cf_files = crate::api::curseforge::api::get_mod_files(
         cf_project_id,
         Some(game_version),
+        None,
         &state.api_semaphore,
         &state.pool,
     )

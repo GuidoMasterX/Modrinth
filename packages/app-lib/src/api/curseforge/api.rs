@@ -12,10 +12,13 @@ use crate::state::Settings;
 use crate::util::fetch::{FetchSemaphore, fetch_advanced};
 
 use super::structs::{
-    CFCategory, CFDataVec, CFDescriptionResponse, CFFile, CFFingerprintsBody,
-    CFFingerprintsResponse, CFModFilesResponse, CFModIdsBody, CFProject,
-    CFSearchResponse,
+    CFCategory, CFDataVec, CFDescriptionResponse, CFFile, CFFileIdsBody,
+    CFFingerprintsBody, CFFingerprintsResponse, CFModFilesResponse,
+    CFModIdsBody, CFProject, CFSearchResponse,
 };
+
+/// CurseForge caps search page size at 50 results per page.
+pub const CF_MAX_PAGE_SIZE: u32 = 50;
 
 pub const CURSEFORGE_API_URL: &str = "https://api.curseforge.com/v1";
 pub const CURSEFORGE_CDN_URL: &str = "https://edge.forgecdn.net";
@@ -116,6 +119,7 @@ pub async fn search(
             if sort_descending { "desc" } else { "asc" }
         ));
     }
+    let page_size = page_size.min(CF_MAX_PAGE_SIZE);
     params.push_str(&format!("&index={}&pageSize={}", index, page_size));
 
     search_raw(&params, fetch_semaphore, pool).await
@@ -198,30 +202,96 @@ pub async fn get_mod_file(
     .await
 }
 
-pub async fn get_mod_files(
-    mod_id: i64,
-    game_version: Option<&str>,
+/// Batch-resolves files by ID (single API call, unlike `get_mod_file`).
+pub async fn get_files(
+    file_ids: &[i64],
     fetch_semaphore: &FetchSemaphore,
     pool: &SqlitePool,
 ) -> crate::Result<Vec<CFFile>> {
-    let mut url = format!(
-        "{}/mods/{}/files?gameId={}",
-        CURSEFORGE_API_URL, mod_id, CF_GAME_ID_MINECRAFT
-    );
-    if let Some(game_version) = game_version {
-        url.push_str(&format!("&gameVersion={}", game_version));
-    }
-
-    let res: CFModFilesResponse = cf_fetch_json(
-        Method::GET,
-        &url,
-        None,
-        Some("curseforge/mods/:id/files"),
+    let body = CFFileIdsBody {
+        file_ids: file_ids.to_vec(),
+    };
+    let res: CFDataVec<CFFile> = cf_fetch_json(
+        Method::POST,
+        &format!("{}/files", CURSEFORGE_API_URL),
+        Some(serde_json::to_value(&body)?),
+        Some("curseforge/files"),
         fetch_semaphore,
         pool,
     )
     .await?;
     Ok(res.data)
+}
+
+pub async fn get_file_changelog(
+    mod_id: i64,
+    file_id: i64,
+    fetch_semaphore: &FetchSemaphore,
+    pool: &SqlitePool,
+) -> crate::Result<String> {
+    let res: CFDescriptionResponse = cf_fetch_json(
+        Method::GET,
+        &format!(
+            "{}/mods/{}/files/{}/changelog",
+            CURSEFORGE_API_URL, mod_id, file_id
+        ),
+        None,
+        Some("curseforge/mods/:id/files/:file/changelog"),
+        fetch_semaphore,
+        pool,
+    )
+    .await?;
+    Ok(res.data)
+}
+
+/// Lists a mod's files, optionally filtered by game version and mod loader,
+/// following pagination (CF returns at most 50 files per page).
+pub async fn get_mod_files(
+    mod_id: i64,
+    game_version: Option<&str>,
+    mod_loader: Option<i64>,
+    fetch_semaphore: &FetchSemaphore,
+    pool: &SqlitePool,
+) -> crate::Result<Vec<CFFile>> {
+    let mut all_files = Vec::new();
+    let mut index = 0;
+
+    loop {
+        let mut url = format!(
+            "{}/mods/{}/files?gameId={}&index={}&pageSize={}",
+            CURSEFORGE_API_URL,
+            mod_id,
+            CF_GAME_ID_MINECRAFT,
+            index,
+            CF_MAX_PAGE_SIZE
+        );
+        if let Some(game_version) = game_version {
+            url.push_str(&format!("&gameVersion={}", game_version));
+        }
+        if let Some(mod_loader) = mod_loader {
+            url.push_str(&format!("&modLoaderType={}", mod_loader));
+        }
+
+        let res: CFModFilesResponse = cf_fetch_json(
+            Method::GET,
+            &url,
+            None,
+            Some("curseforge/mods/:id/files"),
+            fetch_semaphore,
+            pool,
+        )
+        .await?;
+
+        let page_len = res.data.len();
+        all_files.extend(res.data);
+
+        if page_len < CF_MAX_PAGE_SIZE as usize || all_files.len() >= 1000 {
+            break;
+        }
+        index += CF_MAX_PAGE_SIZE;
+    }
+
+    Ok(all_files)
 }
 
 pub async fn get_mod_description(

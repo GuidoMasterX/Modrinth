@@ -2227,6 +2227,7 @@ impl CachedEntry {
                                 crate::api::curseforge::api::get_mod_files(
                                     id,
                                     None,
+                                    None,
                                     fetch_semaphore,
                                     pool,
                                 )

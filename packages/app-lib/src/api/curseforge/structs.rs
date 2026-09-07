@@ -65,6 +65,9 @@ pub struct CFProject {
     pub categories: Vec<CFCategory>,
     pub authors: Vec<CFAuthor>,
     pub class_id: Option<i64>,
+    pub allow_mod_distribution: Option<bool>,
+    pub main_file_id: Option<i64>,
+    pub latest_files_indexes: Vec<CFLatestFileIndex>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
@@ -114,6 +117,17 @@ pub struct CFFile {
     pub game_versions: Vec<String>,
     pub loaders: Vec<String>,
     pub dependencies: Vec<CFFileDependency>,
+    pub is_available: Option<bool>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+#[serde(rename_all = "camelCase", default)]
+pub struct CFLatestFileIndex {
+    pub game_version: Option<String>,
+    pub file_id: i64,
+    pub filename: Option<String>,
+    pub release_type: Option<i32>,
+    pub mod_loader: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
@@ -155,7 +169,15 @@ pub struct CFDescriptionResponse {
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 #[serde(rename_all = "camelCase", default)]
 pub struct CFModIdsBody {
+    #[serde(rename = "modIds")]
     pub mod_ids: Vec<i64>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+#[serde(rename_all = "camelCase", default)]
+pub struct CFFileIdsBody {
+    #[serde(rename = "fileIds")]
+    pub file_ids: Vec<i64>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]

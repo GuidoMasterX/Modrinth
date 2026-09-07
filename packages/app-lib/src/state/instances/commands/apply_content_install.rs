@@ -563,6 +563,9 @@ pub(crate) async fn add_project_from_curseforge_file(
         crate::api::curseforge::normalize::SourceProjectType::ShaderPack => {
             ProjectType::ShaderPack
         }
+        crate::api::curseforge::normalize::SourceProjectType::DataPack => {
+            ProjectType::DataPack
+        }
         crate::api::curseforge::normalize::SourceProjectType::Modpack => {
             return Err(crate::ErrorKind::InputError(
                 "CurseForge modpacks cannot be installed as single files"

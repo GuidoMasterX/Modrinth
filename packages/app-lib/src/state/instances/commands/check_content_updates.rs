@@ -258,6 +258,7 @@ async fn check_curseforge_content_updates(
         let cf_files = match crate::api::curseforge::api::get_mod_files(
             cf_project_id,
             Some(game_version),
+            None,
             api_semaphore,
             pool,
         )
