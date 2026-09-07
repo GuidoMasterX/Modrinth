@@ -80,7 +80,15 @@ export function useCurseforgeSearch(opts: {
 			id: String(c.id),
 			formatted_name: c.name,
 			...(c.iconUrl
-				? { icon: markRaw(() => h('img', { src: c.iconUrl, class: 'h-4 w-4', alt: '' })) }
+				? {
+						icon: markRaw(() =>
+							h('img', {
+								src: c.iconUrl,
+								class: 'h-4 w-4 grayscale group-hover:grayscale-0 transition-[filter]',
+								alt: '',
+							}),
+						),
+					}
 				: {}),
 			method: 'or' as const,
 			value: String(c.id),
@@ -106,6 +114,16 @@ export function useCurseforgeSearch(opts: {
 		const filterTypes: FilterType[] = [
 			{
 				id: 'cf_game_version',
+				// Ordering mirrors Modrinth per project type: mods put game version first,
+				// modpacks put categories first, shaders put game version last.
+				ordering:
+					classId.value === CURSEFORGE_CLASS_IDS.mod
+						? 2
+						: classId.value === CURSEFORGE_CLASS_IDS.modpack
+							? 1
+							: classId.value === CURSEFORGE_CLASS_IDS.shader
+								? -1
+								: 0,
 				formatted_name: formatMessage(
 					defineMessage({
 						id: 'search.filter_type.game_version',
@@ -135,7 +153,6 @@ export function useCurseforgeSearch(opts: {
 					value: gv.version,
 					query_value: gv.version,
 				})),
-				ordering: 2,
 			},
 		]
 
@@ -164,7 +181,7 @@ export function useCurseforgeSearch(opts: {
 					method: 'or' as const,
 					value: String(id),
 				})),
-				ordering: 1,
+				ordering: classId.value === CURSEFORGE_CLASS_IDS.mod ? 1 : 0,
 			})
 		}
 
@@ -183,6 +200,12 @@ export function useCurseforgeSearch(opts: {
 				supports: ['include'],
 				searchable: true,
 				options: categoryOptions,
+				ordering:
+					classId.value === CURSEFORGE_CLASS_IDS.mod
+						? 0
+						: classId.value === CURSEFORGE_CLASS_IDS.modpack
+							? 2
+							: 1,
 			})
 		}
 

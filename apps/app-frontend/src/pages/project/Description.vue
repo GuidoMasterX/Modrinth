@@ -7,35 +7,20 @@
 			v-html="descriptionHtml"
 		/>
 		<ProjectPageDescription v-else :description="project.body" />
-		<ButtonLink :href="cfProjectUrl(project)" target="_blank" class="mt-4">
-			<ExternalIcon />
-			<span>{{ formatMessage(messages.readOnCurseForge) }}</span>
-		</ButtonLink>
 	</Card>
 </template>
 
 <script setup>
-import { ExternalIcon } from '@modrinth/assets'
-import { ButtonLink, Card, defineMessages, ProjectPageDescription, useVIntl } from '@modrinth/ui'
+import { Card, ProjectPageDescription } from '@modrinth/ui'
 import DOMPurify from 'dompurify'
 import { computed, ref, watch } from 'vue'
 
 import { get_curseforge_description } from '@/helpers/cache.js'
-import { cfProjectUrl } from '@/helpers/curseforge-project'
 
 const props = defineProps({
 	project: {
 		type: Object,
 		default: () => {},
-	},
-})
-
-const { formatMessage } = useVIntl()
-
-const messages = defineMessages({
-	readOnCurseForge: {
-		id: 'app.project.description.read-on-curseforge',
-		defaultMessage: 'Read more on CurseForge',
 	},
 })
 

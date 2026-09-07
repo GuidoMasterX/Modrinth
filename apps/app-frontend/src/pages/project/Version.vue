@@ -10,6 +10,7 @@
 			:enrichment-loading="enrichmentLoading"
 			:members="members"
 			:dependency-link-creator="createDependencyLink"
+			:user-link-creator="getUserLink"
 		>
 			<template #headerActions="{ primaryFile }">
 				<Button
@@ -46,7 +47,7 @@
 							label: formatMessage(commonMessages.openInBrowserButton),
 							type: 'link',
 							href: isCfProjectId(project.id)
-								? cfProjectUrl(project)
+								? `${cfProjectUrl(project)}/files/${parseCfId(version.id)}`
 								: `https://modrinth.com/${project.project_type}/${project.slug}/version/${version.id}`,
 							target: '_blank',
 						},
@@ -105,10 +106,11 @@ import { useRoute, useRouter } from 'vue-router'
 import { SwapIcon } from '@/assets/icons'
 import {
 	get_curseforge_file_changelog,
+	get_curseforge_project_many,
 	get_project_many,
 	get_version_many,
 } from '@/helpers/cache.js'
-import { cfProjectUrl, isCfProjectId, parseCfId } from '@/helpers/curseforge-project'
+import { CF_ID_PREFIX, cfProjectUrl, isCfProjectId, parseCfId } from '@/helpers/curseforge-project'
 import { useBreadcrumb } from '@/providers/breadcrumbs'
 
 const { formatMessage } = useVIntl()
@@ -201,8 +203,42 @@ function createDependencyLink(context: DependencyContext): string | undefined {
 	return undefined
 }
 
+function getUserLink(user) {
+	if (user?.id?.startsWith('cf-user-')) {
+		return `https://www.curseforge.com/members/${encodeURIComponent(user.username)}`
+	}
+	return `/user/${encodeURIComponent(user.username)}`
+}
+
 async function refreshEnrichment() {
 	if (!version.value) return
+
+	if (version.value.id.startsWith('cf-')) {
+		const depIds = [
+			...new Set(
+				(version.value.dependencies ?? [])
+					.filter(
+						(dependency) =>
+							dependency.dependency_type !== 'embedded' && dependency.project_id?.startsWith('cf-'),
+					)
+					.map((dependency) => dependency.project_id.slice(CF_ID_PREFIX.length)),
+			),
+		]
+		if (depIds.length === 0) {
+			enrichment.value = { projects: [], versions: [] }
+			return
+		}
+		enrichmentLoading.value = true
+		try {
+			const projects = await get_curseforge_project_many(depIds, 'bypass')
+			enrichment.value = { projects: projects ?? [], versions: [] }
+		} catch {
+			enrichment.value = { projects: [], versions: [] }
+		} finally {
+			enrichmentLoading.value = false
+		}
+		return
+	}
 
 	const projectIds = new Set<string>()
 	const versionIds = new Set<string>()
@@ -213,11 +249,6 @@ async function refreshEnrichment() {
 		if (dependency.version_id) {
 			versionIds.add(dependency.version_id)
 		}
-	}
-
-	if (version.value.id.startsWith('cf-')) {
-		enrichment.value = { projects: [], versions: [] }
-		return
 	}
 
 	if (projectIds.size === 0 && versionIds.size === 0) {
@@ -265,6 +296,7 @@ watch([() => props.versions, () => route.params.version], async () => {
 		version.value = props.versions.find((v) => v.id === route.params.version)
 		cfChangelog.value = undefined
 		await refreshEnrichment()
+		await refreshChangelog()
 		await refreshChangelog()
 	}
 })

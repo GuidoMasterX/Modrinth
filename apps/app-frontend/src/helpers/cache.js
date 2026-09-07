@@ -76,6 +76,10 @@ export async function get_curseforge_project(id, cacheBehaviour) {
 	return await invoke('plugin:cache|get_curseforge_project', { id, cacheBehaviour })
 }
 
+export async function get_curseforge_project_many(ids, cacheBehaviour) {
+	return await invoke('plugin:cache|get_curseforge_project_many', { ids, cacheBehaviour })
+}
+
 export async function get_curseforge_description(id) {
 	return await invoke('plugin:cache|get_curseforge_description', { id })
 }

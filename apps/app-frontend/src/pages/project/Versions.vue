@@ -38,7 +38,7 @@
 					type="quiet"
 					:href="
 						project.id.startsWith('cf-')
-							? cfProjectUrl(project)
+							? `${cfProjectUrl(project)}/files/${parseCfId(version.id)}`
 							: `https://modrinth.com/${project.project_type}/${project.slug}/version/${version.id}`
 					"
 					target="_blank"
@@ -68,7 +68,7 @@ import { useRoute } from 'vue-router'
 
 import { SwapIcon } from '@/assets/icons/index.js'
 import { useAppSettings } from '@/composables/use-app-settings.ts'
-import { cfProjectUrl } from '@/helpers/curseforge-project'
+import { cfProjectUrl, parseCfId } from '@/helpers/curseforge-project'
 import { get_game_versions, get_loaders } from '@/helpers/tags.js'
 
 const { formatMessage } = useVIntl()

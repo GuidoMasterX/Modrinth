@@ -471,6 +471,18 @@ export async function add_project_from_curseforge_file(
 	})
 }
 
+export async function install_curseforge_project_with_dependencies(
+	instanceId: string,
+	cfProjectId: number,
+	cfFileId?: number,
+): Promise<void> {
+	return await invoke('plugin:instance|instance_install_curseforge_project_with_dependencies', {
+		instanceId,
+		cfProjectId,
+		cfFileId: cfFileId ?? null,
+	})
+}
+
 export async function install_project_with_dependencies(
 	instanceId: string,
 	request: ResolveContentRequest,

@@ -100,9 +100,32 @@ function hasProvidedFilter(filterId: string): boolean {
 	return (ctx.providedFilters?.value ?? []).some((filter) => filter.type === filterId)
 }
 
+const ACCORDION_SLOTS_BY_ID: Record<string, string> = {
+	game_version: 'game-version',
+	cf_game_version: 'game-version',
+	server_game_version: 'game-version',
+	mod_loader: 'loader',
+	modpack_loader: 'loader',
+	plugin_loader: 'loader',
+	plugin_platform: 'loader',
+	shader_loader: 'loader',
+	cf_loader: 'loader',
+	cf_category: 'category',
+}
+
+function getAccordionSlot(filterId: string): string {
+	if (ACCORDION_SLOTS_BY_ID[filterId]) return ACCORDION_SLOTS_BY_ID[filterId]
+	if (filterId.startsWith('category_')) return 'category'
+	return filterId
+}
+
 function getFilterOpenByDefault(filterId: string): boolean {
 	if (filterId === 'advanced') {
 		return !advancedFiltersCollapsed.value
+	}
+	const stored = ctx.filterAccordionState?.value[getAccordionSlot(filterId)]
+	if (stored !== undefined) {
+		return stored
 	}
 	if (hasProvidedFilter(filterId)) {
 		return true
@@ -134,6 +157,22 @@ function getFilterOpenByDefault(filterId: string): boolean {
 		return false
 	}
 	return true
+}
+
+function setFilterAccordionOpen(filterId: string, open: boolean) {
+	if (ctx.filterAccordionState) {
+		ctx.filterAccordionState.value = {
+			...ctx.filterAccordionState.value,
+			[getAccordionSlot(filterId)]: open,
+		}
+	}
+}
+
+function handleModrinthFilterOpen(filterId: string, open: boolean) {
+	setFilterAccordionOpen(filterId, open)
+	if (filterId === 'advanced') {
+		setAdvancedFiltersCollapsed(!open)
+	}
 }
 </script>
 
@@ -263,6 +302,8 @@ function getFilterOpenByDefault(filterId: string): boolean {
 				:inner-panel-class="innerPanelClass"
 				:selected-project-class="selectedProjectClass"
 				:open-by-default="getFilterOpenByDefault(filterType.id)"
+				@on-open="setFilterAccordionOpen(filterType.id, true)"
+				@on-close="setFilterAccordionOpen(filterType.id, false)"
 			>
 				<template #header>
 					<h3 :class="isApp ? 'text-base m-0' : 'm-0 text-base font-semibold'">
@@ -292,8 +333,8 @@ function getFilterOpenByDefault(filterId: string): boolean {
 				:inner-panel-class="innerPanelClass"
 				:selected-project-class="selectedProjectClass"
 				:open-by-default="getFilterOpenByDefault(filter.id)"
-				@on-open="() => filter.id === 'advanced' && setAdvancedFiltersCollapsed(false)"
-				@on-close="() => filter.id === 'advanced' && setAdvancedFiltersCollapsed(true)"
+				@on-open="() => handleModrinthFilterOpen(filter.id, true)"
+				@on-close="() => handleModrinthFilterOpen(filter.id, false)"
 			>
 				<template #header>
 					<h3 :class="isApp ? 'text-base m-0' : 'm-0 text-lg font-semibold'">

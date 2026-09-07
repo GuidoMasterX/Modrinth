@@ -36,6 +36,7 @@
 						:tooltip="formatNumber(project.downloads)"
 					/>
 					<PageHeaderMetadataNumberItem
+						v-if="!project.id.startsWith('cf-')"
 						:icon="HeartIcon"
 						:value="project.followers"
 						:label="formatMessage(messages.followersStat, { count: project.followers })"

@@ -33,12 +33,12 @@ import {
 	installJobInstanceId,
 } from '@/helpers/install'
 import {
-	add_project_from_curseforge_file,
 	add_project_from_version,
 	get,
 	get_install_candidates,
 	get_projects,
 	getInstanceIconUrl,
+	install_curseforge_project_with_dependencies,
 	install_project_with_dependencies,
 	list,
 	remove_project,
@@ -624,11 +624,10 @@ export function createContentInstall(opts: {
 		version: Labrinth.Versions.v2.Version,
 	): Promise<ResolveContentPlan | null> {
 		if (isCfProjectId(project.id)) {
-			await add_project_from_curseforge_file(
+			await install_curseforge_project_with_dependencies(
 				instanceId,
 				parseCfId(project.id),
 				parseCfId(version.id),
-				'standalone',
 			)
 			return null
 		}
@@ -748,11 +747,10 @@ export function createContentInstall(opts: {
 		addInstallingItem(incompatibilityWarningInstance.id, incompatibilityWarningProject, version)
 		try {
 			if (isCfProjectId(incompatibilityWarningProject.id)) {
-				await add_project_from_curseforge_file(
+				await install_curseforge_project_with_dependencies(
 					incompatibilityWarningInstance.id,
 					parseCfId(incompatibilityWarningProject.id),
 					parseCfId(version.id),
-					'standalone',
 				)
 			} else {
 				await add_project_from_version(incompatibilityWarningInstance.id, version.id, 'standalone')

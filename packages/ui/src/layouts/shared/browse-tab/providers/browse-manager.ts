@@ -77,6 +77,7 @@ export interface BrowseManagerContext {
 
 	installContext?: ComputedRef<BrowseInstallContext | null>
 	providedFilters?: ComputedRef<FilterValue[]>
+	filterAccordionState?: Ref<Record<string, boolean>>
 	hideInstalled?: Ref<boolean>
 	showHideInstalled?: ComputedRef<boolean>
 	hideInstalledLabel?: ComputedRef<string>

@@ -313,13 +313,20 @@ const contentSearchQuery = ref('')
 const formattedDownloads = computed(() => formatNumber(props.version.downloads))
 const compactDownloads = computed(() => formatCompactNumber(props.version.downloads))
 
-const authorMember = computed(
-	() => props.members?.find((member) => member.user.id === props.version.author_id)?.user,
+const isCfAuthorContext = computed(
+	() =>
+		props.version.id.startsWith('cf-') ||
+		!!props.members?.some((member) => member.user.id.startsWith('cf-user-')),
 )
+const authorMember = computed(() => {
+	const exact = props.members?.find((member) => member.user.id === props.version.author_id)?.user
+	if (exact || !isCfAuthorContext.value) return exact
+	return props.members?.find((member) => member.is_owner)?.user
+})
 const { data: externalAuthor, isLoading: loadingAuthor } = useQuery({
 	queryKey: ['user', props.version.author_id],
 	queryFn: () => api.labrinth.users_v3.get(props.version.author_id),
-	enabled: computed(() => !authorMember.value),
+	enabled: computed(() => !authorMember.value && !!props.version.author_id),
 })
 
 const author = computed(() => authorMember.value ?? externalAuthor.value)

@@ -624,17 +624,18 @@ function getModpackLoaders(version: VersionWithDisplayUrlEnding): string[] {
 	return loaders.filter((loader) => loader !== 'mrpack')
 }
 
-// CF sends varying loaders (datapack, vanilla, forge...) per type; non-mod CF
-// versions should display like Modrinth resource packs do, whose 'minecraft'
-// loader tag renders "Resource Pack".
-const CF_NON_MOD_PROJECT_TYPES = ['resourcepack', 'shader', 'datapack']
+// CF version loaders are populated per type; non-mod CF types need explicit
+// mappings since their loader tags render as project type names.
+const CF_NON_MOD_VERSION_LOADERS: Record<string, string[]> = {
+	resourcepack: ['minecraft'],
+	datapack: ['datapack'],
+	shader: ['vanilla'],
+}
 
 function getVersionLoaders(version: VersionWithDisplayUrlEnding): string[] {
-	if (
-		version.id.startsWith('cf-') &&
-		CF_NON_MOD_PROJECT_TYPES.includes(props.project.project_type)
-	) {
-		return ['minecraft']
+	const cfLoaders = CF_NON_MOD_VERSION_LOADERS[props.project.project_type]
+	if (version.id.startsWith('cf-') && cfLoaders) {
+		return cfLoaders
 	}
 	return getModpackLoaders(version)
 }

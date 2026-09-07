@@ -995,7 +995,7 @@ watch(
 	curseforgeEnabled,
 	async (enabled, previouslyEnabled) => {
 		if (!enabled) return
-		if (route.query.source === 'curseforge') {
+		if (route.query.source === 'curseforge' && projectType.value !== 'server') {
 			searchState.switchSource('curseforge')
 		}
 		try {
@@ -1013,15 +1013,6 @@ watch(
 		}
 		if (searchState.isCfSource.value && previouslyEnabled === false) {
 			void searchState.refreshSearch()
-
-			watch(
-				() => route.params.projectType as ProjectType,
-				(newType) => {
-					if (newType === 'server' && searchState.isCfSource.value) {
-						searchState.switchSource('modrinth')
-					}
-				},
-			)
 		}
 	},
 	{ immediate: true },
@@ -1083,6 +1074,23 @@ const dismissedPhotosensitivityFilterWarning = computed({
 	},
 })
 
+const filterAccordionState = ref<Record<string, boolean>>({})
+
+watch(
+	() => route.params.projectType,
+	(newType) => {
+		if (newType !== 'server' || !searchState.isCfSource.value) return
+		searchState.switchSource('modrinth')
+		if (route.query.source) {
+			router.replace({
+				path: route.path,
+				query: { ...route.query, source: undefined },
+			})
+		}
+	},
+	{ immediate: true },
+)
+
 provideBrowseManager({
 	tags,
 	projectType,
@@ -1132,6 +1140,7 @@ provideBrowseManager({
 		),
 	),
 	onInstalled: onSearchResultInstalled,
+	filterAccordionState,
 	serverPings,
 	getServerModpackContent,
 	onContextMenu: handleRightClick,

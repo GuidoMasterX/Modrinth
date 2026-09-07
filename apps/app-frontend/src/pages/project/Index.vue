@@ -40,7 +40,7 @@
 				:project="data"
 				:has-versions="versions.length > 0"
 				:link-target="`_blank`"
-				:hide-license="isServerProject"
+				:hide-license="isServerProject || isCfProjectId(data.id)"
 				:show-followers="isServerProject"
 				class="project-sidebar-section"
 			/>
