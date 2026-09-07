@@ -219,8 +219,13 @@ pub(crate) fn curseforge_latest_compatible_file<'a>(
                 .any(|version| version == game_version)
         })
         .filter(|file| {
-            file.loaders
+            let (_, game_version_loaders) =
+                crate::api::curseforge::normalize::split_file_game_data(
+                    &file.game_versions,
+                );
+            game_version_loaders
                 .iter()
+                .chain(file.loaders.iter())
                 .any(|candidate| candidate.eq_ignore_ascii_case(loader))
         })
         .filter(|file| allowed_release_types.contains(&file.release_type))

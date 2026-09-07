@@ -67,6 +67,7 @@ pub fn init<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
             get_project_versions,
             get_curseforge_search_results,
             get_curseforge_project,
+            get_curseforge_project_many,
             get_curseforge_project_versions,
             get_curseforge_file_changelog,
             get_curseforge_categories,
@@ -109,18 +110,15 @@ pub async fn get_curseforge_search_results(
         }))
 }
 
-#[tauri::command]
-pub async fn get_curseforge_project(
-    id: &str,
-    cache_behaviour: Option<CacheBehaviour>,
-) -> Result<Option<serde_json::Value>> {
-    let Some(source) = theseus::cache::get_curseforge_project(id, cache_behaviour).await?
-    else {
-        return Ok(None);
-    };
-    let mut project = serde_json::to_value(theseus::data::labrinth_map::project_to_labrinth(&source)).unwrap_or_default();
+fn curseforge_project_json(
+    source: &theseus::data::SourceProject,
+) -> serde_json::Value {
+    let mut project = serde_json::to_value(
+        theseus::data::labrinth_map::project_to_labrinth(source),
+    )
+    .unwrap_or_default();
     project["website_url"] =
-        serde_json::Value::String(theseus::data::labrinth_map::canonical_project_url(&source));
+        serde_json::Value::String(theseus::data::labrinth_map::canonical_project_url(source));
 
     project["cf_members"] = serde_json::Value::Array(
         source
@@ -148,6 +146,20 @@ pub async fn get_curseforge_project(
             .collect(),
     );
 
+    project
+}
+
+#[tauri::command]
+pub async fn get_curseforge_project(
+    id: &str,
+    cache_behaviour: Option<CacheBehaviour>,
+) -> Result<Option<serde_json::Value>> {
+    let Some(source) = theseus::cache::get_curseforge_project(id, cache_behaviour).await?
+    else {
+        return Ok(None);
+    };
+    let mut project = curseforge_project_json(&source);
+
     if let Some(versions) =
         theseus::cache::get_curseforge_project_versions(id, None).await?
     {
@@ -162,6 +174,18 @@ pub async fn get_curseforge_project(
     }
 
     Ok(Some(project))
+}
+
+#[tauri::command]
+pub async fn get_curseforge_project_many(
+    ids: Vec<String>,
+    cache_behaviour: Option<CacheBehaviour>,
+) -> Result<Vec<serde_json::Value>> {
+    let ids = ids.iter().map(|x| &**x).collect::<Vec<&str>>();
+    let sources =
+        theseus::cache::get_curseforge_project_many(&ids, cache_behaviour).await?;
+
+    Ok(sources.iter().map(curseforge_project_json).collect())
 }
 
 #[tauri::command]

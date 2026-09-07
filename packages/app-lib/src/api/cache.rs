@@ -119,14 +119,22 @@ pub async fn get_curseforge_file_changelog(
     file_id: i64,
 ) -> crate::Result<Option<String>> {
     let state = crate::State::get().await?;
-    Ok(crate::api::curseforge::api::get_file_changelog(
+    match crate::api::curseforge::api::get_file_changelog(
         mod_id,
         file_id,
         &state.api_semaphore,
         &state.pool,
     )
     .await
-    .ok())
+    {
+        Ok(changelog) => Ok(Some(changelog)),
+        Err(error) => {
+            tracing::warn!(
+                "Failed to fetch CurseForge changelog for mod {mod_id} file {file_id}: {error}"
+            );
+            Ok(None)
+        }
+    }
 }
 
 #[tracing::instrument]

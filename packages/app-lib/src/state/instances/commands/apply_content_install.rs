@@ -4,7 +4,7 @@ use crate::state::instances::{
 };
 use crate::state::{
     CacheBehaviour, CachedEntry, Dependency, DependencyType, KnownModrinthFile,
-    ModLoader, ProjectType, State, Version, cache_file_hash,
+    ModLoader, ProjectType, ReleaseChannel, State, Version, cache_file_hash,
 };
 use crate::util::fetch::{self, DownloadMeta, DownloadReason};
 use crate::util::io;
@@ -15,6 +15,7 @@ use modrinth_content_management::{
     ResolutionPreferences, ResolveContentPlan, ResolveContentRequest,
     ResolvedContent,
 };
+use std::collections::{HashSet, VecDeque};
 use std::path::{Path, PathBuf};
 
 use crate::api::curseforge::normalize::Source;
@@ -621,6 +622,218 @@ pub(crate) async fn add_project_from_curseforge_file(
         state,
     )
     .await
+}
+
+const CF_DEPENDENCY_RELATION_REQUIRED: i32 = 3;
+const CF_DEPENDENCY_MAX_DEPTH: usize = 5;
+
+/// Installs a CurseForge project into an instance, then resolves and
+/// installs its required dependencies (transitively, depth-capped). The
+/// root project must install successfully; per-dependency failures are
+/// logged and skipped. Returns the `cf-<project id>` ids installed.
+pub(crate) async fn resolve_and_install_curseforge_project(
+    instance_id: &str,
+    cf_project_id: i64,
+    cf_file_id: Option<i64>,
+    state: &State,
+) -> crate::Result<Vec<String>> {
+    let scope = resolve_content_scope(instance_id, None, state).await?;
+    let content_set =
+        content_rows::get_content_set(&scope.content_set_id, &state.pool)
+            .await?
+            .ok_or_else(|| {
+                crate::ErrorKind::InputError(format!(
+                    "Unknown content set {}",
+                    scope.content_set_id
+                ))
+            })?;
+    let game_version = content_set.game_version.clone();
+    let loader_str = content_set.loader.as_str().to_string();
+    let update_channel = scope.instance.update_channel;
+    let installed_cf_project_ids: HashSet<i64> =
+        content_rows::get_content_entries(&scope.content_set_id, &state.pool)
+            .await?
+            .into_iter()
+            .filter_map(|entry| entry.cf_project_id)
+            .collect();
+
+    let mut installed = Vec::new();
+    let root_file_id = match cf_file_id {
+        Some(id) => id,
+        None => curseforge_file_for_context(
+            cf_project_id,
+            &game_version,
+            &loader_str,
+            update_channel,
+            state,
+        )
+        .await?
+        .ok_or_else(|| {
+            crate::ErrorKind::InputError(format!(
+                "No compatible CurseForge file found for project \
+                 {cf_project_id} targeting Minecraft {game_version}"
+            ))
+        })?,
+    };
+    add_project_from_curseforge_file(
+        instance_id,
+        cf_project_id,
+        root_file_id,
+        DownloadReason::Standalone,
+        state,
+    )
+    .await?;
+    installed.push(format!("cf-{cf_project_id}"));
+
+    let mut queue = VecDeque::new();
+    if let Ok(root_file) = crate::api::curseforge::api::get_mod_file(
+        root_file_id,
+        &state.api_semaphore,
+        &state.pool,
+    )
+    .await
+    {
+        for dependency in root_file.dependencies.iter().filter(|dependency| {
+            dependency.relation_type == CF_DEPENDENCY_RELATION_REQUIRED
+        }) {
+            queue.push_back((dependency.mod_id, None, 0));
+        }
+    }
+
+    let mut visited = HashSet::new();
+    visited.insert(cf_project_id);
+    while let Some((dep_id, dep_file_id, depth)) = queue.pop_front() {
+        if depth > CF_DEPENDENCY_MAX_DEPTH || !visited.insert(dep_id) {
+            continue;
+        }
+        if installed_cf_project_ids.contains(&dep_id) {
+            continue;
+        }
+
+        let file_id = match dep_file_id {
+            Some(id) => id,
+            None => {
+                match curseforge_file_for_context(
+                    dep_id,
+                    &game_version,
+                    &loader_str,
+                    update_channel,
+                    state,
+                )
+                .await
+                {
+                    Ok(Some(id)) => id,
+                    Ok(None) => {
+                        tracing::warn!(
+                            "Skipping CurseForge dependency {dep_id}: no \
+                             compatible file for Minecraft {game_version}"
+                        );
+                        continue;
+                    }
+                    Err(error) => {
+                        tracing::warn!(
+                            "Skipping CurseForge dependency {dep_id}: {error}"
+                        );
+                        continue;
+                    }
+                }
+            }
+        };
+
+        match add_project_from_curseforge_file(
+            instance_id,
+            dep_id,
+            file_id,
+            DownloadReason::Dependency,
+            state,
+        )
+        .await
+        {
+            Ok(_) => installed.push(format!("cf-{dep_id}")),
+            Err(error) => {
+                tracing::warn!(
+                    "Skipping CurseForge dependency {dep_id}: {error}"
+                );
+                continue;
+            }
+        }
+
+        if let Ok(dep_file) = crate::api::curseforge::api::get_mod_file(
+            file_id,
+            &state.api_semaphore,
+            &state.pool,
+        )
+        .await
+        {
+            for dependency in
+                dep_file.dependencies.iter().filter(|dependency| {
+                    dependency.relation_type == CF_DEPENDENCY_RELATION_REQUIRED
+                })
+            {
+                queue.push_back((dependency.mod_id, None, depth + 1));
+            }
+        }
+    }
+
+    Ok(installed)
+}
+
+/// Picks the best file id for a CurseForge project in the given instance
+/// context: first a matching entry from `latest_files_indexes` (release
+/// preferred, loader ignored for vanilla sets), falling back to a paginated
+/// file listing filtered by `curseforge_latest_compatible_file`.
+async fn curseforge_file_for_context(
+    cf_project_id: i64,
+    game_version: &str,
+    loader_str: &str,
+    update_channel: ReleaseChannel,
+    state: &State,
+) -> crate::Result<Option<i64>> {
+    let project = crate::api::curseforge::api::get_mod(
+        cf_project_id,
+        &state.api_semaphore,
+        &state.pool,
+    )
+    .await?;
+    let matching = project
+        .latest_files_indexes
+        .iter()
+        .filter(|index| index.game_version.as_deref() == Some(game_version))
+        .filter(|index| {
+            loader_str == "vanilla"
+                || index.mod_loader.is_none_or(|mod_loader| {
+                    crate::api::curseforge::normalize::loader_name(mod_loader)
+                        .is_some_and(|name| {
+                            name.eq_ignore_ascii_case(loader_str)
+                        })
+                })
+        })
+        .collect::<Vec<_>>();
+    if let Some(index) = matching
+        .iter()
+        .find(|index| index.release_type == Some(1))
+        .or_else(|| matching.first())
+    {
+        return Ok(Some(index.file_id));
+    }
+
+    let files = crate::api::curseforge::api::get_mod_files(
+        cf_project_id,
+        Some(game_version),
+        None,
+        &state.api_semaphore,
+        &state.pool,
+    )
+    .await?;
+    Ok(
+        super::check_content_updates::curseforge_latest_compatible_file(
+            &files,
+            game_version,
+            loader_str,
+            update_channel,
+        )
+        .map(|file| file.id),
+    )
 }
 
 pub(crate) async fn add_project_bytes(

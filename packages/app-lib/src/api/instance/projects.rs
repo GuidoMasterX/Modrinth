@@ -122,6 +122,73 @@ pub async fn add_project_from_curseforge_file(
 }
 
 #[tracing::instrument]
+pub async fn install_curseforge_project_with_dependencies(
+    instance_id: &str,
+    cf_project_id: i64,
+    cf_file_id: Option<i64>,
+) -> crate::Result<()> {
+    let state = State::get().await?;
+    let metadata = super::get::get(instance_id).await?.ok_or_else(|| {
+        crate::ErrorKind::InputError("Unknown instance".to_string())
+    })?;
+    ensure_metadata_content_unlocked(&metadata)?;
+
+    let instance_id = metadata.instance.id;
+    let fallback_project_ids = vec![format!("cf-{cf_project_id}")];
+    tokio::spawn(async move {
+        match crate::state::instances::commands::resolve_and_install_curseforge_project(
+            &instance_id,
+            cf_project_id,
+            cf_file_id,
+            &state,
+        )
+        .await
+        {
+            Ok(installed) => {
+                if let Err(error) = emit_instance(
+                    &instance_id,
+                    InstancePayloadType::ContentInstallFinished {
+                        project_ids: installed.clone(),
+                    },
+                )
+                .await
+                {
+                    tracing::error!(
+                        "Failed to emit content install finished event: {error}"
+                    );
+                }
+                if let Err(error) =
+                    emit_instance(&instance_id, InstancePayloadType::Edited)
+                        .await
+                {
+                    tracing::error!(
+                        "Failed to emit instance edited event after content install: {error}"
+                    );
+                }
+                drop(installed);
+            }
+            Err(error) => {
+                if let Err(emit_error) = emit_instance(
+                    &instance_id,
+                    InstancePayloadType::ContentInstallFailed {
+                        project_ids: fallback_project_ids,
+                        message: error.to_string(),
+                    },
+                )
+                .await
+                {
+                    tracing::error!(
+                        "Failed to emit content install failed event: {emit_error}"
+                    );
+                }
+            }
+        }
+    });
+
+    Ok(())
+}
+
+#[tracing::instrument]
 pub async fn install_project_with_dependencies(
     instance_id: &str,
     request: InstallProjectWithDependenciesRequest,

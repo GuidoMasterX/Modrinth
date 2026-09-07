@@ -83,9 +83,9 @@ impl CacheValueType {
             }
             CacheValueType::ProjectVersions => "project_versions",
             CacheValueType::CurseforgeSearchResults => "cf_search_results",
-            CacheValueType::CurseforgeProject => "cf_project_v2",
+            CacheValueType::CurseforgeProject => "cf_project_v3",
             CacheValueType::CurseforgeProjectVersions => {
-                "cf_project_versions_v2"
+                "cf_project_versions_v3"
             }
             CacheValueType::CurseforgeCategories => "cf_categories",
             CacheValueType::CurseforgeFile => "cf_file",
@@ -120,8 +120,8 @@ impl CacheValueType {
             }
             "project_versions" => CacheValueType::ProjectVersions,
             "cf_search_results" => CacheValueType::CurseforgeSearchResults,
-            "cf_project_v2" => CacheValueType::CurseforgeProject,
-            "cf_project_versions_v2" => {
+            "cf_project_v3" => CacheValueType::CurseforgeProject,
+            "cf_project_versions_v3" => {
                 CacheValueType::CurseforgeProjectVersions
             }
             "cf_categories" => CacheValueType::CurseforgeCategories,
@@ -2437,13 +2437,13 @@ impl CachedEntry {
                 )?)
             }
             CacheValueType::CurseforgeProject => {
-                CacheValue::CurseforgeProject(parse(data, id, "cf_project_v2")?)
+                CacheValue::CurseforgeProject(parse(data, id, "cf_project_v3")?)
             }
             CacheValueType::CurseforgeProjectVersions => {
                 CacheValue::CurseforgeProjectVersions(parse(
                     data,
                     id,
-                    "cf_project_versions_v2",
+                    "cf_project_versions_v3",
                 )?)
             }
             CacheValueType::CurseforgeCategories => {

@@ -82,7 +82,7 @@ pub fn project_to_labrinth(project: &SourceProject) -> Project {
         source_url: project.source_url.clone(),
         wiki_url: project.wiki_url.clone(),
         discord_url: None,
-        donation_urls: None,
+        donation_urls: Some(Vec::new()),
         gallery: project
             .gallery
             .iter()
@@ -163,9 +163,14 @@ pub fn version_to_labrinth(version: &SourceVersion) -> Version {
             .iter()
             .map(|dependency| Dependency {
                 version_id: None,
-                project_id: Some(format!("cf-{dependency}")),
+                project_id: Some(format!("cf-{}", dependency.mod_id)),
                 file_name: None,
-                dependency_type: DependencyType::Required,
+                dependency_type: match dependency.relation_type {
+                    1 => DependencyType::Embedded,
+                    2 => DependencyType::Optional,
+                    5 => DependencyType::Incompatible,
+                    _ => DependencyType::Required,
+                },
             })
             .collect(),
         game_versions: version.game_versions.clone(),
@@ -174,8 +179,10 @@ pub fn version_to_labrinth(version: &SourceVersion) -> Version {
 }
 
 /// Builds a Labrinth `Version` straight from a CurseForge file, preserving
-/// download counts and dependency relations that `SourceVersion` collapses.
+/// download counts and dependency relations.
 pub fn cf_file_to_version(file: &CFFile, changelog: Option<String>) -> Version {
+    let (game_versions, loaders) =
+        super::normalize::split_file_game_data(&file.game_versions);
     Version {
         id: format!("cf-{}", file.id),
         project_id: format!("cf-{}", file.mod_id),
@@ -220,8 +227,8 @@ pub fn cf_file_to_version(file: &CFFile, changelog: Option<String>) -> Version {
                 },
             })
             .collect(),
-        game_versions: file.game_versions.clone(),
-        loaders: file.loaders.clone(),
+        game_versions,
+        loaders,
     }
 }
 

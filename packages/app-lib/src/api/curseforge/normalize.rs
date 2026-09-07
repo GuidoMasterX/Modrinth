@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 
 use super::structs::{
     CF_CLASS_DATA_PACK, CF_CLASS_MODPACK, CF_CLASS_RESOURCE_PACK,
-    CF_CLASS_SHADER_PACK, CFAuthor, CFFile, CFProject,
+    CF_CLASS_SHADER_PACK, CFAuthor, CFFile, CFFileDependency, CFProject,
 };
 
 #[derive(
@@ -123,13 +123,14 @@ pub struct SourceVersion {
     pub date_published: Option<String>,
     pub version_type: String,
     pub files: Vec<SourceVersionFile>,
-    pub dependencies: Vec<String>,
+    pub dependencies: Vec<CFFileDependency>,
     #[serde(default)]
     pub downloads: u64,
 }
 
 impl SourceProject {
     pub fn from_cf(project: CFProject) -> Self {
+        let project_type = SourceProjectType::from_cf_class(project.class_id);
         Self {
             source: Source::CurseForge,
             id: project.id.to_string(),
@@ -137,7 +138,7 @@ impl SourceProject {
             title: project.name,
             description: project.summary,
             body_url: project.links.website_url.clone().unwrap_or_default(),
-            icon_url: project.logo.thumbnail_url.or(project.logo.url),
+            icon_url: project.logo.url.clone().or(project.logo.thumbnail_url),
             categories: project
                 .categories
                 .iter()
@@ -151,7 +152,7 @@ impl SourceProject {
             source_url: project.links.source_url,
             wiki_url: project.links.wiki_url,
             authors: project.authors,
-            project_type: SourceProjectType::from_cf_class(project.class_id),
+            project_type,
             game_versions: {
                 let mut versions: Vec<String> = project
                     .latest_files_indexes
@@ -163,18 +164,23 @@ impl SourceProject {
                 versions.sort();
                 versions
             },
-            loaders: {
-                let mut loaders: Vec<String> = project
-                    .latest_files_indexes
-                    .iter()
-                    .filter_map(|index| {
-                        loader_name(index.mod_loader?).map(String::from)
-                    })
-                    .collect::<std::collections::HashSet<_>>()
-                    .into_iter()
-                    .collect();
-                loaders.sort();
-                loaders
+            loaders: match project_type {
+                SourceProjectType::Mod | SourceProjectType::Modpack => {
+                    let mut loaders: Vec<String> = project
+                        .latest_files_indexes
+                        .iter()
+                        .filter_map(|index| {
+                            loader_name(index.mod_loader?).map(String::from)
+                        })
+                        .collect::<std::collections::HashSet<_>>()
+                        .into_iter()
+                        .collect();
+                    loaders.sort();
+                    loaders
+                }
+                SourceProjectType::ShaderPack => vec!["vanilla".to_string()],
+                SourceProjectType::DataPack => vec!["datapack".to_string()],
+                SourceProjectType::ResourcePack => Vec::new(),
             },
             gallery: project
                 .screenshots
@@ -214,25 +220,50 @@ impl SourceVersionFile {
 
 impl SourceVersion {
     pub fn from_cf(file: CFFile, changelog: Option<String>) -> Self {
+        let (game_versions, mut loaders) =
+            split_file_game_data(&file.game_versions);
+        for loader in &file.loaders {
+            let loader = loader.to_ascii_lowercase();
+            if !loaders.contains(&loader) {
+                loaders.push(loader);
+            }
+        }
         Self {
             source: Source::CurseForge,
             id: file.id.to_string(),
             project_id: file.mod_id.to_string(),
             version_number: file.display_name.clone(),
             changelog,
-            game_versions: file.game_versions.clone(),
-            loaders: file.loaders.clone(),
+            game_versions,
+            loaders,
             date_published: file.file_date.clone(),
             version_type: release_type_name(file.release_type).to_string(),
             files: vec![SourceVersionFile::from_cf(&file)],
-            dependencies: file
-                .dependencies
-                .iter()
-                .map(|dependency| dependency.mod_id.to_string())
-                .collect(),
+            dependencies: file.dependencies.clone(),
             downloads: file.download_count,
         }
     }
+}
+
+/// Splits a CF file's `game_versions` list — which mixes loader names into
+/// the versions, since CF files have no dedicated loaders field — into
+/// `(game_versions_without_loaders, loaders)`. Loader names are matched
+/// case-insensitively and returned lowercased; other entries keep their
+/// original order.
+pub fn split_file_game_data(
+    game_versions: &[String],
+) -> (Vec<String>, Vec<String>) {
+    let mut versions = Vec::with_capacity(game_versions.len());
+    let mut loaders = Vec::new();
+    for version in game_versions {
+        let lower = version.to_ascii_lowercase();
+        if matches!(lower.as_str(), "forge" | "neoforge" | "fabric" | "quilt") {
+            loaders.push(lower);
+        } else {
+            versions.push(version.clone());
+        }
+    }
+    (versions, loaders)
 }
 
 /// Parses a CurseForge date (RFC 3339 string or epoch milliseconds) to epoch
@@ -267,7 +298,7 @@ pub fn release_type_name(release_type: i32) -> &'static str {
     }
 }
 
-fn loader_name(mod_loader: i64) -> Option<&'static str> {
+pub fn loader_name(mod_loader: i64) -> Option<&'static str> {
     match mod_loader {
         1 => Some("forge"),
         4 => Some("fabric"),
@@ -339,6 +370,30 @@ mod tests {
             "https://edge.forgecdn.net/files/0/456/mod-1.0.0.jar"
         );
         assert_eq!(version.files[0].sha1.as_deref(), Some("abc"));
-        assert_eq!(version.dependencies, vec!["789".to_string()]);
+        assert_eq!(version.dependencies.len(), 1);
+        assert_eq!(version.dependencies[0].mod_id, 789);
+        assert_eq!(version.dependencies[0].relation_type, 3);
+        assert_eq!(version.game_versions, vec!["1.21.1".to_string()]);
+        assert_eq!(version.loaders, vec!["forge".to_string()]);
+    }
+
+    #[test]
+    fn file_game_data_split() {
+        let (versions, loaders) = split_file_game_data(&[
+            "1.21.1".to_string(),
+            "Forge".to_string(),
+            "NeoForge".to_string(),
+            "1.20.1".to_string(),
+            "fabric".to_string(),
+        ]);
+        assert_eq!(versions, vec!["1.21.1".to_string(), "1.20.1".to_string()]);
+        assert_eq!(
+            loaders,
+            vec![
+                "forge".to_string(),
+                "neoforge".to_string(),
+                "fabric".to_string()
+            ]
+        );
     }
 }
