@@ -83,10 +83,18 @@ pub struct SourceProject {
     pub updated: Option<String>,
     pub date_created: Option<String>,
     pub website_url: Option<String>,
+    #[serde(default)]
     pub issues_url: Option<String>,
+    #[serde(default)]
     pub source_url: Option<String>,
+    #[serde(default)]
     pub wiki_url: Option<String>,
+    #[serde(default)]
     pub authors: Vec<CFAuthor>,
+    #[serde(default)]
+    pub game_versions: Vec<String>,
+    #[serde(default)]
+    pub loaders: Vec<String>,
     pub project_type: SourceProjectType,
     pub gallery: Vec<SourceGalleryItem>,
 }
@@ -144,6 +152,30 @@ impl SourceProject {
             wiki_url: project.links.wiki_url,
             authors: project.authors,
             project_type: SourceProjectType::from_cf_class(project.class_id),
+            game_versions: {
+                let mut versions: Vec<String> = project
+                    .latest_files_indexes
+                    .iter()
+                    .filter_map(|index| index.game_version.clone())
+                    .collect::<std::collections::HashSet<_>>()
+                    .into_iter()
+                    .collect();
+                versions.sort();
+                versions
+            },
+            loaders: {
+                let mut loaders: Vec<String> = project
+                    .latest_files_indexes
+                    .iter()
+                    .filter_map(|index| {
+                        loader_name(index.mod_loader?).map(String::from)
+                    })
+                    .collect::<std::collections::HashSet<_>>()
+                    .into_iter()
+                    .collect();
+                loaders.sort();
+                loaders
+            },
             gallery: project
                 .screenshots
                 .iter()
@@ -232,6 +264,16 @@ pub fn release_type_name(release_type: i32) -> &'static str {
         2 => "beta",
         3 => "alpha",
         _ => "release",
+    }
+}
+
+fn loader_name(mod_loader: i64) -> Option<&'static str> {
+    match mod_loader {
+        1 => Some("forge"),
+        4 => Some("fabric"),
+        5 => Some("quilt"),
+        6 => Some("neoforge"),
+        _ => None,
     }
 }
 

@@ -83,8 +83,10 @@ impl CacheValueType {
             }
             CacheValueType::ProjectVersions => "project_versions",
             CacheValueType::CurseforgeSearchResults => "cf_search_results",
-            CacheValueType::CurseforgeProject => "cf_project",
-            CacheValueType::CurseforgeProjectVersions => "cf_project_versions",
+            CacheValueType::CurseforgeProject => "cf_project_v2",
+            CacheValueType::CurseforgeProjectVersions => {
+                "cf_project_versions_v2"
+            }
             CacheValueType::CurseforgeCategories => "cf_categories",
             CacheValueType::CurseforgeFile => "cf_file",
             CacheValueType::CurseforgeFingerprints => "cf_fingerprints",
@@ -118,8 +120,10 @@ impl CacheValueType {
             }
             "project_versions" => CacheValueType::ProjectVersions,
             "cf_search_results" => CacheValueType::CurseforgeSearchResults,
-            "cf_project" => CacheValueType::CurseforgeProject,
-            "cf_project_versions" => CacheValueType::CurseforgeProjectVersions,
+            "cf_project_v2" => CacheValueType::CurseforgeProject,
+            "cf_project_versions_v2" => {
+                CacheValueType::CurseforgeProjectVersions
+            }
             "cf_categories" => CacheValueType::CurseforgeCategories,
             "cf_file" => CacheValueType::CurseforgeFile,
             "cf_fingerprints" => CacheValueType::CurseforgeFingerprints,
@@ -2433,13 +2437,13 @@ impl CachedEntry {
                 )?)
             }
             CacheValueType::CurseforgeProject => {
-                CacheValue::CurseforgeProject(parse(data, id, "cf_project")?)
+                CacheValue::CurseforgeProject(parse(data, id, "cf_project_v2")?)
             }
             CacheValueType::CurseforgeProjectVersions => {
                 CacheValue::CurseforgeProjectVersions(parse(
                     data,
                     id,
-                    "cf_project_versions",
+                    "cf_project_versions_v2",
                 )?)
             }
             CacheValueType::CurseforgeCategories => {
