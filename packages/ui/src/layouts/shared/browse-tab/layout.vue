@@ -138,44 +138,55 @@ function getProjectCardTags(result: Labrinth.Search.v3.ResultSearchProject, disp
 	</template>
 	<SelectedProjectsFloatingBar v-if="ctx.installContext?.value && ctx.variant !== 'web'" />
 
-	<NavTabs
-		v-if="ctx.showProjectTypeTabs.value"
-		:links="ctx.selectableProjectTypes.value"
-		:replace="ctx.variant === 'app'"
-	/>
-
 	<div
-		v-if="ctx.curseforgeAvailable?.value"
-		class="flex w-max overflow-hidden rounded-[--radius-md] border-[1px] border-solid border-surface-5 bg-surface-3"
+		v-if="
+			ctx.showProjectTypeTabs.value ||
+			(ctx.curseforgeAvailable?.value && ctx.projectType.value !== 'server')
+		"
+		class="flex flex-wrap items-center gap-2"
 	>
-		<button
-			class="flex cursor-pointer items-center gap-2 border-none px-4 py-2 text-sm font-semibold transition-colors"
-			:class="
-				ctx.isCfSource.value
-					? 'bg-transparent text-secondary'
-					: 'bg-[color-mix(in_srgb,var(--color-source-modrinth)_18%,transparent)] text-contrast'
-			"
-			@click="ctx.switchSource('modrinth')"
+		<NavTabs
+			v-if="ctx.showProjectTypeTabs.value"
+			:links="ctx.selectableProjectTypes.value"
+			:replace="ctx.variant === 'app'"
+		/>
+
+		<div
+			v-if="ctx.curseforgeAvailable?.value && ctx.projectType.value !== 'server'"
+			class="flex w-max overflow-hidden rounded-[--radius-md] border-[1px] border-solid border-surface-5 bg-surface-3"
 		>
-			<span class="size-2.5 rounded-full" :style="{ background: 'var(--color-source-modrinth)' }" />
-			Modrinth
-		</button>
-		<button
-			class="flex cursor-pointer items-center gap-2 border-none px-4 py-2 text-sm font-semibold transition-colors"
-			:class="
-				ctx.isCfSource.value
-					? 'bg-[color-mix(in_srgb,var(--color-source-curseforge)_18%,transparent)] text-contrast'
-					: 'bg-transparent text-secondary'
-			"
-			@click="ctx.switchSource('curseforge')"
-		>
-			<span
-				class="size-2.5 rounded-full"
-				:style="{ background: 'var(--color-source-curseforge)' }"
-			/>
-			<CurseForgeIcon class="size-3.5" />
-			CurseForge
-		</button>
+			<button
+				class="flex cursor-pointer items-center gap-2 border-none px-4 py-2 text-sm font-semibold transition-colors"
+				:class="
+					ctx.isCfSource.value
+						? 'bg-transparent text-secondary'
+						: 'bg-[color-mix(in_srgb,var(--color-source-modrinth)_18%,transparent)] text-contrast'
+				"
+				@click="ctx.switchSource('modrinth')"
+			>
+				<span
+					class="size-2.5 rounded-full"
+					:style="{ background: 'var(--color-source-modrinth)' }"
+				/>
+				Modrinth
+			</button>
+			<button
+				class="flex cursor-pointer items-center gap-2 border-none px-4 py-2 text-sm font-semibold transition-colors"
+				:class="
+					ctx.isCfSource.value
+						? 'bg-[color-mix(in_srgb,var(--color-source-curseforge)_18%,transparent)] text-contrast'
+						: 'bg-transparent text-secondary'
+				"
+				@click="ctx.switchSource('curseforge')"
+			>
+				<span
+					class="size-2.5 rounded-full"
+					:style="{ background: 'var(--color-source-curseforge)' }"
+				/>
+				<CurseForgeIcon class="size-3.5" />
+				CurseForge
+			</button>
+		</div>
 	</div>
 
 	<Input

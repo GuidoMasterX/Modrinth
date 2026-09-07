@@ -35,14 +35,18 @@ export const CURSEFORGE_MOD_LOADER_IDS: Record<string, number> = {
 
 const CURSEFORGE_SORT_FIELDS: Record<string, { field: number; order: 'asc' | 'desc' }> = {
 	downloads: { field: 6, order: 'desc' },
+	popularity: { field: 2, order: 'desc' },
 	updated: { field: 3, order: 'desc' },
 	name: { field: 4, order: 'asc' },
+	date_created: { field: 8, order: 'desc' },
 }
 
 export const CURSEFORGE_SORT_TYPES: SortType[] = [
 	{ display: 'Relevance', name: 'relevance' },
 	{ display: 'Downloads', name: 'downloads' },
+	{ display: 'Popularity', name: 'popularity' },
 	{ display: 'Date Updated', name: 'updated' },
+	{ display: 'Date Created', name: 'date_created' },
 	{ display: 'Name', name: 'name' },
 ]
 
@@ -66,14 +70,31 @@ export function useCurseforgeSearch(opts: {
 	const classId = computed(() => CURSEFORGE_CLASS_IDS[opts.projectType.value])
 
 	const curseforgeFilterTypes = computed<FilterType[]>(() => {
-		const categoryOptions = (opts.categories.value ?? [])
-			.filter((c) => !c.isClass && (c.classId ?? c.parentCategoryId) === classId.value)
-			.map((c) => ({
-				id: String(c.id),
-				formatted_name: c.name,
-				method: 'or' as const,
-				value: String(c.id),
-			}))
+		const classCategories = (opts.categories.value ?? []).filter(
+			(c) => !c.isClass && (c.classId ?? c.parentCategoryId) === classId.value,
+		)
+		const toCategoryOption = (c: CurseforgeCategory) => ({
+			id: String(c.id),
+			formatted_name: c.name,
+			method: 'or' as const,
+			value: String(c.id),
+		})
+		const childrenByParent = new Map<number, CurseforgeCategory[]>()
+		for (const category of classCategories) {
+			if (category.parentCategoryId) {
+				const children = childrenByParent.get(category.parentCategoryId) ?? []
+				children.push(category)
+				childrenByParent.set(category.parentCategoryId, children)
+			}
+		}
+		const categoryOptions = classCategories
+			.filter((c) => !c.parentCategoryId)
+			.map((parent) => {
+				const children = childrenByParent.get(parent.id)
+				return children?.length
+					? { ...toCategoryOption(parent), sub_options: children.map(toCategoryOption) }
+					: toCategoryOption(parent)
+			})
 
 		const filterTypes: FilterType[] = [
 			{
@@ -84,7 +105,7 @@ export function useCurseforgeSearch(opts: {
 						defaultMessage: 'Game version',
 					}),
 				),
-				supported_project_types: ['mod', 'modpack', 'resourcepack', 'shader'],
+				supported_project_types: ['mod', 'modpack', 'resourcepack', 'shader', 'datapack'],
 				display: 'scrollable',
 				query_param: 'cgv',
 				supports: ['include'],
@@ -131,7 +152,7 @@ export function useCurseforgeSearch(opts: {
 						defaultMessage: 'Categories',
 					}),
 				),
-				supported_project_types: ['mod', 'modpack', 'resourcepack', 'shader'],
+				supported_project_types: ['mod', 'modpack', 'resourcepack', 'shader', 'datapack'],
 				display: 'scrollable',
 				query_param: 'cc',
 				supports: ['include'],

@@ -186,6 +186,7 @@
 
 	--color-source-modrinth: #00af54;
 	--color-source-curseforge: #f16436;
+	--color-source-curseforge-highlight: rgba(241, 100, 54, 0.25);
 
 	--hover-brightness: 0.9;
 }
@@ -409,6 +410,7 @@ html {
 
 	--color-source-modrinth: #2ae18b;
 	--color-source-curseforge: #ff8a5e;
+	--color-source-curseforge-highlight: rgba(255, 138, 94, 0.25);
 
 	--hover-brightness: 1.25;
 }
@@ -478,4 +480,9 @@ html {
 	--color-gray-highlight: rgba(113, 128, 150, 0.25);
 
 	--brand-gradient-strong-bg: #3a3b38;
+}
+
+.cf-source-accent {
+	--color-brand: var(--color-source-curseforge);
+	--color-brand-highlight: var(--color-source-curseforge-highlight);
 }

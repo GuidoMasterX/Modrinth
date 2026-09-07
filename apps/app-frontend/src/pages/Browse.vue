@@ -1453,9 +1453,10 @@ provideBrowseManager({
 	}),
 	showHideInstalled: computed(
 		() =>
-			projectType.value === 'modpack' ||
-			(isServerContext.value && projectType.value !== 'modpack') ||
-			!!instance.value,
+			!searchState.isCfSource.value &&
+			(projectType.value === 'modpack' ||
+				(isServerContext.value && projectType.value !== 'modpack') ||
+				!!instance.value),
 	),
 	hideInstalledLabel: computed(() =>
 		formatMessage(
@@ -1484,7 +1485,10 @@ provideBrowseManager({
 </script>
 
 <template>
-	<div class="flex flex-col gap-2 p-6">
+	<div
+		class="flex flex-col gap-2 p-6"
+		:class="{ 'cf-source-accent': searchState.isCfSource.value }"
+	>
 		<BrowsePageLayout>
 			<template #after>
 				<ContextMenu ref="contextMenuRef" :label="formatMessage(messages.projectActionsLabel)">

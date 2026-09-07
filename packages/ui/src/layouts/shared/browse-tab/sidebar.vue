@@ -119,7 +119,12 @@ function getFilterOpenByDefault(filterId: string): boolean {
 		].includes(filterId)
 	}
 	if (isApp.value) {
-		return filterId.startsWith('category') || filterId === 'environment' || filterId === 'license'
+		return (
+			filterId.startsWith('category') ||
+			filterId.startsWith('cf_') ||
+			filterId === 'environment' ||
+			filterId === 'license'
+		)
 	}
 	if (
 		lockedMessages.value?.gameVersionShaderMessage &&
@@ -148,6 +153,7 @@ function getFilterOpenByDefault(filterId: string): boolean {
 			'gap-3': !isApp,
 			'fixed inset-0 z-50 m-4 mb-0 overflow-auto rounded-t-3xl bg-bg-raised':
 				ctx.filtersMenuOpen?.value,
+			'cf-source-accent': ctx.isCfSource.value,
 		}"
 	>
 		<div
