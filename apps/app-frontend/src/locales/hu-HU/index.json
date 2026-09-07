@@ -133,7 +133,8 @@
   },
   "app.action-bar.view-logs": {
     "message": "Naplók megtekintése"
-  },  "app.appearance-settings.compact-mode.description": {
+  },
+  "app.appearance-settings.compact-mode.description": {
     "message": "A könyvtári játékprofilok megjelenítése egy összetett, soros elrendezésben."
   },
   "app.appearance-settings.compact-mode.title": {
@@ -309,18 +310,6 @@
   },
   "app.home.jump-back-in.view-instance": {
     "message": "Játékprofil megtekintése"
-  },
-  "app.hosting.update-required.description": {
-    "message": "Frissítened kell, hogy használhasd a Modrinth Hostingot a Modrinth Appon keresztül"
-  },
-  "app.hosting.update-required.download": {
-    "message": "Letöltés a frissítéshez"
-  },
-  "app.hosting.update-required.rinthbot-alt": {
-    "message": "Izgatott Modrinth bot"
-  },
-  "app.hosting.update-required.title": {
-    "message": "Frissítés szükséges a Modrinth Apphoz"
   },
   "app.icon-editor.apply-icons-modal.apply-error": {
     "message": "Nem sikerült véletlenszerű ikonokat rendelni a játékprofilokhoz."
@@ -961,9 +950,6 @@
   "app.nav.modrinth-account": {
     "message": "Modrinth fiók"
   },
-  "app.nav.modrinth-hosting": {
-    "message": "Modrinth Hosting"
-  },
   "app.nav.sign-in-to-modrinth-account": {
     "message": "Bejelentkezés egy Modrinth-fiókba"
   },
@@ -1119,7 +1105,8 @@
   },
   "app.settings.operating-system.macos": {
     "message": "macOS"
-  },  "app.settings.privacy.discord-rich-presence.description": {
+  },
+  "app.settings.privacy.discord-rich-presence.description": {
     "message": "A Modrinth App megjelenítése aktuális tevékenységként a Discordon. Ez nem érinti a modok által a példányokhoz hozzáadott Rich Presence-t. Az alkalmazás újraindítását igényli."
   },
   "app.settings.privacy.discord-rich-presence.title": {

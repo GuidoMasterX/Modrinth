@@ -133,7 +133,8 @@
   },
   "app.action-bar.view-logs": {
     "message": "ログを表示"
-  },  "app.appearance-settings.default-landing-page.home": {
+  },
+  "app.appearance-settings.default-landing-page.home": {
     "message": "ホーム"
   },
   "app.appearance-settings.default-landing-page.library": {
@@ -754,9 +755,6 @@
   "app.nav.modrinth-account": {
     "message": "Modrinthアカウント"
   },
-  "app.nav.modrinth-hosting": {
-    "message": "Modrinth Hosting"
-  },
   "app.nav.sign-in-to-modrinth-account": {
     "message": "Modrinthアカウントにサインイン"
   },
@@ -894,7 +892,8 @@
   },
   "app.settings.operating-system.macos": {
     "message": "MacOS"
-  },  "app.settings.privacy.discord-rich-presence.description": {
+  },
+  "app.settings.privacy.discord-rich-presence.description": {
     "message": "Discordの現在のプレイ中に Modrinth App を表示します。これはModによってインスタンスに追加されるRich Presenceには影響しません。適用にはアプリの再起動が必要です。"
   },
   "app.settings.privacy.discord-rich-presence.title": {

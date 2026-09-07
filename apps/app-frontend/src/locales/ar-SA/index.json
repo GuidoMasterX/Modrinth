@@ -133,7 +133,8 @@
   },
   "app.action-bar.view-logs": {
     "message": "عرض السجلات"
-  },  "app.appearance-settings.default-landing-page.home": {
+  },
+  "app.appearance-settings.default-landing-page.home": {
     "message": "الصفحة الرئيسية"
   },
   "app.appearance-settings.default-landing-page.library": {
@@ -309,18 +310,6 @@
   },
   "app.home.jump-back-in.view-instance": {
     "message": "عرض النسخة"
-  },
-  "app.hosting.update-required.description": {
-    "message": "يجب عليك التحديث لاستخدام Modrinth Hosting بواسطة تطبيق Modrinth"
-  },
-  "app.hosting.update-required.download": {
-    "message": "نزّل للتحديث"
-  },
-  "app.hosting.update-required.rinthbot-alt": {
-    "message": "بوت Modrinth المتحمّس"
-  },
-  "app.hosting.update-required.title": {
-    "message": "يلزم تحديث تطبيق Modrinth"
   },
   "app.icon-editor.apply-icons-modal.apply-error": {
     "message": "تعذّر تطبيق أيقونات عشوائية على النسخ."
@@ -1132,9 +1121,6 @@
   "app.nav.modrinth-account": {
     "message": "حساب Modrinth"
   },
-  "app.nav.modrinth-hosting": {
-    "message": "استضافة Modrinth"
-  },
   "app.nav.sign-in-to-modrinth-account": {
     "message": "تسجيل الدخول إلى حساب Modrinth"
   },
@@ -1305,7 +1291,8 @@
   },
   "app.settings.operating-system.macos": {
     "message": "macOS"
-  },  "app.settings.privacy.discord-rich-presence.description": {
+  },
+  "app.settings.privacy.discord-rich-presence.description": {
     "message": "إظهار تطبيق Modrinth كنشاطك الحالي على Discord. لا يؤثر هذا على الـ Rich Presence المُضاف للنسخ بواسطة المودات. يتطلب إعادة تشغيل التطبيق."
   },
   "app.settings.privacy.discord-rich-presence.title": {

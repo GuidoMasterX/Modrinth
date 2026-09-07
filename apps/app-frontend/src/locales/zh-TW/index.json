@@ -133,7 +133,8 @@
   },
   "app.action-bar.view-logs": {
     "message": "查看紀錄"
-  },  "app.appearance-settings.compact-mode.description": {
+  },
+  "app.appearance-settings.compact-mode.description": {
     "message": "以密集的橫列版面顯示遊戲庫實例。"
   },
   "app.appearance-settings.compact-mode.title": {
@@ -321,18 +322,6 @@
   },
   "app.home.jump-back-in.view-instance": {
     "message": "查看實例"
-  },
-  "app.hosting.update-required.description": {
-    "message": "你需要更新才能透過 Modrinth App 使用 Modrinth Hosting"
-  },
-  "app.hosting.update-required.download": {
-    "message": "下載即可更新"
-  },
-  "app.hosting.update-required.rinthbot-alt": {
-    "message": "興奮的 Modrinth 機器人"
-  },
-  "app.hosting.update-required.title": {
-    "message": "需要更新 Modrinth App"
   },
   "app.icon-editor.apply-icons-modal.apply-error": {
     "message": "無法將隨機圖示套用到實例。"
@@ -1210,9 +1199,6 @@
   "app.nav.modrinth-account": {
     "message": "Modrinth 帳號"
   },
-  "app.nav.modrinth-hosting": {
-    "message": "Modrinth Hosting"
-  },
   "app.nav.sign-in-to-modrinth-account": {
     "message": "登入 Modrinth 帳號"
   },
@@ -1383,7 +1369,8 @@
   },
   "app.settings.operating-system.macos": {
     "message": "macOS"
-  },  "app.settings.privacy.discord-rich-presence.description": {
+  },
+  "app.settings.privacy.discord-rich-presence.description": {
     "message": "在 Discord 上將 Modrinth App 顯示為目前活動。這不會影響模組為實例新增的豐富狀態。需要重新啟動應用程式。"
   },
   "app.settings.privacy.discord-rich-presence.title": {

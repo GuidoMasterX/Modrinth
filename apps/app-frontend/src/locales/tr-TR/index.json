@@ -133,7 +133,8 @@
   },
   "app.action-bar.view-logs": {
     "message": "Günlükleri görüntüle"
-  },  "app.appearance-settings.compact-mode.description": {
+  },
+  "app.appearance-settings.compact-mode.description": {
     "message": "Kütüphane kurulumlarını kompakt satır düzeninde göster."
   },
   "app.appearance-settings.compact-mode.title": {
@@ -321,18 +322,6 @@
   },
   "app.home.jump-back-in.view-instance": {
     "message": "Kurulumu göster"
-  },
-  "app.hosting.update-required.description": {
-    "message": "Modrinth Hosting'i Modrinth App'ten kullanmak için güncelleyin"
-  },
-  "app.hosting.update-required.download": {
-    "message": "Güncellemeyi indir"
-  },
-  "app.hosting.update-required.rinthbot-alt": {
-    "message": "Heyecanlı Modrinth Botu"
-  },
-  "app.hosting.update-required.title": {
-    "message": "Modrinth App güncellemesi gerekli"
   },
   "app.icon-editor.apply-icons-modal.apply-error": {
     "message": "Kurulumlara rastgele ikonlar uygulanamadı."
@@ -1210,9 +1199,6 @@
   "app.nav.modrinth-account": {
     "message": "Modrinth hesabı"
   },
-  "app.nav.modrinth-hosting": {
-    "message": "Modrinth Hosting"
-  },
   "app.nav.sign-in-to-modrinth-account": {
     "message": "Bir Modrinth hesabıyla oturum açın"
   },
@@ -1383,7 +1369,8 @@
   },
   "app.settings.operating-system.macos": {
     "message": "macOS"
-  },  "app.settings.privacy.discord-rich-presence.description": {
+  },
+  "app.settings.privacy.discord-rich-presence.description": {
     "message": "Şu anki Discord aktiviteniz olarak, Modrinth App'i gösterin. Bu, örneğe modlar tarafından eklenen Rich Presence'ı etkilemez. Uygulamayı yeniden başlatmayı gerektirir."
   },
   "app.settings.privacy.discord-rich-presence.title": {

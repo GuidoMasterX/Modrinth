@@ -133,7 +133,8 @@
   },
   "app.action-bar.view-logs": {
     "message": "Pokaż logi"
-  },  "app.appearance-settings.default-landing-page.home": {
+  },
+  "app.appearance-settings.default-landing-page.home": {
     "message": "Strona główna"
   },
   "app.appearance-settings.default-landing-page.library": {
@@ -1060,9 +1061,6 @@
   "app.nav.modrinth-account": {
     "message": "Konto Modrinth"
   },
-  "app.nav.modrinth-hosting": {
-    "message": "Modrinth Hosting"
-  },
   "app.nav.sign-in-to-modrinth-account": {
     "message": "Zaloguj się na konto Modrinth"
   },
@@ -1209,7 +1207,8 @@
   },
   "app.settings.operating-system.macos": {
     "message": "macOS"
-  },  "app.settings.privacy.discord-rich-presence.description": {
+  },
+  "app.settings.privacy.discord-rich-presence.description": {
     "message": "Pokazuj Modrinth App jako aktywność na Discord. Nie wpływa to na Rich Presence dodane do instancji przez mody. Wymaga ponownego uruchomienia aplikacji."
   },
   "app.settings.privacy.discord-rich-presence.title": {

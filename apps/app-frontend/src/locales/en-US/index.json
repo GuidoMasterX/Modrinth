@@ -338,18 +338,6 @@
   "app.home.jump-back-in.view-instance": {
     "message": "View instance"
   },
-  "app.hosting.update-required.description": {
-    "message": "You need to update to use Modrinth Hosting through the Modrinth App"
-  },
-  "app.hosting.update-required.download": {
-    "message": "Download to update"
-  },
-  "app.hosting.update-required.rinthbot-alt": {
-    "message": "Excited Modrinth Bot"
-  },
-  "app.hosting.update-required.title": {
-    "message": "Modrinth App update required"
-  },
   "app.icon-editor.apply-icons-modal.apply-error": {
     "message": "Failed to apply random icons to instances."
   },
@@ -1258,9 +1246,6 @@
   },
   "app.nav.modrinth-account": {
     "message": "Modrinth account"
-  },
-  "app.nav.modrinth-hosting": {
-    "message": "Modrinth Hosting"
   },
   "app.nav.remove-account": {
     "message": "Remove account"

@@ -133,7 +133,8 @@
   },
   "app.action-bar.view-logs": {
     "message": "Ver registros"
-  },  "app.appearance-settings.default-landing-page.home": {
+  },
+  "app.appearance-settings.default-landing-page.home": {
     "message": "Início"
   },
   "app.appearance-settings.default-landing-page.library": {
@@ -297,18 +298,6 @@
   },
   "app.home.jump-back-in.view-instance": {
     "message": "Ver instância"
-  },
-  "app.hosting.update-required.description": {
-    "message": "Você precisa atualizar para usar o Modrinth Hosting através do Modrinth App"
-  },
-  "app.hosting.update-required.download": {
-    "message": "Baixar para atualizar"
-  },
-  "app.hosting.update-required.rinthbot-alt": {
-    "message": "Modrinth Bot animado"
-  },
-  "app.hosting.update-required.title": {
-    "message": "Atualização do Modrinth App necessária"
   },
   "app.icon-editor.apply-icons-modal.apply-error": {
     "message": "Falha ao aplicar ícones aleatórios nas instâncias."
@@ -829,9 +818,6 @@
   "app.nav.modrinth-account": {
     "message": "Conta Modrinth"
   },
-  "app.nav.modrinth-hosting": {
-    "message": "Modrinth Hosting"
-  },
   "app.nav.sign-in-to-modrinth-account": {
     "message": "Iniciar sessão em uma conta Modrinth"
   },
@@ -969,7 +955,8 @@
   },
   "app.settings.operating-system.macos": {
     "message": "macOS"
-  },  "app.settings.privacy.discord-rich-presence.description": {
+  },
+  "app.settings.privacy.discord-rich-presence.description": {
     "message": "Exibe o Modrinth App como sua atividade atual no Discord. Isso não afeta a Presença Rica adicionada às instâncias por mods. Exige a reinicialização do aplicativo."
   },
   "app.settings.privacy.discord-rich-presence.title": {

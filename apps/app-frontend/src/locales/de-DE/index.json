@@ -133,7 +133,8 @@
   },
   "app.action-bar.view-logs": {
     "message": "Protokolle anzeigen"
-  },  "app.appearance-settings.compact-mode.description": {
+  },
+  "app.appearance-settings.compact-mode.description": {
     "message": "Bibliotheksinstanzen in einem kompakten Zeilenlayout anzeigen."
   },
   "app.appearance-settings.compact-mode.title": {
@@ -321,18 +322,6 @@
   },
   "app.home.jump-back-in.view-instance": {
     "message": "Instanz anzeigen"
-  },
-  "app.hosting.update-required.description": {
-    "message": "Du musst aktualisieren, um Modrinth Hosting durch die Modrinth App zu verwenden"
-  },
-  "app.hosting.update-required.download": {
-    "message": "Zum Aktualisieren herunterladen"
-  },
-  "app.hosting.update-required.rinthbot-alt": {
-    "message": "Begeisterter Modrinth-Bot"
-  },
-  "app.hosting.update-required.title": {
-    "message": "Update der Modrinth App erforderlich"
   },
   "app.icon-editor.apply-icons-modal.apply-error": {
     "message": "Es konnten keine zufälligen Symbole auf Instanzen angewendet werden."
@@ -1210,9 +1199,6 @@
   "app.nav.modrinth-account": {
     "message": "Modrinth-Konto"
   },
-  "app.nav.modrinth-hosting": {
-    "message": "Modrinth Hosting"
-  },
   "app.nav.sign-in-to-modrinth-account": {
     "message": "Bei einem Modrinth-Konto anmelden"
   },
@@ -1383,7 +1369,8 @@
   },
   "app.settings.operating-system.macos": {
     "message": "macOS"
-  },  "app.settings.privacy.discord-rich-presence.description": {
+  },
+  "app.settings.privacy.discord-rich-presence.description": {
     "message": "Zeige Modrinth App als deine aktuelle Aktivität auf Discord. Dies betrifft nicht Rich Presence die von Mods zu Instanzen hinzugefügt wird. Benötigt einen Neustart der App."
   },
   "app.settings.privacy.discord-rich-presence.title": {

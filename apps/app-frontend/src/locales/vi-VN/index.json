@@ -133,7 +133,8 @@
   },
   "app.action-bar.view-logs": {
     "message": "Xem logs"
-  },  "app.appearance-settings.compact-mode.description": {
+  },
+  "app.appearance-settings.compact-mode.description": {
     "message": "Hiển thị thư viện phiên bản theo bố cục hàng nhỏ gọn."
   },
   "app.appearance-settings.compact-mode.title": {
@@ -282,15 +283,6 @@
   },
   "app.home.jump-back-in.title": {
     "message": "Tham gia ngay"
-  },
-  "app.hosting.update-required.description": {
-    "message": "Bạn cần cập nhật để sử dụng Modrinth Hosting thông qua ứng dụng Modrinth"
-  },
-  "app.hosting.update-required.download": {
-    "message": "Tải xuống để cập nhật"
-  },
-  "app.hosting.update-required.title": {
-    "message": "Yêu cầu cập nhật ứng dụng Modrinth"
   },
   "app.icon-editor.apply-icons-modal.apply-error": {
     "message": "Không thể áp dụng các biểu tượng ngẫu nhiên cho các thực thể."

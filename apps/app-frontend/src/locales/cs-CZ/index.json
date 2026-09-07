@@ -133,7 +133,8 @@
   },
   "app.action-bar.view-logs": {
     "message": "Zobrazit logy"
-  },  "app.appearance-settings.compact-mode.description": {
+  },
+  "app.appearance-settings.compact-mode.description": {
     "message": "Zobrazit instanční knihovny v kompaktních řádcích."
   },
   "app.appearance-settings.compact-mode.title": {
@@ -321,15 +322,6 @@
   },
   "app.home.jump-back-in.view-instance": {
     "message": "Zobrazit instanci"
-  },
-  "app.hosting.update-required.description": {
-    "message": "Musíte aktualizovat Modrinth Hosting přes Modrinth App"
-  },
-  "app.hosting.update-required.download": {
-    "message": "Stáhnout novou aktualizaci"
-  },
-  "app.hosting.update-required.title": {
-    "message": "Modrinth App potřebuje být aktualizovaná"
   },
   "app.icon-editor.apply-icons-modal.apply-error": {
     "message": "Nepodařilo se použít náhodné ikony pro instance."
@@ -1128,9 +1120,6 @@
   },
   "app.nav.modrinth-account": {
     "message": "Modrinth účet"
-  },
-  "app.nav.modrinth-hosting": {
-    "message": "Modrinth Hosting"
   },
   "app.nav.sign-in-to-modrinth-account": {
     "message": "Přihlásit se do Modrinth účtu"

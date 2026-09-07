@@ -133,7 +133,8 @@
   },
   "app.action-bar.view-logs": {
     "message": "Переглянути журнали"
-  },  "app.appearance-settings.compact-mode.title": {
+  },
+  "app.appearance-settings.compact-mode.title": {
     "message": "Компактний режим"
   },
   "app.appearance-settings.default-landing-page.home": {
@@ -297,18 +298,6 @@
   },
   "app.home.jump-back-in.view-instance": {
     "message": "Переглянути примірник"
-  },
-  "app.hosting.update-required.description": {
-    "message": "Вам потрібно оновитися, щоб використовувати Modrinth Hosting через застосунок Modrinth"
-  },
-  "app.hosting.update-required.download": {
-    "message": "Завантажити для оновлення"
-  },
-  "app.hosting.update-required.rinthbot-alt": {
-    "message": "Схвильований бот Modrinth"
-  },
-  "app.hosting.update-required.title": {
-    "message": "Потрібне оновлення Modrinth App"
   },
   "app.icon-editor.apply-icons-modal.badge": {
     "message": "Нове оновлення"
@@ -1000,9 +989,6 @@
   "app.nav.modrinth-account": {
     "message": "Обліковий запис Modrinth"
   },
-  "app.nav.modrinth-hosting": {
-    "message": "Modrinth Hosting"
-  },
   "app.nav.sign-in-to-modrinth-account": {
     "message": "Увійти в обліковий запис Modrinth"
   },
@@ -1158,7 +1144,8 @@
   },
   "app.settings.operating-system.macos": {
     "message": "macOS"
-  },  "app.settings.privacy.discord-rich-presence.description": {
+  },
+  "app.settings.privacy.discord-rich-presence.description": {
     "message": "Показувати Modrinth App як вашу поточну активність у Discord. Це не впливає на Rich Presence, доданий до збірок модами. Потребує перезапуску застосунку."
   },
   "app.settings.privacy.discord-rich-presence.title": {

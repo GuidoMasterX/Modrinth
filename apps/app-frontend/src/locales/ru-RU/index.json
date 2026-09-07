@@ -133,7 +133,8 @@
   },
   "app.action-bar.view-logs": {
     "message": "Посмотреть журнал"
-  },  "app.appearance-settings.compact-mode.description": {
+  },
+  "app.appearance-settings.compact-mode.description": {
     "message": "Отображать библиотеку сборок компактным списком."
   },
   "app.appearance-settings.compact-mode.title": {
@@ -321,18 +322,6 @@
   },
   "app.home.jump-back-in.view-instance": {
     "message": "Посмотреть сборку"
-  },
-  "app.hosting.update-required.description": {
-    "message": "Обновитесь, чтобы использовать Modrinth Hosting через Modrinth App"
-  },
-  "app.hosting.update-required.download": {
-    "message": "Скачать и обновить"
-  },
-  "app.hosting.update-required.rinthbot-alt": {
-    "message": "Восторженный Modrinth Bot"
-  },
-  "app.hosting.update-required.title": {
-    "message": "Обновите Modrinth App"
   },
   "app.icon-editor.apply-icons-modal.apply-error": {
     "message": "Не удалось применить случайные иконки к сборкам."
@@ -1189,9 +1178,6 @@
   "app.nav.modrinth-account": {
     "message": "Аккаунт Modrinth"
   },
-  "app.nav.modrinth-hosting": {
-    "message": "Modrinth Hosting"
-  },
   "app.nav.sign-in-to-modrinth-account": {
     "message": "Войти в аккаунт Modrinth"
   },
@@ -1362,7 +1348,8 @@
   },
   "app.settings.operating-system.macos": {
     "message": "macOS"
-  },  "app.settings.privacy.discord-rich-presence.description": {
+  },
+  "app.settings.privacy.discord-rich-presence.description": {
     "message": "Показывать Modrinth App в текущей активности Discord. Не влияет на Rich Presence модов. Требуется перезапуск."
   },
   "app.settings.privacy.discord-rich-presence.title": {

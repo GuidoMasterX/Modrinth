@@ -133,7 +133,8 @@
   },
   "app.action-bar.view-logs": {
     "message": "Mostra i log"
-  },  "app.appearance-settings.compact-mode.description": {
+  },
+  "app.appearance-settings.compact-mode.description": {
     "message": "Mostra le istanze nella libreria in righe compatte."
   },
   "app.appearance-settings.compact-mode.title": {
@@ -321,18 +322,6 @@
   },
   "app.home.jump-back-in.view-instance": {
     "message": "Mostra istanza"
-  },
-  "app.hosting.update-required.description": {
-    "message": "È necessario aggiornare l'app per usare Modrinth Hosting"
-  },
-  "app.hosting.update-required.download": {
-    "message": "Scarica per aggiornare"
-  },
-  "app.hosting.update-required.rinthbot-alt": {
-    "message": "Modrinth Bot emozionato"
-  },
-  "app.hosting.update-required.title": {
-    "message": "Aggiornamento richiesto"
   },
   "app.icon-editor.apply-icons-modal.apply-error": {
     "message": "Impossibile applicare icone casuali alle istanze."
@@ -1204,9 +1193,6 @@
   "app.nav.modrinth-account": {
     "message": "Account Modrinth"
   },
-  "app.nav.modrinth-hosting": {
-    "message": "Modrinth Hosting"
-  },
   "app.nav.sign-in-to-modrinth-account": {
     "message": "Accedi a un account Modrinth"
   },
@@ -1377,7 +1363,8 @@
   },
   "app.settings.operating-system.macos": {
     "message": "macOS"
-  },  "app.settings.privacy.discord-rich-presence.description": {
+  },
+  "app.settings.privacy.discord-rich-presence.description": {
     "message": "Mostra Modrinth App come attività su Discord. Ciò non blocca le mod che mostrano la loro Rich Presence. Richiede un riavvio."
   },
   "app.settings.privacy.discord-rich-presence.title": {

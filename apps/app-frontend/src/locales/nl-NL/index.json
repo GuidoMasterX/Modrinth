@@ -133,7 +133,8 @@
   },
   "app.action-bar.view-logs": {
     "message": "Bekijk logs"
-  },  "app.appearance-settings.default-landing-page.home": {
+  },
+  "app.appearance-settings.default-landing-page.home": {
     "message": "Start"
   },
   "app.appearance-settings.default-landing-page.library": {
@@ -261,12 +262,6 @@
   },
   "app.export-modal.version-number-placeholder": {
     "message": "1.0.0"
-  },
-  "app.hosting.update-required.rinthbot-alt": {
-    "message": "Opgewonden Modrinth-bot"
-  },
-  "app.hosting.update-required.title": {
-    "message": "Update van Modrinth-app vereist"
   },
   "app.install.phase.downloading_content": {
     "message": "Inhoud aan het downloaden"
@@ -736,9 +731,6 @@
   "app.nav.modrinth-account": {
     "message": "Modrinth-account"
   },
-  "app.nav.modrinth-hosting": {
-    "message": "Modrinth Hosting"
-  },
   "app.nav.sign-in-to-modrinth-account": {
     "message": "Meld je aan bij een Modrinth-account"
   },
@@ -876,7 +868,8 @@
   },
   "app.settings.operating-system.macos": {
     "message": "macOS"
-  },  "app.settings.privacy.discord-rich-presence.description": {
+  },
+  "app.settings.privacy.discord-rich-presence.description": {
     "message": "Laat Modrinth als jouw activiteit op Discord. Dit verandert niet activiteiten toegevoegd door mods."
   },
   "app.settings.privacy.discord-rich-presence.title": {
