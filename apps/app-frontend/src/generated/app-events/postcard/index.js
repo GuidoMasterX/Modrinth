@@ -210,7 +210,17 @@ function deserialize_LOADING_PAYLOAD(d) {
 
 function deserialize_WARNING_PAYLOAD(d) {
     return {
-        message: d.deserialize_string()
+        message: d.deserialize_string(),
+        blocked_files: d.deserialize_array(() => deserialize_BLOCKED_FILE_INFO(d))
+    };
+}
+
+function deserialize_BLOCKED_FILE_INFO(d) {
+    return {
+        project_id: d.deserialize_number(U64_BYTES, true),
+        project_name: d.deserialize_string(),
+        file_name: d.deserialize_string(),
+        url: d.deserialize_string()
     };
 }
 
@@ -896,6 +906,9 @@ function deserialize(type, bytes) {
         break;
     case "WarningPayload":
         return_value = deserialize_WARNING_PAYLOAD(d);
+        break;
+    case "BlockedFileInfo":
+        return_value = deserialize_BLOCKED_FILE_INFO(d);
         break;
     case "InstanceBulkUpdateProgressPayload":
         return_value = deserialize_INSTANCE_BULK_UPDATE_PROGRESS_PAYLOAD(d);

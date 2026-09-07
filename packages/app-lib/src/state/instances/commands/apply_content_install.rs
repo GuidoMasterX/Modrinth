@@ -553,6 +553,24 @@ pub(crate) async fn add_project_from_curseforge_file(
             "Unable to install CurseForge file {cf_file_id}. Not found."
         ))
     })?;
+    let raw_file = crate::api::curseforge::api::get_mod_file(
+        cf_file_id,
+        &state.api_semaphore,
+        &state.pool,
+    )
+    .await?;
+    if raw_file
+        .download_url
+        .as_ref()
+        .is_none_or(|url| url.is_empty())
+        || raw_file.is_available == Some(false)
+    {
+        return Err(crate::ErrorKind::InputError(format!(
+            "'{}' blocks third-party downloads. Download it manually from its CurseForge page (https://www.curseforge.com/projects/{}); once placed in the instance it will be recognized automatically.",
+            project.title, cf_project_id
+        ))
+        .into());
+    }
     let project_type = match project.project_type {
         crate::api::curseforge::normalize::SourceProjectType::Mod => {
             ProjectType::Mod

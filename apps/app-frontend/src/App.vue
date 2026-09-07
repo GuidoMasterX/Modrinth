@@ -81,6 +81,7 @@ import ErrorModal from '@/components/ui/ErrorModal.vue'
 import FriendsList from '@/components/ui/friends/FriendsList.vue'
 import HostingUpdateRequired from '@/components/ui/HostingUpdateRequired.vue'
 import AddServerToInstanceModal from '@/components/ui/install_flow/AddServerToInstanceModal.vue'
+import BlockedFilesModal from '@/components/ui/install_flow/BlockedFilesModal.vue'
 import UnknownPackWarningModal from '@/components/ui/install_flow/UnknownPackWarningModal.vue'
 import IconEditorModal from '@/components/ui/instance_settings/icon-editor-modal/index.vue'
 import MinecraftAuthErrorModal from '@/components/ui/minecraft-auth-error-modal/MinecraftAuthErrorModal.vue'
@@ -254,12 +255,17 @@ const { handleError, addNotification } = notificationManager
 
 useAppEvent(
 	'warning',
-	(event) =>
+	(event) => {
+		if (event.blocked_files?.length) {
+			blockedFilesModal.value?.show(event.blocked_files)
+			return
+		}
 		addNotification({
 			title: formatMessage(messages.warning),
 			text: event.message,
 			type: 'warning',
-		}),
+		})
+	},
 	appEvents,
 )
 
@@ -332,6 +338,7 @@ provideModalBehavior({
 const creationIconEditorModal = ref(null)
 const creationGeneratedIcon = ref(null)
 const creationIconTarget = ref('creation-flow')
+const blockedFilesModal = ref(null)
 
 const {
 	installationModal,
@@ -1921,6 +1928,7 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 			@saved="onCreationIconSaved"
 		/>
 		<UnknownPackWarningModal ref="unknownPackWarningModal" />
+		<BlockedFilesModal ref="blockedFilesModal" />
 		<div
 			class="app-grid-navbar bg-bg-raised flex flex-col p-[0.5rem] pt-0 gap-[0.25rem] w-[--left-bar-width]"
 		>

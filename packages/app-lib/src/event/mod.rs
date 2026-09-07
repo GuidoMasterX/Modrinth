@@ -351,6 +351,7 @@ pub struct LoadingPayload {
 )]
 pub struct WarningPayload {
     pub message: String,
+    pub blocked_files: Vec<crate::api::pack::install_from::BlockedFileInfo>,
 }
 
 #[derive(Serialize, Deserialize, Clone)]

@@ -574,6 +574,27 @@ pub(crate) async fn install_zipped_mrpack_files_with_reporter(
         .into());
     }
 
+    if !pack.blocked_files.is_empty() {
+        let names = pack
+            .blocked_files
+            .iter()
+            .map(|file| file.project_name.as_str())
+            .collect::<Vec<_>>()
+            .join(", ");
+        let (counted, was_were, it_them) = match pack.blocked_files.len() {
+            1 => ("mod", "was", "it"),
+            _ => ("mods", "were", "them"),
+        };
+        crate::event::emit::emit_blocked_files_warning(
+            &format!(
+                "{} {counted} in this CurseForge modpack blocked third-party downloads and {was_were} not installed automatically: {names}. Download {it_them} manually from their CurseForge pages; once placed in the instance they are recognized automatically.",
+                pack.blocked_files.len(),
+            ),
+            pack.blocked_files.clone(),
+        )
+        .await?;
+    }
+
     reporter
         .update(InstallPhaseId::ResolvingPack, None, modpack_details.clone())
         .await?;

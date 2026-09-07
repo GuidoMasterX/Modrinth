@@ -33,6 +33,24 @@ pub struct PackFormat {
     pub summary: Option<String>,
     pub files: Vec<PackFile>,
     pub dependencies: HashMap<PackDependency, String>,
+    /// Files whose authors blocked third-party distribution and could not be
+    /// resolved (e.g. via a Modrinth equivalent). Reported to the user.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub blocked_files: Vec<BlockedFileInfo>,
+}
+
+/// A CurseForge file whose author blocked third-party distribution.
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
+#[cfg_attr(
+    feature = "export-ts",
+    derive(ts_rs::TS, postcard_bindgen::PostcardBindings)
+)]
+#[serde(rename_all = "camelCase")]
+pub struct BlockedFileInfo {
+    pub project_id: i64,
+    pub project_name: String,
+    pub file_name: String,
+    pub url: String,
 }
 
 #[derive(Serialize, Deserialize, Eq, PartialEq)]

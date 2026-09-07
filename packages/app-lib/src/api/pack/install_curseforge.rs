@@ -1,16 +1,18 @@
-use crate::api::curseforge::api::{get_download_url, get_mod_file};
+use crate::api::curseforge::api::get_download_url;
 use crate::api::curseforge::structs::{
     CF_CLASS_MOD, CF_CLASS_RESOURCE_PACK, CF_CLASS_SHADER_PACK, CFFile,
 };
 use crate::api::pack::install_from::{
-    CreatePack, CreatePackDescription, CreatePackFile, PackDependency,
-    PackFile, PackFileHash, PackFormat,
+    BlockedFileInfo, CreatePack, CreatePackDescription, CreatePackFile,
+    PackDependency, PackFile, PackFileHash, PackFormat,
 };
 use crate::state::{CacheBehaviour, CachedEntry};
 use crate::util::fetch::{DownloadMeta, DownloadReason, fetch};
 use path_util::SafeRelativeUtf8UnixPathBuf;
 use serde::Deserialize;
 use std::collections::HashMap;
+
+use reqwest::Method;
 
 #[derive(Deserialize, Debug)]
 pub struct CFManifest {
@@ -139,6 +141,10 @@ pub async fn pack_from_manifest(
         )
         .await?
     };
+    let projects_by_id: HashMap<i64, _> = projects
+        .iter()
+        .map(|project| (project.id, project))
+        .collect();
     let folders: HashMap<i64, String> = projects
         .iter()
         .filter_map(|project| {
@@ -147,22 +153,150 @@ pub async fn pack_from_manifest(
         })
         .collect();
 
-    let mut files = Vec::with_capacity(manifest.files.len());
-    for manifest_file in &manifest.files {
-        let cf_file = get_mod_file(
-            manifest_file.file_id,
+    let file_ids: Vec<i64> =
+        manifest.files.iter().map(|file| file.file_id).collect();
+    let mut resolved_files: HashMap<i64, CFFile> = HashMap::new();
+    for chunk in file_ids.chunks(100) {
+        let files = crate::api::curseforge::api::get_files(
+            chunk,
             &state.api_semaphore,
             &state.pool,
         )
         .await?;
+        resolved_files.extend(files.into_iter().map(|file| (file.id, file)));
+    }
+
+    let is_blocked = |file: &CFFile| {
+        file.download_url.as_ref().is_none_or(|url| url.is_empty())
+            || file.is_available == Some(false)
+            || projects_by_id
+                .get(&file.mod_id)
+                .and_then(|project| project.allow_mod_distribution)
+                == Some(false)
+    };
+
+    // Try to substitute distribution-blocked files with Modrinth
+    // equivalents via SHA1 lookup.
+    let blocked_sha1s: Vec<String> = manifest
+        .files
+        .iter()
+        .filter_map(|manifest_file| resolved_files.get(&manifest_file.file_id))
+        .filter(|file| is_blocked(file))
+        .filter_map(|file| {
+            file.hashes
+                .iter()
+                .find(|hash| hash.algo == 1)
+                .map(|hash| hash.value.clone())
+        })
+        .collect();
+    let modrinth_by_hash: HashMap<String, Vec<crate::state::Version>> =
+        if blocked_sha1s.is_empty() {
+            HashMap::new()
+        } else {
+            crate::util::fetch::fetch_json(
+                Method::POST,
+                &format!("{}/version_files", env!("MODRINTH_API_URL")),
+                None,
+                Some(serde_json::json!({
+                    "algorithm": "sha1",
+                    "hashes": blocked_sha1s
+                })),
+                Some("/v2/version_files"),
+                &state.fetch_semaphore,
+                &state.pool,
+            )
+            .await
+            .unwrap_or_default()
+        };
+
+    let mut files = Vec::with_capacity(manifest.files.len());
+    let mut blocked_files = Vec::new();
+    for manifest_file in &manifest.files {
         let folder = folders
             .get(&manifest_file.project_id)
             .cloned()
             .unwrap_or_else(|| "mods".to_string());
-        files.push(pack_file_from_cf(
-            &cf_file,
-            format!("{}/{}", folder, cf_file.file_name),
-        ));
+        let Some(cf_file) = resolved_files.get(&manifest_file.file_id) else {
+            return Err(crate::ErrorKind::InputError(format!(
+                "Unknown CurseForge file {} in modpack manifest",
+                manifest_file.file_id
+            ))
+            .into());
+        };
+
+        if !is_blocked(cf_file) {
+            files.push(pack_file_from_cf(
+                cf_file,
+                format!("{}/{}", folder, cf_file.file_name),
+            ));
+            continue;
+        }
+
+        let sha1 = cf_file
+            .hashes
+            .iter()
+            .find(|hash| hash.algo == 1)
+            .map(|hash| hash.value.clone());
+        let substitute = sha1.as_ref().and_then(|sha1| {
+            modrinth_by_hash
+                .get(sha1)?
+                .iter()
+                .find(|version| {
+                    version.game_versions.contains(&manifest.minecraft.version)
+                })
+                .and_then(|version| {
+                    version.files.iter().find(|file| {
+                        file.hashes.get("sha1").map(String::as_str)
+                            == Some(sha1.as_str())
+                    })
+                })
+        });
+
+        if let Some(substitute) = substitute {
+            files.push(PackFile {
+                path: SafeRelativeUtf8UnixPathBuf::try_from(format!(
+                    "{}/{}",
+                    folder, substitute.filename
+                ))
+                .unwrap_or_else(|_| {
+                    SafeRelativeUtf8UnixPathBuf::try_from(format!(
+                        "mods/{}",
+                        substitute.filename
+                    ))
+                    .expect("valid path")
+                }),
+                hashes: substitute
+                    .hashes
+                    .get("sha1")
+                    .map(|sha1| (PackFileHash::Sha1, sha1.clone()))
+                    .into_iter()
+                    .collect(),
+                env: None,
+                downloads: vec![substitute.url.clone()],
+                file_size: substitute.size,
+                cf_project_id: None,
+                cf_file_id: None,
+            });
+            continue;
+        }
+
+        let project = projects_by_id.get(&manifest_file.project_id);
+        blocked_files.push(BlockedFileInfo {
+            project_id: manifest_file.project_id,
+            project_name: project
+                .map(|project| project.name.clone())
+                .unwrap_or_else(|| manifest_file.project_id.to_string()),
+            file_name: cf_file.file_name.clone(),
+            url: project
+                .and_then(|project| project.links.website_url.clone())
+                .filter(|url| !url.is_empty())
+                .unwrap_or_else(|| {
+                    format!(
+                        "https://www.curseforge.com/projects/{}",
+                        manifest_file.project_id
+                    )
+                }),
+        });
     }
 
     Ok(PackFormat {
@@ -175,6 +309,7 @@ pub async fn pack_from_manifest(
         summary: None,
         files,
         dependencies,
+        blocked_files,
     })
 }
 

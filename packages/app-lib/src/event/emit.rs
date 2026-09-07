@@ -156,11 +156,20 @@ pub fn emit_loading(
 
 // emit_warning(message)
 pub async fn emit_warning(message: &str) -> crate::Result<()> {
+    emit_blocked_files_warning(message, Vec::new()).await
+}
+
+#[allow(unused_variables)]
+pub async fn emit_blocked_files_warning(
+    message: &str,
+    blocked_files: Vec<crate::api::pack::install_from::BlockedFileInfo>,
+) -> crate::Result<()> {
     #[cfg(feature = "tauri")]
     {
         let event_state = crate::EventState::get();
         event_state.send(AppEvent::Warning(WarningPayload {
             message: message.to_string(),
+            blocked_files,
         }))?;
     }
     tracing::warn!("{}", message);
