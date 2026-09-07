@@ -410,7 +410,9 @@ export function useBrowseSearch(options: UseBrowseSearchOptions): BrowseSearchSt
 
 		try {
 			const searchFn =
-				isCfSource.value && options.searchCurseforge ? options.searchCurseforge : options.search
+				isCfSource.value && !isServerType.value && options.searchCurseforge
+					? options.searchCurseforge
+					: options.search
 			const response = await searchFn(effectiveRequestParams.value)
 
 			if (!active.value) {

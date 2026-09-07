@@ -1316,6 +1316,9 @@
   "app.project.switch-source-not-found": {
     "message": "No matching project found on the other source."
   },
+  "app.project.switch-source.curseforge-not-configured": {
+    "message": "A CurseForge API key is not configured. Set one in Settings to view CurseForge projects."
+  },
   "app.project.tab.description": {
     "message": "Description"
   },

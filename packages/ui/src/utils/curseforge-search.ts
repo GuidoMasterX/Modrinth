@@ -1,12 +1,12 @@
 import { getLoaderIcon } from '@modrinth/assets'
 import type { Ref } from 'vue'
-import { computed, ref, shallowRef } from 'vue'
+import { computed, h, markRaw, ref, shallowRef } from 'vue'
 import { useRoute } from 'vue-router'
 
 import { defineMessage, useVIntl } from '../composables/i18n'
 import type { FilterType, FilterValue, SortType, Tags } from './search'
 import { findFilterOption } from './search'
-import { formatLoader } from './tag-messages.ts'
+import { DEFAULT_MOD_LOADERS, formatLoader } from './tag-messages.ts'
 
 export interface CurseforgeCategory {
 	id: number
@@ -79,6 +79,9 @@ export function useCurseforgeSearch(opts: {
 		const toCategoryOption = (c: CurseforgeCategory) => ({
 			id: String(c.id),
 			formatted_name: c.name,
+			...(c.iconUrl
+				? { icon: markRaw(() => h('img', { src: c.iconUrl, class: 'h-4 w-4', alt: '' })) }
+				: {}),
 			method: 'or' as const,
 			value: String(c.id),
 		})
@@ -114,6 +117,17 @@ export function useCurseforgeSearch(opts: {
 				query_param: 'cgv',
 				supports: ['include'],
 				searchable: true,
+				toggle_groups: [
+					{
+						id: 'all_versions',
+						formatted_name: formatMessage(
+							defineMessage({
+								id: 'search.filter_type.game_version.all_versions',
+								defaultMessage: 'Show all versions',
+							}),
+						),
+					},
+				],
 				options: (opts.tags.value?.gameVersions ?? []).map((gv) => ({
 					id: gv.version,
 					toggle_group: gv.version_type !== 'release' ? 'all_versions' : undefined,
@@ -121,6 +135,7 @@ export function useCurseforgeSearch(opts: {
 					value: gv.version,
 					query_value: gv.version,
 				})),
+				ordering: 2,
 			},
 		]
 
@@ -137,7 +152,8 @@ export function useCurseforgeSearch(opts: {
 					}),
 				),
 				supported_project_types: ['mod', 'modpack'],
-				display: 'all',
+				display: 'expandable',
+				default_values: DEFAULT_MOD_LOADERS,
 				query_param: 'cl',
 				supports: ['include'],
 				searchable: false,
@@ -148,6 +164,7 @@ export function useCurseforgeSearch(opts: {
 					method: 'or' as const,
 					value: String(id),
 				})),
+				ordering: 1,
 			})
 		}
 
@@ -161,7 +178,7 @@ export function useCurseforgeSearch(opts: {
 					}),
 				),
 				supported_project_types: ['mod', 'modpack', 'resourcepack', 'shader', 'datapack'],
-				display: 'scrollable',
+				display: 'all',
 				query_param: 'cc',
 				supports: ['include'],
 				searchable: true,
@@ -169,7 +186,7 @@ export function useCurseforgeSearch(opts: {
 			})
 		}
 
-		return filterTypes
+		return filterTypes.sort((a, b) => (b.ordering ?? 0) - (a.ordering ?? 0))
 	})
 
 	const curseforgeRequestParams = computed(() => {

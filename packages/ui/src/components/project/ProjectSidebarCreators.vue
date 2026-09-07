@@ -37,7 +37,7 @@
 					v-for="member in sortedMembers"
 					:key="`member-${member.id}`"
 					class="flex gap-2 items-center w-fit text-primary leading-[1.2] group"
-					:to="userLink(member.user.username)"
+					:to="userLink(member.user.username, member)"
 					:target="resolveLinkTarget(userLinkTarget)"
 				>
 					<Avatar :src="member.user.avatar_url" :alt="member.user.username" size="32px" circle />
@@ -91,7 +91,7 @@ const props = defineProps<{
 	} | null
 	members: TeamMember[]
 	orgLink: (slug: string) => string
-	userLink: (username: string) => string
+	userLink: (username: string, member?: TeamMember) => string
 	linkTarget?: string
 	userLinkTarget?: string | null
 	loading?: boolean

@@ -1,7 +1,11 @@
 <template>
 	<Card>
 		<!-- eslint-disable-next-line vue/no-v-html -->
-		<div v-if="descriptionHtml" v-html="descriptionHtml" />
+		<div
+			v-if="descriptionHtml"
+			class="markdown-body [&_img]:max-w-full [&_img]:h-auto [&_video]:max-w-full [&_iframe]:max-w-full [&_pre]:overflow-x-auto"
+			v-html="descriptionHtml"
+		/>
 		<ProjectPageDescription v-else :description="project.body" />
 		<ButtonLink :href="cfProjectUrl(project)" target="_blank" class="mt-4">
 			<ExternalIcon />

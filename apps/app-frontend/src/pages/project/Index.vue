@@ -31,7 +31,7 @@
 				:organization="organization"
 				:members="members"
 				:org-link="(slug) => `https://modrinth.com/organization/${slug}`"
-				:user-link="(username) => `/user/${encodeURIComponent(username)}`"
+				:user-link="getUserLink"
 				link-target="_blank"
 				:user-link-target="null"
 				class="project-sidebar-section"
@@ -266,6 +266,7 @@ import {
 } from '@/composables/instances/use-server-status-query'
 import { useAppEvent } from '@/composables/use-app-event'
 import { useAppSettings } from '@/composables/use-app-settings.ts'
+import { useCurseforgeKey } from '@/composables/use-curseforge-key'
 import {
 	get_curseforge_search_results,
 	get_organization,
@@ -351,6 +352,11 @@ const messages = defineMessages({
 	switchSourceNotFound: {
 		id: 'app.project.switch-source-not-found',
 		defaultMessage: 'No matching project found on the other source.',
+	},
+	curseforgeNotConfigured: {
+		id: 'app.project.switch-source.curseforge-not-configured',
+		defaultMessage:
+			'A CurseForge API key is not configured. Set one in Settings to view CurseForge projects.',
 	},
 	backToBrowse: {
 		id: 'app.project.install-context.back-to-browse',
@@ -656,6 +662,13 @@ function openProjectInBrowser() {
 	void openUrl(`https://modrinth.com/${type}/${data.value.slug}`)
 }
 
+function getUserLink(username, member) {
+	if (member?.user?.id?.startsWith('cf-user-')) {
+		return `https://www.curseforge.com/members/${encodeURIComponent(member.user.username)}`
+	}
+	return `/user/${encodeURIComponent(username)}`
+}
+
 const CF_MODRINTH_TYPE_CLASS_IDS = {
 	mod: 6,
 	modpack: 4471,
@@ -664,33 +677,57 @@ const CF_MODRINTH_TYPE_CLASS_IDS = {
 	datapack: 6945,
 }
 
+const curseforgeApiKey = useCurseforgeKey()
+
+function normalizeName(name) {
+	return (name ?? '').toLowerCase().replace(/[^a-z0-9]/g, '')
+}
+
+function findBestMatch(hits, title, getNames) {
+	const normalizedTitle = normalizeName(title)
+	const names = (hit) => (getNames(hit) ?? []).filter(Boolean).map(normalizeName).filter(Boolean)
+	const exact = hits.find((hit) =>
+		getNames(hit)?.some((n) => n.toLowerCase() === title.toLowerCase()),
+	)
+	if (exact) return exact
+	const normalized = hits.filter((hit) => names(hit).some((n) => n === normalizedTitle))
+	if (normalized.length > 0) return normalized[0]
+	const contained = hits.filter((hit) =>
+		names(hit).some((n) => n.includes(normalizedTitle) || normalizedTitle.includes(n)),
+	)
+	return contained[0] ?? null
+}
+
 async function switchSource() {
 	const project = data.value
 	if (!project) return
 	if (isCfProjectId(project.id)) {
 		const results = await get_search_results_v3(
-			`?query=${encodeURIComponent(project.title)}&limit=10`,
+			`?query=${encodeURIComponent(project.title)}&limit=50`,
 			'must_revalidate',
 		).catch(handleError)
-		const match = results?.result?.hits?.find(
-			(hit) => hit.name?.toLowerCase() === project.title.toLowerCase(),
-		)
+		const match = findBestMatch(results?.result?.hits ?? [], project.title, (hit) => [
+			hit.name,
+			hit.slug,
+		])
 		if (match) {
 			await router.push(`/project/${match.project_id}`)
 		} else {
 			handleError(formatMessage(messages.switchSourceNotFound))
 		}
 	} else {
+		if (!curseforgeApiKey.value) {
+			handleError(formatMessage(messages.curseforgeNotConfigured))
+			return
+		}
 		const classId = CF_MODRINTH_TYPE_CLASS_IDS[project.project_type]
 		const results = await get_curseforge_search_results(
-			`?gameId=432&searchFilter=${encodeURIComponent(project.title)}&pageSize=10${
+			`?gameId=432&searchFilter=${encodeURIComponent(project.title)}&pageSize=50${
 				classId ? `&classId=${classId}` : ''
 			}`,
 			'must_revalidate',
 		).catch(handleError)
-		const match = results?.projectHits?.find(
-			(hit) => hit.name?.toLowerCase() === project.title.toLowerCase(),
-		)
+		const match = findBestMatch(results?.projectHits ?? [], project.title, (hit) => [hit.name])
 		if (match) {
 			await router.push(`/project/${match.project_id}`)
 		} else {

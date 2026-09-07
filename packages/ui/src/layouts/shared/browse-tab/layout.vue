@@ -1,6 +1,11 @@
 <script setup lang="ts">
 import type { Labrinth } from '@modrinth/api-client'
-import { CurseForgeIcon, RotateCounterClockwiseIcon, SearchIcon } from '@modrinth/assets'
+import {
+	CurseForgeIcon,
+	ModrinthIcon,
+	RotateCounterClockwiseIcon,
+	SearchIcon,
+} from '@modrinth/assets'
 import { computed, ref, toValue } from 'vue'
 
 import Admonition from '#ui/components/base/Admonition.vue'
@@ -162,6 +167,7 @@ function getProjectCardTags(result: Labrinth.Search.v3.ResultSearchProject, disp
 					class="size-2.5 rounded-full"
 					:style="{ background: 'var(--color-source-modrinth)' }"
 				/>
+				<ModrinthIcon class="size-3.5" />
 				Modrinth
 			</button>
 			<button
@@ -416,7 +422,7 @@ function getProjectCardTags(result: Labrinth.Search.v3.ResultSearchProject, disp
 					:all-tags="getProjectCardTags(result, false)"
 					:deprioritized-tags="ctx.deprioritizedTags.value"
 					:exclude-loaders="ctx.excludeLoaders.value"
-					:followers="result.follows"
+					:followers="result.project_id.startsWith('cf-') ? undefined : result.follows"
 					:banner="result.featured_gallery ?? undefined"
 					:color="result.color ?? undefined"
 					:environment="

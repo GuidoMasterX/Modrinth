@@ -485,4 +485,11 @@ html {
 .cf-source-accent {
 	--color-brand: var(--color-source-curseforge);
 	--color-brand-highlight: var(--color-source-curseforge-highlight);
+	--color-button-bg-selected: var(--color-source-curseforge);
+	--color-button-text-selected: var(--color-accent-contrast);
+}
+
+.dark-mode .cf-source-accent {
+	--color-button-bg-selected: var(--color-source-curseforge-highlight);
+	--color-button-text-selected: var(--color-source-curseforge);
 }
