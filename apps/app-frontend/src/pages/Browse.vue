@@ -1009,7 +1009,7 @@ watch(
 					isClass: boolean
 				}[]) ?? []
 		} catch (err) {
-			console.error('Failed to load CurseForge categories:', err)
+			handleError(err)
 		}
 		if (searchState.isCfSource.value && previouslyEnabled === false) {
 			void searchState.refreshSearch()

@@ -2138,7 +2138,7 @@ impl CachedEntry {
                         (
                             x.key().to_string(),
                             format!(
-                                "{}mods/search{}",
+                                "{}/mods/search{}",
                                 crate::api::curseforge::api::CURSEFORGE_API_URL,
                                 x.key()
                             ),

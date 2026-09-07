@@ -5,6 +5,7 @@ import { useRoute } from 'vue-router'
 import { defineMessage, useVIntl } from '../composables/i18n'
 import type { FilterType, FilterValue, SortType, Tags } from './search'
 import { findFilterOption } from './search'
+import { formatLoader, getLoaderIcon } from './tag-messages.ts'
 
 export interface CurseforgeCategory {
 	id: number
@@ -120,7 +121,10 @@ export function useCurseforgeSearch(opts: {
 			},
 		]
 
-		if (classId.value === CURSEFORGE_CLASS_IDS.mod) {
+		if (
+			classId.value === CURSEFORGE_CLASS_IDS.mod ||
+			classId.value === CURSEFORGE_CLASS_IDS.modpack
+		) {
 			filterTypes.push({
 				id: 'cf_loader',
 				formatted_name: formatMessage(
@@ -129,14 +133,15 @@ export function useCurseforgeSearch(opts: {
 						defaultMessage: 'Mod loader',
 					}),
 				),
-				supported_project_types: ['mod'],
+				supported_project_types: ['mod', 'modpack'],
 				display: 'all',
 				query_param: 'cl',
 				supports: ['include'],
 				searchable: false,
 				options: Object.entries(CURSEFORGE_MOD_LOADER_IDS).map(([name, id]) => ({
 					id: name,
-					formatted_name: name,
+					formatted_name: formatLoader(formatMessage, name),
+					icon: getLoaderIcon(name),
 					method: 'or' as const,
 					value: String(id),
 				})),

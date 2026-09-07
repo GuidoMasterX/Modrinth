@@ -26,8 +26,7 @@ export async function getCfVersions(requestedId: string): Promise<Labrinth.Versi
 	return (await get_curseforge_project_versions(requestedId.slice(CF_ID_PREFIX.length))) ?? []
 }
 
-export function cfProjectUrl(
-	project: Pick<Labrinth.Projects.v2.Project, 'slug' | 'id' | 'license'>,
-): string {
-	return project.license?.url || `https://www.curseforge.com/projects/${project.slug ?? project.id}`
+export function cfProjectUrl(project: Pick<Labrinth.Projects.v2.Project, 'slug' | 'id'>): string {
+	const slugOrId = project.slug ?? project.id.slice(CF_ID_PREFIX.length)
+	return `https://www.curseforge.com/projects/${slugOrId}`
 }
