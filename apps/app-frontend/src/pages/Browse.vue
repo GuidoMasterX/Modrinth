@@ -55,6 +55,7 @@ import {
 	get_search_results_v3,
 	get_version_many,
 } from '@/helpers/cache.js'
+import { getCfVersions, isCfProjectId } from '@/helpers/curseforge-project'
 import {
 	get_installed_project_ids as getInstalledProjectIds,
 	getInstanceIconUrl,
@@ -840,6 +841,9 @@ function getInstanceInstallTargetPreferences(projectTypeValue: string) {
 }
 
 async function getInstallProjectVersions(projectId: string) {
+	if (isCfProjectId(projectId)) {
+		return getCfVersions(projectId)
+	}
 	const project = await get_project(projectId, 'must_revalidate')
 	return (await get_version_many(
 		project.versions,
@@ -1170,18 +1174,24 @@ async function searchCurseforge(requestParams: string) {
 		return { projectHits: [], serverHits: [], total_hits: 0, per_page: 20 }
 	}
 	debugLog('searching curseforge', requestParams)
-	const response = (await queryClient.fetchQuery({
-		queryKey: ['search', 'curseforge', requestParams],
-		queryFn: () => get_curseforge_search_results(requestParams, 'must_revalidate'),
-		staleTime: 30_000,
-	})) as {
-		projectHits: Labrinth.Search.v3.ResultSearchProject[]
-		serverHits: unknown[]
-		total_hits: number
-		per_page: number
-	} | null
+	try {
+		const response = (await queryClient.fetchQuery({
+			queryKey: ['search', 'curseforge', requestParams],
+			queryFn: () => get_curseforge_search_results(requestParams, 'must_revalidate'),
+			staleTime: 30_000,
+		})) as {
+			projectHits: Labrinth.Search.v3.ResultSearchProject[]
+			serverHits: unknown[]
+			total_hits: number
+			per_page: number
+		} | null
 
-	return response ?? { projectHits: [], serverHits: [], total_hits: 0, per_page: 20 }
+		return response ?? { projectHits: [], serverHits: [], total_hits: 0, per_page: 20 }
+	} catch (err) {
+		console.error('Failed to search CurseForge:', err)
+		handleError(err as Error)
+		return { projectHits: [], serverHits: [], total_hits: 0, per_page: 20 }
+	}
 }
 
 const searchState = useBrowseSearch({
@@ -1318,7 +1328,7 @@ if (projectType.value !== 'server') {
 
 watch(
 	curseforgeEnabled,
-	async (enabled) => {
+	async (enabled, previouslyEnabled) => {
 		if (!enabled) return
 		if (route.query.source === 'curseforge') {
 			searchState.switchSource('curseforge')
@@ -1335,6 +1345,9 @@ watch(
 				}[]) ?? []
 		} catch (err) {
 			console.error('Failed to load CurseForge categories:', err)
+		}
+		if (searchState.isCfSource.value && previouslyEnabled === false) {
+			void searchState.refreshSearch()
 		}
 	},
 	{ immediate: true },

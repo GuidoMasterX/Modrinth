@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Labrinth } from '@modrinth/api-client'
-import { RotateCounterClockwiseIcon, SearchIcon } from '@modrinth/assets'
+import { CurseForgeIcon, RotateCounterClockwiseIcon, SearchIcon } from '@modrinth/assets'
 import { computed, ref, toValue } from 'vue'
 
 import Admonition from '#ui/components/base/Admonition.vue'
@@ -173,6 +173,7 @@ function getProjectCardTags(result: Labrinth.Search.v3.ResultSearchProject, disp
 				class="size-2.5 rounded-full"
 				:style="{ background: 'var(--color-source-curseforge)' }"
 			/>
+			<CurseForgeIcon class="size-3.5" />
 			CurseForge
 		</button>
 	</div>

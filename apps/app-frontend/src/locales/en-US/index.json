@@ -392,6 +392,15 @@
   "app.icon-editor.notification.view-update": {
     "message": "View update"
   },
+  "app.install.blocked-files.body": {
+    "message": "The authors of the following files blocked third-party downloads, so they were not installed automatically. Download them manually from their CurseForge pages and add them to the instance — they will be recognized automatically."
+  },
+  "app.install.blocked-files.header": {
+    "message": "Downloads blocked by CurseForge"
+  },
+  "app.install.blocked-files.open-on-curseforge": {
+    "message": "Open on CurseForge"
+  },
   "app.install.phase.downloading_content": {
     "message": "Downloading content"
   },

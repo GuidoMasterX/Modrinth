@@ -589,5 +589,6 @@ pub async fn create_mrpack_json(
         summary: description,
         files,
         dependencies,
+        blocked_files: Vec::new(),
     })
 }

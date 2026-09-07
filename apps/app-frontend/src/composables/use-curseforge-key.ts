@@ -12,7 +12,9 @@ export function useCurseforgeKey() {
 			.then((settings) => {
 				curseforgeApiKey.value = settings.curseforge_api_key
 			})
-			.catch(() => {})
+			.catch(() => {
+				loaded = false
+			})
 	}
 	return curseforgeApiKey
 }

@@ -21,7 +21,10 @@ export const CURSEFORGE_CLASS_IDS: Record<string, number> = {
 	modpack: 4471,
 	resourcepack: 12,
 	shader: 6552,
+	datapack: 6945,
 }
+
+const CURSEFORGE_MAX_PAGE_SIZE = 50
 
 export const CURSEFORGE_MOD_LOADER_IDS: Record<string, number> = {
 	forge: 1,
@@ -164,6 +167,7 @@ export function useCurseforgeSearch(opts: {
 			params.push(`categoryIds=${categoryIds.join(',')}`)
 		}
 
+		let gameVersion: string | undefined
 		for (const filterType of curseforgeFilterTypes.value) {
 			const matched = included.find((f) => f.type === filterType.id)
 			if (!matched) continue
@@ -171,8 +175,9 @@ export function useCurseforgeSearch(opts: {
 			if (!option || !('value' in option)) continue
 
 			if (filterType.id === 'cf_game_version') {
+				gameVersion = option.value
 				params.push(`gameVersion=${encodeURIComponent(option.value)}`)
-			} else if (filterType.id === 'cf_loader') {
+			} else if (filterType.id === 'cf_loader' && gameVersion !== undefined) {
 				params.push(`modLoaderType=${option.value}`)
 			}
 		}
@@ -182,8 +187,9 @@ export function useCurseforgeSearch(opts: {
 			params.push(`sortField=${sort.field}&sortOrder=${sort.order}`)
 		}
 
-		const offset = (opts.currentPage.value - 1) * opts.maxResults.value
-		params.push(`index=${offset}&pageSize=${opts.maxResults.value}`)
+		const pageSize = Math.min(opts.maxResults.value, CURSEFORGE_MAX_PAGE_SIZE)
+		const offset = (opts.currentPage.value - 1) * pageSize
+		params.push(`index=${offset}&pageSize=${pageSize}`)
 
 		return `?${params.join('&')}`
 	})

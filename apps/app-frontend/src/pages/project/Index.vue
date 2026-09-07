@@ -732,6 +732,14 @@ function openProjectInBrowser() {
 	void openUrl(`https://modrinth.com/${type}/${data.value.slug}`)
 }
 
+const CF_MODRINTH_TYPE_CLASS_IDS: Record<string, number> = {
+	mod: 6,
+	modpack: 4471,
+	resourcepack: 12,
+	shader: 6552,
+	datapack: 6945,
+}
+
 async function switchSource() {
 	const project = data.value
 	if (!project) return
@@ -740,7 +748,7 @@ async function switchSource() {
 			`?query=${encodeURIComponent(project.title)}&limit=10`,
 			'must_revalidate',
 		).catch(handleError)
-		const match = results?.hits?.find(
+		const match = results?.result?.hits?.find(
 			(hit) => hit.name?.toLowerCase() === project.title.toLowerCase(),
 		)
 		if (match) {
@@ -749,15 +757,18 @@ async function switchSource() {
 			handleError(formatMessage(messages.switchSourceNotFound))
 		}
 	} else {
+		const classId = CF_MODRINTH_TYPE_CLASS_IDS[project.project_type]
 		const results = await get_curseforge_search_results(
-			`?gameId=432&searchFilter=${encodeURIComponent(project.title)}&pageSize=10`,
+			`?gameId=432&searchFilter=${encodeURIComponent(project.title)}&pageSize=10${
+				classId ? `&classId=${classId}` : ''
+			}`,
 			'must_revalidate',
 		).catch(handleError)
-		const match = results?.data?.find(
+		const match = results?.projectHits?.find(
 			(hit) => hit.name?.toLowerCase() === project.title.toLowerCase(),
 		)
 		if (match) {
-			await router.push(`/project/cf-${match.id}`)
+			await router.push(`/project/${match.project_id}`)
 		} else {
 			handleError(formatMessage(messages.switchSourceNotFound))
 		}
@@ -1066,6 +1077,14 @@ const handleRightClick = (event) => {
 			label: formatMessage(commonMessages.copyLinkButton),
 			icon: ClipboardCopyIcon,
 			action: () => copyProjectLink(project),
+		},
+		{
+			id: 'switch-source',
+			label: formatMessage(
+				isCfProjectId(data.value?.id) ? messages.viewOnModrinth : messages.viewOnCurseforge,
+			),
+			icon: ArrowLeftRightIcon,
+			action: switchSource,
 		},
 	])
 }

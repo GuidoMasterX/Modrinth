@@ -2,7 +2,7 @@
 import { KeyIcon } from '@modrinth/assets'
 import { Button, defineMessages, injectNotificationManager, Input, useVIntl } from '@modrinth/ui'
 import { openUrl } from '@tauri-apps/plugin-opener'
-import { ref, watch } from 'vue'
+import { onBeforeUnmount, ref, watch } from 'vue'
 
 import { setCurseforgeKey } from '@/composables/use-curseforge-key.ts'
 import { get, set } from '@/helpers/settings.ts'
@@ -45,10 +45,29 @@ async function save() {
 }
 
 function openConsole() {
-	void openUrl('https://console.curseforge.com/s/api-keys')
+	void openUrl('https://console.curseforge.com/#/api-keys')
 }
 
-watch(settings, save, { deep: true })
+let saveTimer: ReturnType<typeof setTimeout> | null = null
+
+watch(
+	() => settings.value.curseforge_api_key,
+	() => {
+		if (saveTimer) clearTimeout(saveTimer)
+		saveTimer = setTimeout(() => {
+			saveTimer = null
+			void save()
+		}, 500)
+	},
+)
+
+onBeforeUnmount(() => {
+	if (saveTimer) {
+		clearTimeout(saveTimer)
+		saveTimer = null
+		void save()
+	}
+})
 </script>
 
 <template>
