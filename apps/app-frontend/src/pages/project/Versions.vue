@@ -34,10 +34,13 @@
 					<CheckIcon v-else />
 				</IconButton>
 				<ButtonLink
-					v-if="!project.id.startsWith('cf-')"
 					v-tooltip="formatMessage(commonMessages.openInBrowserButton)"
 					type="quiet"
-					:href="`https://modrinth.com/${project.project_type}/${project.slug}/version/${version.id}`"
+					:href="
+						project.id.startsWith('cf-')
+							? cfProjectUrl(project)
+							: `https://modrinth.com/${project.project_type}/${project.slug}/version/${version.id}`
+					"
 					target="_blank"
 					:aria-label="formatMessage(commonMessages.openInBrowserButton)"
 					class="!w-9 !px-0 !rounded-full"
@@ -65,6 +68,7 @@ import { useRoute } from 'vue-router'
 
 import { SwapIcon } from '@/assets/icons/index.js'
 import { useAppSettings } from '@/composables/use-app-settings.ts'
+import { cfProjectUrl } from '@/helpers/curseforge-project'
 import { get_game_versions, get_loaders } from '@/helpers/tags.js'
 
 const { formatMessage } = useVIntl()

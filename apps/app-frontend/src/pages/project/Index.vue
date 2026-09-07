@@ -792,10 +792,11 @@ async function fetchCfProjectData(requestedId) {
 	data.value = project
 	projectV3.value = null
 	projectBreadcrumbLabel.value = project.title
+	const cfMembers = project.cf_members ?? []
 	;[versions.value, members.value, categories.value, instance.value, instanceProjects.value] =
 		await Promise.all([
 			Promise.resolve(cfVersions.sort((a, b) => dayjs(b.date_published) - dayjs(a.date_published))),
-			Promise.resolve([]),
+			Promise.resolve(cfMembers),
 			Promise.resolve([]),
 			route.query.i ? getInstance(route.query.i).catch(handleError) : Promise.resolve(),
 			route.query.i ? getInstanceProjects(route.query.i).catch(handleError) : Promise.resolve(),

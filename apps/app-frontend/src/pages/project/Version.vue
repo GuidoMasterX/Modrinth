@@ -45,7 +45,9 @@
 							id: 'open-in-browser',
 							label: formatMessage(commonMessages.openInBrowserButton),
 							type: 'link',
-							href: `https://modrinth.com/${project.project_type}/${project.slug}/version/${version.id}`,
+							href: isCfProjectId(project.id)
+								? cfProjectUrl(project)
+								: `https://modrinth.com/${project.project_type}/${project.slug}/version/${version.id}`,
 							target: '_blank',
 						},
 						{
@@ -106,7 +108,7 @@ import {
 	get_project_many,
 	get_version_many,
 } from '@/helpers/cache.js'
-import { isCfProjectId, parseCfId } from '@/helpers/curseforge-project'
+import { cfProjectUrl, isCfProjectId, parseCfId } from '@/helpers/curseforge-project'
 import { useBreadcrumb } from '@/providers/breadcrumbs'
 
 const { formatMessage } = useVIntl()

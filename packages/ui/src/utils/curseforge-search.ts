@@ -36,11 +36,12 @@ export const CURSEFORGE_MOD_LOADER_IDS: Record<string, number> = {
 }
 
 const CURSEFORGE_SORT_FIELDS: Record<string, { field: number; order: 'asc' | 'desc' }> = {
+	relevance: { field: 13, order: 'desc' },
 	downloads: { field: 6, order: 'desc' },
 	popularity: { field: 2, order: 'desc' },
 	updated: { field: 3, order: 'desc' },
 	name: { field: 4, order: 'asc' },
-	date_created: { field: 8, order: 'desc' },
+	date_created: { field: 11, order: 'desc' },
 }
 
 export const CURSEFORGE_SORT_TYPES: SortType[] = [
@@ -81,22 +82,23 @@ export function useCurseforgeSearch(opts: {
 			method: 'or' as const,
 			value: String(c.id),
 		})
+		// CF API sets parentCategoryId equal to the class id for top-level categories
+		const isTopLevel = (c: CurseforgeCategory) =>
+			!c.parentCategoryId || c.parentCategoryId === classId.value
 		const childrenByParent = new Map<number, CurseforgeCategory[]>()
 		for (const category of classCategories) {
-			if (category.parentCategoryId) {
+			if (category.parentCategoryId && !isTopLevel(category)) {
 				const children = childrenByParent.get(category.parentCategoryId) ?? []
 				children.push(category)
 				childrenByParent.set(category.parentCategoryId, children)
 			}
 		}
-		const categoryOptions = classCategories
-			.filter((c) => !c.parentCategoryId)
-			.map((parent) => {
-				const children = childrenByParent.get(parent.id)
-				return children?.length
-					? { ...toCategoryOption(parent), sub_options: children.map(toCategoryOption) }
-					: toCategoryOption(parent)
-			})
+		const categoryOptions = classCategories.filter(isTopLevel).map((parent) => {
+			const children = childrenByParent.get(parent.id)
+			return children?.length
+				? { ...toCategoryOption(parent), sub_options: children.map(toCategoryOption) }
+				: toCategoryOption(parent)
+		})
 
 		const filterTypes: FilterType[] = [
 			{

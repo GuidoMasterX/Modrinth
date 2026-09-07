@@ -145,22 +145,16 @@ function getProjectCardTags(result: Labrinth.Search.v3.ResultSearchProject, disp
 		"
 		class="flex flex-wrap items-center gap-2"
 	>
-		<NavTabs
-			v-if="ctx.showProjectTypeTabs.value"
-			:links="ctx.selectableProjectTypes.value"
-			:replace="ctx.variant === 'app'"
-		/>
-
 		<div
 			v-if="ctx.curseforgeAvailable?.value && ctx.projectType.value !== 'server'"
-			class="flex w-max overflow-hidden rounded-[--radius-md] border-[1px] border-solid border-surface-5 bg-surface-3"
+			class="flex w-max rounded-full bg-bg-raised p-1 card-shadow border border-solid border-surface-4"
 		>
 			<button
-				class="flex cursor-pointer items-center gap-2 border-none px-4 py-2 text-sm font-semibold transition-colors"
+				class="button-animation flex cursor-pointer items-center gap-2 border-none rounded-full px-4 py-2 text-sm font-bold transition-colors"
 				:class="
 					ctx.isCfSource.value
 						? 'bg-transparent text-secondary'
-						: 'bg-[color-mix(in_srgb,var(--color-source-modrinth)_18%,transparent)] text-contrast'
+						: 'bg-button-bgSelected text-button-textSelected'
 				"
 				@click="ctx.switchSource('modrinth')"
 			>
@@ -171,10 +165,10 @@ function getProjectCardTags(result: Labrinth.Search.v3.ResultSearchProject, disp
 				Modrinth
 			</button>
 			<button
-				class="flex cursor-pointer items-center gap-2 border-none px-4 py-2 text-sm font-semibold transition-colors"
+				class="button-animation flex cursor-pointer items-center gap-2 border-none rounded-full px-4 py-2 text-sm font-bold transition-colors"
 				:class="
 					ctx.isCfSource.value
-						? 'bg-[color-mix(in_srgb,var(--color-source-curseforge)_18%,transparent)] text-contrast'
+						? 'bg-button-bgSelected text-button-textSelected'
 						: 'bg-transparent text-secondary'
 				"
 				@click="ctx.switchSource('curseforge')"
@@ -187,6 +181,12 @@ function getProjectCardTags(result: Labrinth.Search.v3.ResultSearchProject, disp
 				CurseForge
 			</button>
 		</div>
+
+		<NavTabs
+			v-if="ctx.showProjectTypeTabs.value"
+			:links="ctx.selectableProjectTypes.value"
+			:replace="ctx.variant === 'app'"
+		/>
 	</div>
 
 	<Input

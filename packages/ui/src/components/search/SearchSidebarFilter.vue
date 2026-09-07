@@ -362,7 +362,8 @@ function iconStyle(option: FilterOption) {
 		props.filterType.id === 'modpack_loader' ||
 		props.filterType.id === 'plugin_loader' ||
 		props.filterType.id === 'plugin_platform' ||
-		props.filterType.id === 'shader_loader'
+		props.filterType.id === 'shader_loader' ||
+		props.filterType.id === 'cf_loader'
 	) {
 		return { color: `var(--color-platform-${option.id})` }
 	}

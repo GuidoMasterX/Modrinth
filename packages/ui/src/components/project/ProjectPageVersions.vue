@@ -624,6 +624,21 @@ function getModpackLoaders(version: VersionWithDisplayUrlEnding): string[] {
 	return loaders.filter((loader) => loader !== 'mrpack')
 }
 
+// CF sends varying loaders (datapack, vanilla, forge...) per type; non-mod CF
+// versions should display like Modrinth resource packs do, whose 'minecraft'
+// loader tag renders "Resource Pack".
+const CF_NON_MOD_PROJECT_TYPES = ['resourcepack', 'shader', 'datapack']
+
+function getVersionLoaders(version: VersionWithDisplayUrlEnding): string[] {
+	if (
+		version.id.startsWith('cf-') &&
+		CF_NON_MOD_PROJECT_TYPES.includes(props.project.project_type)
+	) {
+		return ['minecraft']
+	}
+	return getModpackLoaders(version)
+}
+
 function getGameVersions(version: VersionWithDisplayUrlEnding): string[] {
 	return Array.isArray(version.game_versions) ? version.game_versions : []
 }
@@ -670,7 +685,7 @@ function isFileRowVisible(version: VersionTableRow): boolean {
 
 const normalizedVersions = computed<DisplayVersion[]>(() =>
 	props.versions.map((version) => {
-		const loaders = getModpackLoaders(version)
+		const loaders = getVersionLoaders(version)
 		const gameVersions = getGameVersions(version)
 		const noModLoader = hasNoModLoader(loaders)
 

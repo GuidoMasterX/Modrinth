@@ -1013,6 +1013,15 @@ watch(
 		}
 		if (searchState.isCfSource.value && previouslyEnabled === false) {
 			void searchState.refreshSearch()
+
+			watch(
+				() => route.params.projectType as ProjectType,
+				(newType) => {
+					if (newType === 'server' && searchState.isCfSource.value) {
+						searchState.switchSource('modrinth')
+					}
+				},
+			)
 		}
 	},
 	{ immediate: true },
