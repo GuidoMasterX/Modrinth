@@ -187,7 +187,7 @@ pub async fn get_mods(
 }
 
 /// The CurseForge API has no single-file GET endpoint; batch-resolve via
-/// `POST /files` and take the one entry.
+/// `POST /mods/files` and take the one entry.
 pub async fn get_mod_file(
     file_id: i64,
     fetch_semaphore: &FetchSemaphore,
@@ -216,9 +216,9 @@ pub async fn get_files(
     };
     let res: CFDataVec<CFFile> = cf_fetch_json(
         Method::POST,
-        &format!("{}/files", CURSEFORGE_API_URL),
+        &format!("{}/mods/files", CURSEFORGE_API_URL),
         Some(serde_json::to_value(&body)?),
-        Some("curseforge/files"),
+        Some("curseforge/mods/files"),
         fetch_semaphore,
         pool,
     )
