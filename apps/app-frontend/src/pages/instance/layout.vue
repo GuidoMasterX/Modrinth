@@ -260,7 +260,10 @@ const linkedProjectId = computed(
 const linkedProjectQuery = useQuery(
 	computed(() => ({
 		...instanceLinkedProjectQueryOptions(linkedProjectId.value),
-		enabled: !!linkedProjectId.value && !offline.value,
+		enabled:
+			!!linkedProjectId.value &&
+			!offline.value &&
+			instance.value?.link?.type !== 'curseforge_modpack',
 	})),
 )
 const linkedProjectV3 = computed(() => linkedProjectQuery.data.value ?? undefined)

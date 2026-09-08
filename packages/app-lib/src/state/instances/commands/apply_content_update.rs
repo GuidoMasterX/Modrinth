@@ -3,7 +3,8 @@ use crate::state::instances::{
     adapters::sqlite::{content_rows, instance_rows},
 };
 use crate::state::{
-    CacheBehaviour, CachedEntry, Dependency, DependencyType, State, Version,
+    CacheBehaviour, CachedEntry, Dependency, DependencyType, ProjectType,
+    State, Version,
 };
 use crate::util::fetch::DownloadReason;
 use futures::stream::{FuturesUnordered, StreamExt};
@@ -11,8 +12,9 @@ use std::cmp::Reverse;
 use std::collections::{HashMap, HashSet};
 
 use super::apply_content_install::{
-    DownloadedProjectVersion, add_downloaded_project_version,
-    add_project_from_curseforge_file, add_project_from_version,
+    DownloadedProjectVersion, EntryOrigin, add_downloaded_project_version,
+    add_project_bytes, add_project_from_curseforge_file,
+    add_project_from_version, download_curseforge_file_bytes,
     download_project_version, remove_project, rename_project_companion_file,
     toggle_disable_project,
 };
@@ -29,6 +31,8 @@ struct PlannedProjectUpdate {
     relative_path: String,
     current_version_id: String,
     update_version_id: String,
+    /// `(cf_project_id, cf_file_id, project_type)` for CurseForge updates.
+    cf: Option<(i64, i64, ProjectType)>,
 }
 
 #[derive(Clone, Debug)]
@@ -55,6 +59,8 @@ struct InstalledProject {
     version_id: Option<String>,
     source_kind: ContentSourceKind,
     enabled: bool,
+    project_type: ProjectType,
+    cf_project_id: Option<i64>,
 }
 
 #[derive(Clone, Debug)]
@@ -173,13 +179,35 @@ pub(crate) async fn update_all_projects(
     for download in downloads {
         match download {
             DownloadedBulkProject::ProjectUpdate(update, downloaded) => {
-                let mut new_path = add_downloaded_project_version(
-                    instance_id,
-                    downloaded,
-                    ContentSourceKind::Local,
-                    state,
-                )
-                .await?;
+                let mut new_path =
+                    if let Some((cf_project_id, cf_file_id, project_type)) =
+                        update.cf
+                    {
+                        add_project_bytes(
+                            instance_id,
+                            &downloaded.file_name,
+                            downloaded.bytes,
+                            downloaded.sha1.as_deref(),
+                            Some(project_type),
+                            ContentSourceKind::Local,
+                            None,
+                            None,
+                            EntryOrigin::curseforge(
+                                cf_project_id,
+                                Some(cf_file_id),
+                            ),
+                            state,
+                        )
+                        .await?
+                    } else {
+                        add_downloaded_project_version(
+                            instance_id,
+                            downloaded,
+                            ContentSourceKind::Local,
+                            state,
+                        )
+                        .await?
+                    };
 
                 if update.relative_path.ends_with(".disabled") {
                     new_path = toggle_disable_project(
@@ -248,14 +276,41 @@ async fn download_planned_projects(
         .map(|download| async move {
             match download {
                 PlannedDownload::ProjectUpdate(update) => {
-                    let downloaded = download_project_version(
-                        instance_id,
-                        &update.update_version_id,
-                        DownloadReason::Update,
-                        Some(update.current_version_id.clone()),
-                        state,
-                    )
-                    .await?;
+                    let downloaded = if let Some((
+                        cf_project_id,
+                        cf_file_id,
+                        project_type,
+                    )) = update.cf
+                    {
+                        let (file, bytes) = download_curseforge_file_bytes(
+                            instance_id,
+                            cf_file_id,
+                            DownloadReason::Update,
+                            state,
+                        )
+                        .await?;
+                        DownloadedProjectVersion {
+                            file_name: file.file_name,
+                            bytes,
+                            sha1: file
+                                .hashes
+                                .iter()
+                                .find(|hash| hash.algo == 1)
+                                .map(|hash| hash.value.clone()),
+                            project_type,
+                            project_id: cf_project_id.to_string(),
+                            version_id: update.update_version_id.clone(),
+                        }
+                    } else {
+                        download_project_version(
+                            instance_id,
+                            &update.update_version_id,
+                            DownloadReason::Update,
+                            Some(update.current_version_id.clone()),
+                            state,
+                        )
+                        .await?
+                    };
 
                     Ok::<_, crate::Error>(DownloadedBulkProject::ProjectUpdate(
                         update, downloaded,
@@ -411,6 +466,7 @@ async fn plan_bulk_update(
         .chain(
             updates
                 .iter()
+                .filter(|update| !update.update_version_id.starts_with("cf-"))
                 .map(|update| update.update_version_id.clone()),
         )
         .collect::<HashSet<_>>();
@@ -452,12 +508,51 @@ async fn plan_bulk_update(
             parent_version_id: dependency.parent_version_id.clone(),
         })
         .collect::<Vec<_>>();
+    let installed_by_path = installed
+        .iter()
+        .map(|project| (project.relative_path.clone(), project))
+        .collect::<HashMap<_, _>>();
     let project_updates = updates
         .into_iter()
-        .map(|update| PlannedProjectUpdate {
-            relative_path: update.relative_path,
-            current_version_id: update.current_version_id,
-            update_version_id: update.update_version_id,
+        .filter_map(|update| {
+            let cf_file_id = update
+                .update_version_id
+                .strip_prefix("cf-")
+                .and_then(|id| id.parse::<i64>().ok());
+            let cf = match cf_file_id {
+                Some(cf_file_id) => {
+                    let cf = installed_by_path
+                        .get(&update.relative_path)
+                        .and_then(|project| {
+                            project.cf_project_id.map(|cf_project_id| {
+                                (
+                                    cf_project_id,
+                                    cf_file_id,
+                                    project.project_type,
+                                )
+                            })
+                        });
+                    if cf.is_none() {
+                        tracing::warn!(
+                            "Skipping CurseForge update for {}: unable to \
+                             resolve CurseForge project metadata",
+                            update.relative_path
+                        );
+                    }
+                    cf
+                }
+                None => None,
+            };
+            if cf.is_none() && cf_file_id.is_some() {
+                return None;
+            }
+
+            Some(PlannedProjectUpdate {
+                relative_path: update.relative_path,
+                current_version_id: update.current_version_id,
+                update_version_id: update.update_version_id,
+                cf,
+            })
         })
         .collect::<Vec<_>>();
 
@@ -527,7 +622,10 @@ fn installed_project_from_row(
     file: &InstanceFile,
     entry: &ContentEntry,
 ) -> Option<InstalledProject> {
-    if entry.project_id.is_none() && entry.version_id.is_none() {
+    if entry.project_id.is_none()
+        && entry.version_id.is_none()
+        && entry.cf_project_id.is_none()
+    {
         return None;
     }
 
@@ -537,6 +635,8 @@ fn installed_project_from_row(
         version_id: entry.version_id.clone(),
         source_kind: entry.source_kind,
         enabled: entry.enabled && file.enabled,
+        project_type: entry.project_type,
+        cf_project_id: entry.cf_project_id,
     })
 }
 

@@ -646,6 +646,12 @@ async fn content_projects_for_scope(
         &state.pool,
     )
     .await?;
+    let cf_update_checks =
+        sqlite::content_rows::get_content_update_checks_for_content_set(
+            &resolved.content_set.id,
+            &state.pool,
+        )
+        .await?;
     let entries_by_file_id = entries
         .iter()
         .filter_map(|entry| {
@@ -780,7 +786,7 @@ async fn content_projects_for_scope(
             }
         }
 
-        let update_version_id = metadata.as_ref().and_then(|metadata| {
+        let mut update_version_id = metadata.as_ref().and_then(|metadata| {
             let update_ids =
                 updates_by_hash.remove(&file.sha1).unwrap_or_default();
             if !update_ids.contains(&metadata.version_id) {
@@ -789,6 +795,13 @@ async fn content_projects_for_scope(
                 None
             }
         });
+        if update_version_id.is_none()
+            && entry.is_some_and(|entry| entry.source == Source::CurseForge)
+        {
+            update_version_id = entry
+                .and_then(|entry| cf_update_checks.get(entry.id.as_str()))
+                .cloned();
+        }
 
         output.insert(
             file.relative_path.clone(),
@@ -1089,7 +1102,7 @@ async fn content_files_to_content_items(
                     })
                     .or_else(|| {
                         cf_file.map(|file| ContentItemVersion {
-                            id: file.id.clone(),
+                            id: format!("cf-{}", file.id),
                             version_number: file.filename.clone(),
                             file_name: file.filename.clone(),
                             date_published: None,

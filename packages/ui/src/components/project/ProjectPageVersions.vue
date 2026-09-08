@@ -244,12 +244,14 @@
 
 		<template #cell-downloads="{ row: version }">
 			<div
+				v-if="!version.id?.startsWith('cf-')"
 				v-tooltip="`${version.downloads} downloads`"
 				class="flex items-center gap-1 font-medium w-max text-nowrap cursor-default"
 				data-no-row-click
 			>
 				{{ formatCompactNumber(version.downloads) }}
 			</div>
+			<span v-else class="text-secondary" data-no-row-click>&mdash;</span>
 		</template>
 
 		<template #cell-actions="{ row: version }">
@@ -629,7 +631,7 @@ function getModpackLoaders(version: VersionWithDisplayUrlEnding): string[] {
 const CF_NON_MOD_VERSION_LOADERS: Record<string, string[]> = {
 	resourcepack: ['minecraft'],
 	datapack: ['datapack'],
-	shader: ['vanilla'],
+	shader: ['shader'],
 }
 
 function getVersionLoaders(version: VersionWithDisplayUrlEnding): string[] {

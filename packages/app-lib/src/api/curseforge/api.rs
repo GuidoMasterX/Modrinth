@@ -186,20 +186,23 @@ pub async fn get_mods(
     Ok(res.data)
 }
 
+/// The CurseForge API has no single-file GET endpoint; batch-resolve via
+/// `POST /files` and take the one entry.
 pub async fn get_mod_file(
     file_id: i64,
     fetch_semaphore: &FetchSemaphore,
     pool: &SqlitePool,
 ) -> crate::Result<CFFile> {
-    cf_fetch_json(
-        Method::GET,
-        &format!("{}/mods/files/{}", CURSEFORGE_API_URL, file_id),
-        None,
-        Some("curseforge/mods/files/:id"),
-        fetch_semaphore,
-        pool,
-    )
-    .await
+    get_files(&[file_id], fetch_semaphore, pool)
+        .await?
+        .into_iter()
+        .next()
+        .ok_or_else(|| {
+            crate::ErrorKind::OtherError(format!(
+                "CurseForge file {file_id} not found"
+            ))
+            .as_error()
+        })
 }
 
 /// Batch-resolves files by ID (single API call, unlike `get_mod_file`).

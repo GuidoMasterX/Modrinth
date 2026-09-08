@@ -1026,13 +1026,21 @@ async function switchProjectVersion(mod: ContentItem, version: Labrinth.Versions
 
 	try {
 		if (isCfProjectId(mod.project?.id)) {
-			await add_project_from_curseforge_file(
+			const wasDisabled = oldPath.endsWith('.disabled')
+			const newPath = await add_project_from_curseforge_file(
 				instance.value.id,
 				parseCfId(mod.project.id),
 				parseCfId(version.id),
 				'update',
 			)
-			await remove_project(instance.value.id, oldPath)
+			if (wasDisabled) {
+				await toggle_disable_project(instance.value.id, newPath, false)
+			}
+			try {
+				await remove_project(instance.value.id, oldPath)
+			} catch (removeErr) {
+				handleError(removeErr as Error)
+			}
 		} else {
 			await switch_project_version_with_dependencies(instance.value.id, oldPath, version.id)
 		}
@@ -1318,7 +1326,11 @@ async function handleModpackUpdate() {
 	})
 	contentUpdaterModal.value?.show(initialVersionId)
 
-	const versions = await getUpdaterProjectVersions(instance.value.link.project_id, initialVersionId)
+	const link = instance.value.link
+	const versions = await getUpdaterProjectVersions(
+		link?.type === 'curseforge_modpack' ? toCfProjectId(link.project_id) : link?.project_id,
+		initialVersionId,
+	)
 
 	if (!isActiveUpdateRequest(requestId) || !updatingModpack.value) return
 

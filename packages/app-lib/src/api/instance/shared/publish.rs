@@ -373,26 +373,32 @@ pub(super) async fn collect_publish_snapshot(
     let mut disabled_external_files = HashSet::new();
 
     for item in items {
+        let is_curseforge = item.package_source
+            == crate::api::curseforge::normalize::Source::CurseForge;
         if item.enabled {
-            if let Some(version) = item.version {
-                if seen_version_ids.insert(version.id.clone()) {
-                    version_ids.push(version.id);
+            if is_curseforge || item.version.is_none() {
+                if item.file_path.is_empty() {
+                    continue;
+                }
+
+                let file_type = file_type(item.project_type);
+                let external_key = format!("{}:{file_type}", item.file_path);
+                if seen_external_files.insert(external_key) {
+                    external_files.push(ExternalFileCandidate {
+                        file_name: item.file_name,
+                        file_type,
+                        source: ExternalFileSource::InstanceFile(
+                            item.file_path,
+                        ),
+                    });
                 }
                 continue;
             }
 
-            if item.file_path.is_empty() {
-                continue;
-            }
-
-            let file_type = file_type(item.project_type);
-            let external_key = format!("{}:{file_type}", item.file_path);
-            if seen_external_files.insert(external_key) {
-                external_files.push(ExternalFileCandidate {
-                    file_name: item.file_name,
-                    file_type,
-                    source: ExternalFileSource::InstanceFile(item.file_path),
-                });
+            if let Some(version) = item.version {
+                if seen_version_ids.insert(version.id.clone()) {
+                    version_ids.push(version.id);
+                }
             }
             continue;
         }
@@ -404,22 +410,24 @@ pub(super) async fn collect_publish_snapshot(
             continue;
         }
 
-        if let Some(project) = item.project.as_ref() {
+        if !is_curseforge && let Some(project) = item.project.as_ref() {
             disabled_project_ids.insert(project.id.clone());
+        }
+
+        if is_curseforge || item.version.is_none() {
+            if item.file_path.is_empty() {
+                continue;
+            }
+
+            disabled_external_files.insert(enabled_file_name(&item.file_name));
+            continue;
         }
 
         if let Some(version) = item.version {
             if seen_disabled_version_ids.insert(version.id.clone()) {
                 disabled_version_ids.push(version.id);
             }
-            continue;
         }
-
-        if item.file_path.is_empty() {
-            continue;
-        }
-
-        disabled_external_files.insert(enabled_file_name(&item.file_name));
     }
 
     Ok(CurrentPublishSnapshot {

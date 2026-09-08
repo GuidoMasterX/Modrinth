@@ -529,14 +529,21 @@ pub async fn create_mrpack_json(
     )
     .await?
     .into_iter()
-    .filter_map(|(path, file)| {
-        file.metadata
-            .map(|metadata| (path, file.hash, metadata.version_id))
-    })
     .collect::<Vec<_>>();
-    let version_ids = projects.iter().map(|x| &*x.2).collect::<Vec<_>>();
+    let version_ids = projects
+        .iter()
+        .filter_map(|(_, file)| {
+            let metadata = file.metadata.as_ref()?;
+            (metadata.source
+                == crate::api::curseforge::normalize::Source::Modrinth)
+                .then(|| metadata.version_id.clone())
+                .filter(|version_id| !version_id.is_empty())
+        })
+        .collect::<Vec<_>>();
+    let version_id_refs =
+        version_ids.iter().map(String::as_str).collect::<Vec<_>>();
     let versions = CachedEntry::get_version_v3_many(
-        &version_ids,
+        &version_id_refs,
         Some(CacheBehaviour::MustRevalidate),
         &state.pool,
         &state.api_semaphore,
@@ -544,22 +551,56 @@ pub async fn create_mrpack_json(
     .await?;
     let files = projects
         .into_iter()
-        .filter_map(|(path, hash, version_id)| {
-            let version = versions.iter().find(|x| x.id == version_id)?;
-            let env = get_mrpack_environment(version.environment);
-            let file = version.files.iter().find(|file| {
-                file.hashes
-                    .get("sha1")
-                    .is_some_and(|file_hash| file_hash == &hash)
-            })?;
-            let file_size = file.size;
-            let downloads = vec![file.url.clone()];
-            let hashes = file
-                .hashes
-                .clone()
-                .into_iter()
-                .map(|(h1, h2)| (PackFileHash::from(h1), h2))
-                .collect();
+        .filter_map(|(path, content_file)| {
+            let metadata = content_file.metadata.as_ref()?;
+            let version = versions
+                .iter()
+                .find(|version| version.id == metadata.version_id);
+            let env = version
+                .map(|version| get_mrpack_environment(version.environment))
+                .unwrap_or_else(|| get_mrpack_environment(None));
+
+            let (downloads, file_size, hashes, cf_project_id, cf_file_id) =
+                if metadata.source
+                    == crate::api::curseforge::normalize::Source::CurseForge
+                {
+                    let (Some(cf_project_id), Some(cf_file_id)) =
+                        (metadata.cf_project_id, metadata.cf_version_id)
+                    else {
+                        return None;
+                    };
+                    (
+                        vec![format!(
+                            "{}/files/{}/{}/{}",
+                            crate::api::curseforge::api::CURSEFORGE_CDN_URL,
+                            cf_file_id / 1000,
+                            cf_file_id,
+                            content_file.file_name
+                        )],
+                        content_file.size as u32,
+                        HashMap::from([(
+                            PackFileHash::Sha1,
+                            content_file.hash.clone(),
+                        )]),
+                        Some(cf_project_id),
+                        Some(cf_file_id),
+                    )
+                } else {
+                    let version = version?;
+                    let pack_file = version.files.iter().find(|file| {
+                        file.hashes.get("sha1").is_some_and(|file_hash| {
+                            file_hash == &content_file.hash
+                        })
+                    })?;
+                    let downloads = vec![pack_file.url.clone()];
+                    let hashes = pack_file
+                        .hashes
+                        .clone()
+                        .into_iter()
+                        .map(|(h1, h2)| (PackFileHash::from(h1), h2))
+                        .collect();
+                    (downloads, pack_file.size, hashes, None, None)
+                };
 
             Some(Ok(PackFile {
                 path: match path.try_into() {
@@ -575,8 +616,8 @@ pub async fn create_mrpack_json(
                 env: Some(env),
                 downloads,
                 file_size,
-                cf_project_id: None,
-                cf_file_id: None,
+                cf_project_id,
+                cf_file_id,
             }))
         })
         .collect::<crate::Result<Vec<PackFile>>>()?;

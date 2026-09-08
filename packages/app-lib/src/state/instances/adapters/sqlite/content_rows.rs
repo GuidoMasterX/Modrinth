@@ -10,7 +10,7 @@ use crate::state::instances::{
 use crate::state::{ModLoader, ProjectType, ReleaseChannel};
 use chrono::{DateTime, TimeZone, Utc};
 use sqlx::{Executor, Sqlite, SqlitePool, Transaction};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use uuid::Uuid;
 
 #[derive(Debug, sqlx::FromRow)]
@@ -873,6 +873,35 @@ where
     .await?;
 
     Ok(row.map(Into::into))
+}
+
+/// Bulk-loads stored update checks for every entry in a content set,
+/// mapped by content entry id. Used to surface CurseForge update badges,
+/// whose update version ids live only here.
+pub(crate) async fn get_content_update_checks_for_content_set(
+    content_set_id: &str,
+    pool: &SqlitePool,
+) -> crate::Result<HashMap<String, String>> {
+    let rows = sqlx::query_as::<_, (String, Option<String>)>(
+        "
+		SELECT check_row.content_entry_id, check_row.update_version_id
+		FROM instance_content_update_checks check_row
+		INNER JOIN instance_content_entries entry
+			ON entry.id = check_row.content_entry_id
+		WHERE entry.content_set_id = ?
+		",
+    )
+    .bind(content_set_id)
+    .fetch_all(pool)
+    .await?;
+
+    Ok(rows
+        .into_iter()
+        .filter_map(|(entry_id, update_version_id)| {
+            update_version_id
+                .map(|update_version_id| (entry_id, update_version_id))
+        })
+        .collect())
 }
 
 pub(crate) struct UpsertInstanceFile<'a> {

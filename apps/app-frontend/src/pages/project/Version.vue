@@ -297,9 +297,9 @@ watch([() => props.versions, () => route.params.version], async () => {
 		cfChangelog.value = undefined
 		await refreshEnrichment()
 		await refreshChangelog()
-		await refreshChangelog()
 	}
 })
 
 await refreshEnrichment()
+await refreshChangelog()
 </script>

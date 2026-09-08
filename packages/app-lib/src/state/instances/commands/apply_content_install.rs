@@ -627,6 +627,70 @@ pub(crate) async fn add_project_from_curseforge_file(
 const CF_DEPENDENCY_RELATION_REQUIRED: i32 = 3;
 const CF_DEPENDENCY_MAX_DEPTH: usize = 5;
 
+/// Downloads the bytes for a CurseForge file through the shared download
+/// plumbing, resolving the file via the batch files endpoint. Returns the
+/// resolved `CFFile` (for hashes/filename) alongside the bytes.
+pub(crate) async fn download_curseforge_file_bytes(
+    instance_id: &str,
+    cf_file_id: i64,
+    reason: DownloadReason,
+    state: &State,
+) -> crate::Result<(crate::api::curseforge::structs::CFFile, Bytes)> {
+    let scope = resolve_content_scope(instance_id, None, state).await?;
+    let content_set =
+        content_rows::get_content_set(&scope.content_set_id, &state.pool)
+            .await?
+            .ok_or_else(|| {
+                crate::ErrorKind::InputError(format!(
+                    "Unknown content set {}",
+                    scope.content_set_id
+                ))
+            })?;
+    let file = crate::api::curseforge::api::get_files(
+        &[cf_file_id],
+        &state.api_semaphore,
+        &state.pool,
+    )
+    .await?
+    .into_iter()
+    .next()
+    .ok_or_else(|| {
+        crate::ErrorKind::InputError(format!(
+            "Unable to install CurseForge file {cf_file_id}. Not found."
+        ))
+    })?;
+    if file.download_url.as_ref().is_none_or(|url| url.is_empty())
+        || file.is_available == Some(false)
+    {
+        return Err(crate::ErrorKind::InputError(format!(
+            "This CurseForge file ({cf_file_id}) blocks third-party downloads. Download it manually from its CurseForge page; once placed in the instance it will be recognized automatically."
+        ))
+        .into());
+    }
+    let download_meta = DownloadMeta {
+        reason,
+        game_version: content_set.game_version,
+        loader: content_set.loader.as_str().to_string(),
+        dependent_on: None,
+    };
+    let sha1 = file
+        .hashes
+        .iter()
+        .find(|hash| hash.algo == 1)
+        .map(|hash| hash.value.clone());
+    let bytes = fetch::fetch(
+        &crate::api::curseforge::api::get_download_url(&file),
+        sha1.as_deref(),
+        Some(&download_meta),
+        None,
+        &state.fetch_semaphore,
+        &state.pool,
+    )
+    .await?;
+
+    Ok((file, bytes))
+}
+
 /// Installs a CurseForge project into an instance, then resolves and
 /// installs its required dependencies (transitively, depth-capped). The
 /// root project must install successfully; per-dependency failures are

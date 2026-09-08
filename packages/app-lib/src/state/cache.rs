@@ -1237,6 +1237,13 @@ impl CachedEntry {
                 && cache_behaviour
                     == CacheBehaviour::StaleWhileRevalidateSkipOffline
             {
+                if let Err(error) = &res {
+                    tracing::warn!(
+                        "Cache fetch failed for {:?} keys {:?}: {error}",
+                        type_,
+                        remaining_keys
+                    );
+                }
                 for key in remaining_keys {
                     expired_keys.insert(key.to_string());
                 }
@@ -1268,24 +1275,34 @@ impl CachedEntry {
         {
             tokio::task::spawn(async move {
                 // TODO: if possible- find a way to do this without invoking state get
-                let state = crate::state::State::get().await?;
+                let result = async {
+                    let state = crate::state::State::get().await?;
 
-                let values = Self::fetch_many(
-                    type_,
-                    expired_keys,
-                    &state.api_semaphore,
-                    &state.pool,
-                )
-                .await?
-                .into_iter()
-                .map(|x| x.0)
-                .collect::<Vec<_>>();
+                    let values = Self::fetch_many(
+                        type_,
+                        expired_keys,
+                        &state.api_semaphore,
+                        &state.pool,
+                    )
+                    .await?
+                    .into_iter()
+                    .map(|x| x.0)
+                    .collect::<Vec<_>>();
 
-                if !values.is_empty() {
-                    Self::upsert_many(&values, &state.pool).await?;
+                    if !values.is_empty() {
+                        Self::upsert_many(&values, &state.pool).await?;
+                    }
+
+                    Ok::<(), crate::Error>(())
                 }
+                .await;
 
-                Ok::<(), crate::Error>(())
+                if let Err(error) = result {
+                    tracing::warn!(
+                        "Cache revalidation failed for {:?} keys: {error}",
+                        type_
+                    );
+                }
             });
         }
 

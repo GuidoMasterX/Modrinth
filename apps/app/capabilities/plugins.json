@@ -53,6 +53,12 @@
 				},
 				{
 					"url": "https://*.taila228c5.ts.net/*"
+				},
+				{
+					"url": "https://edge.forgecdn.net/*"
+				},
+				{
+					"url": "https://media.forgecdn.net/*"
 				}
 			]
 		},

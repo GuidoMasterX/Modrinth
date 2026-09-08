@@ -178,7 +178,7 @@ impl SourceProject {
                     loaders.sort();
                     loaders
                 }
-                SourceProjectType::ShaderPack => vec!["vanilla".to_string()],
+                SourceProjectType::ShaderPack => vec!["shader".to_string()],
                 SourceProjectType::DataPack => vec!["datapack".to_string()],
                 SourceProjectType::ResourcePack => Vec::new(),
             },
