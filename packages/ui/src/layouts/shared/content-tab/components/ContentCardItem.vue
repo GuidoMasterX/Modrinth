@@ -53,6 +53,10 @@ const messages = defineMessages({
 		id: 'content.card.source.curseforge',
 		defaultMessage: 'CurseForge',
 	},
+	modrinth: {
+		id: 'content.card.source.modrinth',
+		defaultMessage: 'Modrinth',
+	},
 })
 
 interface Props {
@@ -155,6 +159,15 @@ const installTooltip = computed(() => {
 	if (props.installProgress == null) return formatMessage(commonMessages.installingLabel)
 	return `${formatMessage(commonMessages.installingLabel)} (${Math.round(props.installProgress)}%)`
 })
+
+const sourcePillColor = computed(() =>
+	props.packageSource === 'curseforge'
+		? 'var(--color-source-curseforge)'
+		: 'var(--color-source-modrinth)',
+)
+const sourcePillMessage = computed(() =>
+	props.packageSource === 'curseforge' ? messages.curseforge : messages.modrinth,
+)
 </script>
 
 <template>
@@ -357,6 +370,22 @@ const installTooltip = computed(() => {
 					}}</span>
 				</span>
 			</template>
+		</div>
+
+		<div
+			class="hidden items-center @[800px]:flex"
+			:class="hideActions ? 'flex-1' : 'flex-1 min-w-0'"
+		>
+			<span
+				class="inline-flex shrink-0 items-center gap-1 rounded-full px-1.5 py-0.5 text-[0.65rem] font-semibold leading-none"
+				:style="{
+					backgroundColor: `color-mix(in srgb, ${sourcePillColor} 18%, transparent)`,
+					color: sourcePillColor,
+				}"
+			>
+				<span class="size-1.5 rounded-full" :style="{ backgroundColor: sourcePillColor }" />
+				{{ formatMessage(sourcePillMessage) }}
+			</span>
 		</div>
 
 		<div

@@ -43,6 +43,21 @@
 						:tooltip="formatNumber(project.followers)"
 					/>
 				</template>
+				<span
+					v-if="showSourceBadge"
+					class="inline-flex w-fit items-center gap-1 rounded-full px-1.5 py-0.5 text-[0.65rem] font-semibold leading-none"
+					:style="{
+						backgroundColor: `color-mix(in srgb, ${sourceBadgeColor} 18%, transparent)`,
+						color: sourceBadgeColor,
+					}"
+				>
+					<span class="size-1.5 rounded-full" :style="{ backgroundColor: sourceBadgeColor }" />
+					{{
+						formatMessage(
+							project.id.startsWith('cf-') ? messages.sourceCurseforge : messages.sourceModrinth,
+						)
+					}}
+				</span>
 				<PageHeaderMetadataTagsItem v-if="project.categories.length > 0" class="hidden md:flex">
 					<TagItem
 						v-for="category in project.categories"
@@ -66,6 +81,7 @@
 <script setup lang="ts">
 import type { Labrinth } from '@modrinth/api-client'
 import { DownloadIcon, HeartIcon } from '@modrinth/assets'
+import { computed } from 'vue'
 
 import { defineMessages, useFormatNumber, useVIntl } from '../../composables'
 import Avatar from '../base/Avatar.vue'
@@ -91,15 +107,17 @@ type HeaderProjectV3 = Pick<
 	'status' | 'minecraft_server' | 'minecraft_java_server'
 >
 
-withDefaults(
+const props = withDefaults(
 	defineProps<{
 		project: HeaderProject
 		projectV3?: HeaderProjectV3 | null
 		showStatusBadge?: boolean
+		showSourceBadge?: boolean
 	}>(),
 	{
 		projectV3: null,
 		showStatusBadge: false,
+		showSourceBadge: false,
 	},
 )
 
@@ -117,8 +135,20 @@ const messages = defineMessages({
 		id: 'project.stats.followers-label',
 		defaultMessage: '{count, plural, one {follower} other {followers}}',
 	},
+	sourceCurseforge: {
+		id: 'project.header.source-curseforge',
+		defaultMessage: 'CurseForge',
+	},
+	sourceModrinth: {
+		id: 'project.header.source-modrinth',
+		defaultMessage: 'Modrinth',
+	},
 })
 
 const { formatMessage } = useVIntl()
 const formatNumber = useFormatNumber()
+
+const sourceBadgeColor = computed(() =>
+	props.project.id.startsWith('cf-') ? 'var(--color-source-curseforge)' : 'var(--color-brand)',
+)
 </script>

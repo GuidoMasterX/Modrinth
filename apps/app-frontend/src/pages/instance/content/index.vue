@@ -129,7 +129,12 @@ import { useManagedContentPolicy } from '@/composables/instances/use-managed-con
 import { useAppEvent } from '@/composables/use-app-event'
 import { type FeatureFlag, useAppSettings } from '@/composables/use-app-settings.ts'
 import { trackEvent } from '@/helpers/analytics'
-import { get_project_versions, get_version, get_version_many } from '@/helpers/cache.js'
+import {
+	get_curseforge_file_changelog,
+	get_project_versions,
+	get_version,
+	get_version_many,
+} from '@/helpers/cache.js'
 import {
 	getCfVersions,
 	isCfProjectId,
@@ -1379,8 +1384,27 @@ async function fetchAndSpliceVersion(
 }
 
 async function handleVersionSelect(version: Labrinth.Versions.v2.Version) {
-	if (version.changelog != null || isCfProjectId(version.id)) return
+	if (version.changelog != null) return
 	const requestId = activeUpdateRequestId.value
+	if (isCfProjectId(version.id)) {
+		const project = updatingProject.value
+		if (!project || !isCfProjectId(project.project.id)) return
+		loadingChangelog.value = true
+		const changelog = await get_curseforge_file_changelog(
+			parseCfId(project.project.id),
+			parseCfId(version.id),
+		).catch(() => null)
+		if (isActiveUpdateRequest(requestId)) {
+			if (changelog) {
+				updatingProjectVersions.value = mergeVersionIntoList(updatingProjectVersions.value, {
+					...version,
+					changelog,
+				})
+			}
+			loadingChangelog.value = false
+		}
+		return
+	}
 	loadingChangelog.value = true
 	await fetchAndSpliceVersion(
 		version.id,
@@ -1394,7 +1418,23 @@ async function handleVersionSelect(version: Labrinth.Versions.v2.Version) {
 }
 
 async function handleVersionHover(version: Labrinth.Versions.v2.Version) {
-	if (version.changelog != null || isCfProjectId(version.id)) return
+	if (version.changelog != null) return
+	if (isCfProjectId(version.id)) {
+		const project = updatingProject.value
+		if (!project || !isCfProjectId(project.project.id)) return
+		const requestId = activeUpdateRequestId.value
+		const changelog = await get_curseforge_file_changelog(
+			parseCfId(project.project.id),
+			parseCfId(version.id),
+		).catch(() => null)
+		if (isActiveUpdateRequest(requestId) && changelog) {
+			updatingProjectVersions.value = mergeVersionIntoList(updatingProjectVersions.value, {
+				...version,
+				changelog,
+			})
+		}
+		return
+	}
 	await fetchAndSpliceVersion(version.id, undefined, undefined, activeUpdateRequestId.value)
 }
 

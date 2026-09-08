@@ -169,7 +169,7 @@
 						<div
 							v-else-if="selectedVersion.changelog"
 							class="markdown-body"
-							v-html="renderHighlightedString(selectedVersion.changelog)"
+							v-html="changelogHtml ?? renderHighlightedString(selectedVersion.changelog)"
 						/>
 						<div v-else class="text-secondary italic">
 							{{ formatMessage(messages.noChangelog) }}
@@ -288,6 +288,7 @@ import {
 	renderHighlightedString,
 } from '@modrinth/utils'
 import { useTimeoutFn } from '@vueuse/core'
+import DOMPurify from 'dompurify'
 import { computed, ref, toRef } from 'vue'
 
 import Avatar from '#ui/components/base/Avatar.vue'
@@ -453,6 +454,11 @@ const props = withDefaults(
 
 const isModpack = computed(() => props.projectType === 'modpack')
 const incompatibilityWarningMode = computed(() => props.mode === 'incompatibility-warning')
+const changelogHtml = computed(() =>
+	selectedVersion.value?.id.startsWith('cf-')
+		? DOMPurify.sanitize(selectedVersion.value.changelog)
+		: undefined,
+)
 const defaultHeader = computed(() => {
 	if (incompatibilityWarningMode.value) {
 		return formatMessage(messages.incompatibilityWarningHeader)

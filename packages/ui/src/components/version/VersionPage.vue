@@ -8,6 +8,7 @@ import {
 	renderHighlightedString,
 } from '@modrinth/utils'
 import { useQuery } from '@tanstack/vue-query'
+import DOMPurify from 'dompurify'
 import { computed, ref } from 'vue'
 
 import { useFormatBytes } from '#ui/composables/format-bytes.ts'
@@ -71,6 +72,13 @@ const publishDate = computed(() => formatRelativeTime(props.version.date_publish
 const publishDateTooltip = computed(() => formatDateTime(props.version.date_published))
 
 const isModpack = computed(() => props.version.loaders.includes('mrpack'))
+const changelogHtml = computed(() =>
+	props.version.id.startsWith('cf-')
+		? props.version.changelog
+			? DOMPurify.sanitize(props.version.changelog)
+			: undefined
+		: undefined,
+)
 const platforms = computed(() =>
 	isModpack.value ? props.version.mrpack_loaders : props.version.loaders,
 )
@@ -467,7 +475,7 @@ const authorLink = computed(() =>
 				<div
 					v-if="version.changelog"
 					class="markdown-body"
-					v-html="renderHighlightedString(version.changelog)"
+					v-html="changelogHtml ?? renderHighlightedString(version.changelog)"
 				/>
 				<div v-else class="text-secondary">{{ formatMessage(messages.noChanges) }}</div>
 			</div>

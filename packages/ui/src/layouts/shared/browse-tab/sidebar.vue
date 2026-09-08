@@ -11,6 +11,7 @@ import { useAdvancedPrefs } from '#ui/utils/advanced-filter-preferences'
 import { commonMessages } from '#ui/utils/common-messages'
 
 import AdvancedFiltersPersistenceNote from './components/AdvancedFiltersPersistenceNote.vue'
+import { mapProvidedFiltersToCf } from './composables/use-browse-search'
 import { injectBrowseManager } from './providers/browse-manager'
 
 const PHOTOSENSITIVITY_FILTER_OPTION = 'epilepsy_triggers'
@@ -99,6 +100,8 @@ const selectedProjectClass = computed(() =>
 function hasProvidedFilter(filterId: string): boolean {
 	return (ctx.providedFilters?.value ?? []).some((filter) => filter.type === filterId)
 }
+
+const cfProvidedFilters = computed(() => mapProvidedFiltersToCf(ctx.providedFilters?.value ?? []))
 
 const ACCORDION_SLOTS_BY_ID: Record<string, string> = {
 	game_version: 'game-version',
@@ -293,7 +296,7 @@ function handleModrinthFilterOpen(filterId: string, open: boolean) {
 				:key="`cf-filter-${filterType.id}`"
 				v-model:selected-filters="ctx.curseforgeCurrentFilters.value"
 				v-model:toggled-groups="ctx.curseforgeToggledGroups.value"
-				:provided-filters="[]"
+				:provided-filters="cfProvidedFilters"
 				:filter-type="filterType"
 				:project-type="ctx.projectType.value"
 				:class="filterClass"

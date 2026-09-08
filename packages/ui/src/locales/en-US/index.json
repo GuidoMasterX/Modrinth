@@ -380,6 +380,9 @@
   "content.card.source.curseforge": {
     "defaultMessage": "CurseForge"
   },
+  "content.card.source.modrinth": {
+    "defaultMessage": "Modrinth"
+  },
   "content.card.uploaded": {
     "defaultMessage": "Uploaded"
   },
@@ -817,6 +820,9 @@
   },
   "content.selection-bar.selected-count-simple": {
     "defaultMessage": "{count, number} selected"
+  },
+  "content.table.source": {
+    "defaultMessage": "Source"
   },
   "creation-flow.button.create-instance": {
     "defaultMessage": "Create instance"
@@ -3718,6 +3724,12 @@
   },
   "project.follower-count-tooltip": {
     "defaultMessage": "{count, number} {count, plural, one {follower} other {followers}}"
+  },
+  "project.header.source-curseforge": {
+    "defaultMessage": "CurseForge"
+  },
+  "project.header.source-modrinth": {
+    "defaultMessage": "Modrinth"
   },
   "project.license.error": {
     "defaultMessage": "License text could not be retrieved."

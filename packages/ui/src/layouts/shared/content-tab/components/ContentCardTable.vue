@@ -3,7 +3,7 @@ import { ChevronDownIcon, ChevronUpIcon } from '@modrinth/assets'
 import { computed, getCurrentInstance, ref, toRef } from 'vue'
 
 import Checkbox from '#ui/components/base/Checkbox.vue'
-import { useVIntl } from '#ui/composables/i18n'
+import { defineMessages, useVIntl } from '#ui/composables/i18n'
 import { useStickyObserver } from '#ui/composables/sticky-observer'
 import { useVirtualScroll } from '#ui/composables/virtual-scroll'
 import { commonMessages } from '#ui/utils/common-messages'
@@ -16,6 +16,13 @@ import type {
 import ContentCardItem from './ContentCardItem.vue'
 
 const { formatMessage } = useVIntl()
+
+const messages = defineMessages({
+	source: {
+		id: 'content.table.source',
+		defaultMessage: 'Source',
+	},
+})
 
 interface Props {
 	items: ContentCardTableItem[]
@@ -247,6 +254,12 @@ function handleSort(column: ContentCardTableSortColumn) {
 				}}</span>
 			</div>
 
+			<div class="hidden @[800px]:flex" :class="hasAnyActions ? 'flex-1 min-w-0' : 'flex-1'">
+				<span role="columnheader" class="font-semibold text-secondary">{{
+					formatMessage(messages.source)
+				}}</span>
+			</div>
+
 			<div v-if="hasAnyActions" role="columnheader" class="min-w-[160px] shrink-0 text-right">
 				<span class="font-semibold text-secondary">{{
 					formatMessage(commonMessages.actionsLabel)
@@ -274,6 +287,8 @@ function handleSort(column: ContentCardTableSortColumn) {
 					:owner="item.owner"
 					:source="item.source"
 					:external="item.external"
+					:package-source="item.package_source"
+					:external-url="item.external_url"
 					:enabled="item.enabled"
 					:locked="item.locked"
 					:installing="item.installing"
@@ -342,6 +357,8 @@ function handleSort(column: ContentCardTableSortColumn) {
 				:owner="item.owner"
 				:source="item.source"
 				:external="item.external"
+				:package-source="item.package_source"
+				:external-url="item.external_url"
 				:enabled="item.enabled"
 				:locked="item.locked"
 				:installing="item.installing"

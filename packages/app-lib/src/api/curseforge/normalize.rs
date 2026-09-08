@@ -18,6 +18,7 @@ use super::structs::{
 pub enum Source {
     #[default]
     Modrinth,
+    #[serde(rename = "curseforge")]
     CurseForge,
 }
 
@@ -104,6 +105,8 @@ pub struct SourceProject {
 pub struct SourceVersionFile {
     pub id: String,
     pub filename: String,
+    #[serde(default)]
+    pub display_name: Option<String>,
     pub url: String,
     pub primary: bool,
     pub size: u64,
@@ -206,6 +209,7 @@ impl SourceVersionFile {
         Self {
             id: file.id.to_string(),
             filename: file.file_name.clone(),
+            display_name: Some(file.display_name.clone()),
             url: super::api::get_download_url(file),
             primary: true,
             size: file.file_length,

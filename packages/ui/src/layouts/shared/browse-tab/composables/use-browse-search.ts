@@ -28,6 +28,15 @@ import type { BrowseSearchResponse } from '../types'
 
 export type BrowseSource = 'modrinth' | 'curseforge'
 
+export function mapProvidedFiltersToCf(filters: FilterValue[]): FilterValue[] {
+	return filters
+		.filter((f) => f.type === 'game_version' || f.type === 'mod_loader')
+		.map((f) => ({
+			type: f.type === 'game_version' ? 'cf_game_version' : 'cf_loader',
+			option: f.type === 'mod_loader' ? f.option.toLowerCase() : f.option,
+		}))
+}
+
 export interface UseBrowseSearchOptions {
 	projectType: Ref<string>
 	tags: Ref<{
@@ -164,6 +173,18 @@ export function useBrowseSearch(options: UseBrowseSearchOptions): BrowseSearchSt
 		currentPage,
 	})
 
+	function applyProvidedFiltersToCf(filters: FilterValue[]) {
+		for (const entry of mapProvidedFiltersToCf(filters)) {
+			if (!curseforgeCurrentFilters.value.some((f) => f.type === entry.type)) {
+				curseforgeCurrentFilters.value.push(entry)
+			}
+		}
+	}
+
+	if (activeSource.value === 'curseforge') {
+		applyProvidedFiltersToCf(options.providedFilters?.value ?? [])
+	}
+
 	const effectiveRequestParams = computed(() =>
 		isServerType.value
 			? serverRequestParams.value
@@ -196,6 +217,9 @@ export function useBrowseSearch(options: UseBrowseSearchOptions): BrowseSearchSt
 		if (source === activeSource.value) return
 		if (source === 'curseforge' && !options.searchCurseforge) return
 		activeSource.value = source
+		if (source === 'curseforge') {
+			applyProvidedFiltersToCf(options.providedFilters?.value ?? [])
+		}
 		currentPage.value = 1
 	}
 

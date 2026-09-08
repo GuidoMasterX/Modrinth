@@ -1310,6 +1310,9 @@
   "app.project.more-options": {
     "message": "More options"
   },
+  "app.project.switch-source": {
+    "message": "Switch source"
+  },
   "app.project.switch-source-not-found": {
     "message": "No matching project found on the other source."
   },

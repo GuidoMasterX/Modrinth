@@ -65,6 +65,7 @@
 					:project="data"
 					:project-v3="projectV3"
 					:show-status-badge="data.status !== 'approved'"
+					:show-source-badge="true"
 					@contextmenu.prevent.stop="handleRightClick"
 					@category="(category) => router.push(`${projectSearchUrl}?f=categories:${category}`)"
 				>
@@ -157,6 +158,10 @@
 												? formatMessage(commonMessages.installingLabel)
 												: formatMessage(commonMessages.installButton)
 								}}
+							</Button>
+							<Button size="xl" native-type="button" @click="switchSource">
+								<ArrowLeftRightIcon />
+								{{ formatMessage(messages.switchSource) }}
 							</Button>
 							<TeleportOverflowMenu
 								type="quiet"
@@ -373,6 +378,10 @@ const messages = defineMessages({
 	switchVersion: {
 		id: 'app.project.install-button.switch-version',
 		defaultMessage: 'Switch version',
+	},
+	switchSource: {
+		id: 'app.project.switch-source',
+		defaultMessage: 'Switch source',
 	},
 })
 

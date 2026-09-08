@@ -1052,9 +1052,20 @@ async fn content_files_to_content_items(
                     .iter()
                     .find(|version| version.id == metadata.version_id)
             });
-            let owner = project.and_then(|project| {
-                resolve_owner(project, &meta.teams, &meta.organizations)
-            });
+            let owner = project
+                .and_then(|project| {
+                    resolve_owner(project, &meta.teams, &meta.organizations)
+                })
+                .or_else(|| {
+                    cf_project.and_then(|project| {
+                        project.authors.first().map(|author| ContentItemOwner {
+                            id: format!("cf-author-{}", author.id),
+                            name: author.name.clone().unwrap_or_default(),
+                            avatar_url: author.avatar_url.clone(),
+                            owner_type: OwnerType::User,
+                        })
+                    })
+                });
             let external_url = cf_project.map(|project| {
                 project
                     .website_url
@@ -1103,7 +1114,11 @@ async fn content_files_to_content_items(
                     .or_else(|| {
                         cf_file.map(|file| ContentItemVersion {
                             id: format!("cf-{}", file.id),
-                            version_number: file.filename.clone(),
+                            version_number: file
+                                .display_name
+                                .clone()
+                                .filter(|name| !name.is_empty())
+                                .unwrap_or_else(|| file.filename.clone()),
                             file_name: file.filename.clone(),
                             date_published: None,
                         })
