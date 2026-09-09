@@ -431,7 +431,7 @@
 							label: 'User lookup',
 							icon: UserSearchIcon,
 							type: 'link',
-							to: '/admin/user_email',
+							to: '/admin/user_lookup',
 							shown: isAdmin(auth.user),
 						},
 						{
@@ -1533,7 +1533,7 @@ watch(
 )
 
 async function logoutUser() {
-	await switchToSignedOut()
+	await switchToSignedOut(client)
 }
 
 function runAnalytics() {

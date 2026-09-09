@@ -568,6 +568,16 @@ async function promptDeleteItems(items: ContentItem[], event?: MouseEvent) {
 }
 
 async function showDeletionConfirmation(event?: MouseEvent) {
+	const confirmed = await ctx.confirmDeleteItems?.(pendingDeletionItems.value)
+	if (confirmed !== undefined) {
+		if (!confirmed) return
+		if (pendingDeletionWarning.value) {
+			confirmDeletionModal.value?.show()
+		} else {
+			await confirmDelete()
+		}
+		return
+	}
 	if (
 		!pendingDeletionWarning.value &&
 		(event?.shiftKey || skipNonEssentialWarnings.value) &&
@@ -601,6 +611,7 @@ async function confirmDependencyWarningDelete(disableDependentsAfterDeleting: bo
 
 	pendingDependencyWarningItems.value = []
 	pendingDependencyWarningDependents.value = []
+	if ((await ctx.confirmDeleteItems?.(pendingDeletionItems.value)) === false) return
 	if (pendingDeletionWarning.value) {
 		confirmDeletionModal.value?.show()
 		return
@@ -690,6 +701,7 @@ async function confirmDelete() {
 async function promptDisableItems(items: ContentItem[]) {
 	const toggleableItems = items.filter(canToggleItem)
 	if (toggleableItems.length === 0) return
+	if (ctx.confirmAction && !(await ctx.confirmAction('disable', toggleableItems))) return
 	pendingDisableItems.value = toggleableItems
 	const warning = ctx.getDisableWarning?.(toggleableItems) ?? null
 	if (warning) {
@@ -757,6 +769,7 @@ async function handleToggleEnabledById(id: string, _value: boolean) {
 		await promptDisableItems([item])
 		return
 	}
+	if (ctx.confirmAction && !(await ctx.confirmAction('enable', [item]))) return
 	markChanging(id)
 	try {
 		await ctx.toggleEnabled(item)
@@ -769,6 +782,7 @@ async function bulkEnable() {
 	if (ctx.isBusy.value) return
 	const items = toggleableSelectedItems.value.filter((item) => !item.enabled)
 	if (items.length === 0) return
+	if (ctx.confirmAction && !(await ctx.confirmAction('enable', items))) return
 	if (ctx.bulkEnableItems) {
 		isBulkOperating.value = true
 		bulkOperation.value = 'enable'
@@ -799,7 +813,7 @@ async function bulkDisable() {
 
 function handleUpdateById(id: string) {
 	const item = ctx.items.value.find((item) => getItemId(item) === id)
-	if (item?.locked) return
+	if (!item || item.locked) return
 	ctx.updateItem?.(id)
 }
 

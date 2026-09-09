@@ -27,6 +27,15 @@ pub struct ContentItem {
     pub cf_version_id: Option<i64>,
     pub external_url: Option<String>,
     pub embedded_metadata: Option<EmbeddedContentMetadata>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub synced_pack: Option<SyncedPackInfo>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct SyncedPackInfo {
+    pub id: String,
+    pub instance_ids: Vec<String>,
+    pub update_pending: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]

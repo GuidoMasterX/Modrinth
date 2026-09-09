@@ -7,6 +7,7 @@ use crate::state::{
     State, Version,
 };
 use crate::util::fetch::DownloadReason;
+use bytes::Bytes;
 use futures::stream::{FuturesUnordered, StreamExt};
 use std::cmp::Reverse;
 use std::collections::{HashMap, HashSet};
@@ -186,8 +187,10 @@ pub(crate) async fn update_all_projects(
                         add_project_bytes(
                             instance_id,
                             &downloaded.file_name,
-                            downloaded.bytes,
-                            downloaded.sha1.as_deref(),
+                            Bytes::from(
+                                tokio::fs::read(downloaded.file.path()).await?,
+                            ),
+                            Some(&downloaded.file.sha1),
                             Some(project_type),
                             ContentSourceKind::Local,
                             None,
@@ -289,14 +292,17 @@ async fn download_planned_projects(
                             state,
                         )
                         .await?;
+                        let sha1 = file
+                            .hashes
+                            .iter()
+                            .find(|hash| hash.algo == 1)
+                            .map(|hash| hash.value.clone());
                         DownloadedProjectVersion {
                             file_name: file.file_name,
-                            bytes,
-                            sha1: file
-                                .hashes
-                                .iter()
-                                .find(|hash| hash.algo == 1)
-                                .map(|hash| hash.value.clone()),
+                            file: crate::util::fetch::DownloadedFile::from_bytes(
+                                bytes, sha1,
+                            )
+                            .await?,
                             project_type,
                             project_id: cf_project_id.to_string(),
                             version_id: update.update_version_id.clone(),

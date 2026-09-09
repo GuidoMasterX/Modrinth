@@ -1701,7 +1701,7 @@
     "defaultMessage": "PayPal International"
   },
   "payment-method.unionpay": {
-    "defaultMessage": "UnionPayUnionPay"
+    "defaultMessage": "UnionPay"
   },
   "payment-method.unknown": {
     "defaultMessage": "طريقة دفع غير معروفة"

@@ -35,6 +35,7 @@ interface Props {
 	hideHeader?: boolean
 	flat?: boolean
 	showItemActions?: boolean
+	showVersion?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -47,6 +48,7 @@ const props = withDefaults(defineProps<Props>(), {
 	hideHeader: false,
 	flat: false,
 	showItemActions: false,
+	showVersion: true,
 })
 
 const stickyHeaderRef = ref<HTMLElement | null>(null)
@@ -199,7 +201,9 @@ function handleSort(column: ContentCardTableSortColumn) {
 				role="row"
 				class="flex min-w-0 items-center gap-4"
 				:class="
-					hasAnyActions ? 'flex-1 @[800px]:w-[45%] @[800px]:shrink-0 @[800px]:flex-none' : 'flex-1'
+					hasAnyActions && showVersion
+						? 'flex-1 @[800px]:w-[45%] @[800px]:shrink-0 @[800px]:flex-none'
+						: 'flex-1'
 				"
 			>
 				<Checkbox
@@ -233,7 +237,11 @@ function handleSort(column: ContentCardTableSortColumn) {
 				}}</span>
 			</div>
 
-			<div class="hidden @[800px]:flex" :class="hasAnyActions ? 'flex-1 min-w-0' : 'flex-1'">
+			<div
+				v-if="showVersion"
+				class="hidden @[800px]:flex"
+				:class="hasAnyActions ? 'flex-1 min-w-0' : 'flex-1'"
+			>
 				<button
 					v-if="sortable"
 					role="columnheader"
@@ -284,6 +292,7 @@ function handleSort(column: ContentCardTableSortColumn) {
 					:project="item.project"
 					:project-link="item.projectLink"
 					:version="item.version"
+					:show-version="showVersion"
 					:version-link="item.versionLink"
 					:owner="item.owner"
 					:source="item.source"
@@ -297,6 +306,8 @@ function handleSort(column: ContentCardTableSortColumn) {
 					:has-update="item.hasUpdate"
 					:is-client-only="item.isClientOnly"
 					:client-warning="item.clientWarning"
+					:synced="item.synced"
+					:sync-update-pending="item.syncUpdatePending"
 					:hide-switch-version="item.hideSwitchVersion"
 					:overflow-options="item.overflowOptions"
 					:disabled="item.disabled"
@@ -354,6 +365,7 @@ function handleSort(column: ContentCardTableSortColumn) {
 				:project="item.project"
 				:project-link="item.projectLink"
 				:version="item.version"
+				:show-version="showVersion"
 				:version-link="item.versionLink"
 				:owner="item.owner"
 				:source="item.source"
@@ -367,6 +379,8 @@ function handleSort(column: ContentCardTableSortColumn) {
 				:has-update="item.hasUpdate"
 				:is-client-only="item.isClientOnly"
 				:client-warning="item.clientWarning"
+				:synced="item.synced"
+				:sync-update-pending="item.syncUpdatePending"
 				:hide-switch-version="item.hideSwitchVersion"
 				:overflow-options="item.overflowOptions"
 				:disabled="item.disabled"

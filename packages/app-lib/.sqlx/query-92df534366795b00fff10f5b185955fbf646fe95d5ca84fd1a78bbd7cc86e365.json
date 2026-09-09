@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            UPDATE settings\n            SET\n                max_concurrent_writes = $1,\n                max_concurrent_downloads = $2,\n\n                theme = $3,\n                locale = $4,\n                default_page = $5,\n                collapsed_navigation = $6,\n                advanced_rendering = $7,\n                native_decorations = $8,\n\n                discord_rpc = $9,\n                developer_mode = $10,\n                telemetry = $11,\n\n                extra_launch_args = jsonb($12),\n                custom_env_vars = jsonb($13),\n                mc_memory_max = $14,\n                mc_force_fullscreen = $15,\n                mc_game_resolution_x = $16,\n                mc_game_resolution_y = $17,\n                hide_on_process_start = $18,\n\n                hook_pre_launch = $19,\n                hook_wrapper = $20,\n                hook_post_exit = $21,\n\n                custom_dir = $22,\n                prev_custom_dir = $23,\n                migrated = $24,\n\n                toggle_sidebar = $25,\n                feature_flags = $26,\n                hide_nametag_skins_page = $27,\n\n                skipped_update = $28,\n                pending_update_toast_for_version = $29,\n                auto_download_updates = $30,\n\n                sync_theme_across_devices = $31,\n                sync_behavior_across_devices = $32,\n                sync_features_across_devices = $33,\n                show_files_tab_in_instances = $34,\n                show_worlds_tab_in_instances = $35,\n                show_screenshots_tab_in_instances = $36,\n                show_skin_selector_in_sidebar = $37,\n\n                curseforge_api_key = $38,\n\n                pinned_browse_tabs = $39,\n\n                version = $40\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 40
+    },
+    "nullable": []
+  },
+  "hash": "92df534366795b00fff10f5b185955fbf646fe95d5ca84fd1a78bbd7cc86e365"
+}
