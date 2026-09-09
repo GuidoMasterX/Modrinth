@@ -629,9 +629,6 @@
   "content.metadata-filter.state.enabled": {
     "defaultMessage": "Aktif"
   },
-  "content.metadata-filter.update.available": {
-    "defaultMessage": "Güncelleme mevcut"
-  },
   "content.metadata-filter.warning.client-only": {
     "defaultMessage": "Sadece istemciye özel içerik"
   },

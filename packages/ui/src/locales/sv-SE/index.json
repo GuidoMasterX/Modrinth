@@ -632,9 +632,6 @@
   "content.metadata-filter.state.enabled": {
     "defaultMessage": "Aktiverad"
   },
-  "content.metadata-filter.update.available": {
-    "defaultMessage": "Uppdatering tillgänglig"
-  },
   "content.metadata-filter.warning.client-only": {
     "defaultMessage": "Klientinnehåll endast"
   },

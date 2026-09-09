@@ -570,7 +570,7 @@
     "defaultMessage": "Enabled"
   },
   "content.filter.updates": {
-    "defaultMessage": "Updates"
+    "defaultMessage": "Available Updates"
   },
   "content.filter.warnings": {
     "defaultMessage": "Warnings"
@@ -679,9 +679,6 @@
   },
   "content.metadata-filter.state.enabled": {
     "defaultMessage": "Enabled"
-  },
-  "content.metadata-filter.update.available": {
-    "defaultMessage": "Update available"
   },
   "content.metadata-filter.warning.client-depends": {
     "defaultMessage": "Client depends on file"

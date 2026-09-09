@@ -659,9 +659,6 @@
   "content.metadata-filter.state.enabled": {
     "defaultMessage": "已啟用"
   },
-  "content.metadata-filter.update.available": {
-    "defaultMessage": "有可用的更新"
-  },
   "content.metadata-filter.warning.client-depends": {
     "defaultMessage": "用戶端相依於檔案"
   },

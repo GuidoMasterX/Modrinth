@@ -1,8 +1,9 @@
 <template>
 	<div class="flex items-center gap-2">
-		<FilterIcon class="size-5 shrink-0 text-secondary" />
+		<FilterIcon v-if="!hideAll" class="size-5 shrink-0 text-secondary" />
 		<div class="filter-pills__chips flex flex-wrap items-center gap-1.5">
 			<button
+				v-if="!hideAll"
 				type="button"
 				:class="pillClass(modelValue.length === 0)"
 				:aria-pressed="modelValue.length === 0"
@@ -36,6 +37,7 @@ const modelValue = defineModel<string[]>({ required: true })
 
 defineProps<{
 	options: FilterPillOption[]
+	hideAll?: boolean
 }>()
 
 function pillClass(active: boolean) {

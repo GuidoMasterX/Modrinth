@@ -644,9 +644,6 @@
   "content.metadata-filter.state.enabled": {
     "defaultMessage": "Увімкнено"
   },
-  "content.metadata-filter.update.available": {
-    "defaultMessage": "Доступне оновлення"
-  },
   "content.metadata-filter.warning.client-depends": {
     "defaultMessage": "Клієнт залежить від файлу"
   },

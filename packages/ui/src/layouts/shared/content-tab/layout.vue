@@ -166,6 +166,10 @@ const messages = defineMessages({
 		id: 'content.page-layout.sort.label',
 		defaultMessage: 'Sort by {mode}',
 	},
+	updates: {
+		id: 'content.filter.updates',
+		defaultMessage: 'Available Updates',
+	},
 	pleaseWait: {
 		id: 'content.page-layout.please-wait',
 		defaultMessage: 'Please wait',
@@ -264,7 +268,6 @@ const { selectedFilters, filterOptions, toggleFilter, applyFilters } = useConten
 	ctx.items,
 	{
 		showTypeFilters: true,
-		showUpdateFilter: true,
 		showWarningsFilter: false,
 		showStatusFilters: false,
 		showEnvironmentWarnings: ctx.showEnvironmentWarnings,
@@ -272,6 +275,8 @@ const { selectedFilters, filterOptions, toggleFilter, applyFilters } = useConten
 		persistKey: ctx.filterPersistKey,
 	},
 )
+
+const hasAvailableUpdates = computed(() => ctx.items.value.some((item) => item.has_update))
 
 const { selectedMetadataFilters, metadataFilterCategories, applyMetadataFilters } =
 	useContentMetadataFilters(ctx.items, ctx.filterPersistKey, {
@@ -1029,6 +1034,14 @@ const confirmUnlinkModal = ref<InstanceType<typeof ConfirmUnlinkModal>>()
 									<div
 										class="mr-0.5 h-6 w-px shrink-0 bg-surface-5"
 										:class="{ invisible: metadataFiltersWrapped }"
+									/>
+									<FilterPills
+										v-if="hasAvailableUpdates"
+										hide-all
+										class="!gap-1.5"
+										:model-value="selectedFilters"
+										:options="[{ id: 'updates', label: formatMessage(messages.updates) }]"
+										@update:model-value="updateFilterChips"
 									/>
 									<DropdownFilterBar
 										v-model="selectedMetadataFilters"

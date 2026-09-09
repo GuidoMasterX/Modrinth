@@ -629,9 +629,6 @@
   "content.metadata-filter.state.enabled": {
     "defaultMessage": "켜짐"
   },
-  "content.metadata-filter.update.available": {
-    "defaultMessage": "업데이트 가능"
-  },
   "content.metadata-filter.warnings": {
     "defaultMessage": "경고"
   },

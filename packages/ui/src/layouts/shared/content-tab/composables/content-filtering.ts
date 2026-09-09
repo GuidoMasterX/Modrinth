@@ -30,7 +30,6 @@ export interface ContentFilterOption {
 
 export interface ContentFilterConfig {
 	showTypeFilters?: boolean
-	showUpdateFilter?: boolean
 	showWarningsFilter?: boolean
 	showStatusFilters?: boolean
 	showEnvironmentWarnings?: boolean
@@ -39,10 +38,6 @@ export interface ContentFilterConfig {
 }
 
 const messages = defineMessages({
-	updates: {
-		id: 'content.filter.updates',
-		defaultMessage: 'Updates',
-	},
 	warnings: {
 		id: 'content.filter.warnings',
 		defaultMessage: 'Warnings',
@@ -87,10 +82,6 @@ export function useContentFilters(items: Ref<ContentItem[]>, config?: ContentFil
 				const label = msg ? formatMessage(msg) : type.charAt(0).toUpperCase() + type.slice(1) + 's'
 				options.push({ id: type, label })
 			}
-		}
-
-		if (config?.showUpdateFilter && items.value.some((m) => m.has_update)) {
-			options.push({ id: 'updates', label: formatMessage(messages.updates) })
 		}
 
 		if (

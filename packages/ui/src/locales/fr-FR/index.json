@@ -605,9 +605,6 @@
   "content.metadata-filter.state.enabled": {
     "defaultMessage": "Activé"
   },
-  "content.metadata-filter.update.available": {
-    "defaultMessage": "Mise à jour disponible"
-  },
   "content.metadata-filter.warnings": {
     "defaultMessage": "Avertissements"
   },

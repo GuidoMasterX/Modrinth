@@ -659,9 +659,6 @@
   "content.metadata-filter.state.enabled": {
     "defaultMessage": "启用"
   },
-  "content.metadata-filter.update.available": {
-    "defaultMessage": "有可用更新"
-  },
   "content.metadata-filter.warning.client-depends": {
     "defaultMessage": "客户端依赖文件"
   },

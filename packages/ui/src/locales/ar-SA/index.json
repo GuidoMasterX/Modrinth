@@ -596,9 +596,6 @@
   "content.metadata-filter.state.enabled": {
     "defaultMessage": "مفعّل"
   },
-  "content.metadata-filter.update.available": {
-    "defaultMessage": "التحديث المتاح"
-  },
   "content.metadata-filter.warning.client-depends": {
     "defaultMessage": "العميل يعتمد على الملف"
   },
@@ -1740,4 +1737,3 @@
     "defaultMessage": "ماينكرافت: إصدار جافا"
   }
 }
-

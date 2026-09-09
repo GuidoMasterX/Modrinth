@@ -123,10 +123,6 @@ const messages = defineMessages({
 		id: 'content.metadata-filter.state.disabled',
 		defaultMessage: 'Disabled',
 	},
-	updateAvailable: {
-		id: 'content.metadata-filter.update.available',
-		defaultMessage: 'Update available',
-	},
 	clientRetained: {
 		id: 'content.metadata-filter.warning.client-retained',
 		defaultMessage: 'Client file retained',
@@ -249,13 +245,6 @@ export function useContentMetadataFilters(
 						return [option('none', formatMessage(messages.noWarnings))]
 				}
 			},
-		},
-		{
-			key: 'updates',
-			label: formatMessage(messages.updateAvailable),
-			direct: true,
-			values: (item) =>
-				item.has_update ? [option('available', formatMessage(messages.updateAvailable))] : [],
 		},
 		{
 			key: 'open_source',

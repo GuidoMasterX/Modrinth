@@ -635,9 +635,6 @@
   "content.metadata-filter.state.enabled": {
     "defaultMessage": "Abilitato"
   },
-  "content.metadata-filter.update.available": {
-    "defaultMessage": "Aggiornamento disponibile"
-  },
   "content.metadata-filter.warning.client-depends": {
     "defaultMessage": "Client dipende da un file"
   },

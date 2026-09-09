@@ -629,9 +629,6 @@
   "content.metadata-filter.state.enabled": {
     "defaultMessage": "Включённые"
   },
-  "content.metadata-filter.update.available": {
-    "defaultMessage": "Необновлённые"
-  },
   "content.metadata-filter.warning.client-depends": {
     "defaultMessage": "Клиент зависит от файла"
   },

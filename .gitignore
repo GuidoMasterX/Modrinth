@@ -95,3 +95,8 @@ apps/frontend/src/public/robots.txt
 /test_result.md
 
 packages/tooling-config/script-utils/import-sort.js
+docs/superpowers/specs/2026-09-07-cf-alpha-rework-design.md
+docs/superpowers/plans/2026-09-07-cf-alpha-rework.md
+task_plan.md
+progress.md
+findings.md

@@ -629,9 +629,6 @@
   "content.metadata-filter.state.enabled": {
     "defaultMessage": "Engedélyezett"
   },
-  "content.metadata-filter.update.available": {
-    "defaultMessage": "Frissiítés elérhető"
-  },
   "content.metadata-filter.warning.client-depends": {
     "defaultMessage": "Kliens fájlfüggő"
   },
