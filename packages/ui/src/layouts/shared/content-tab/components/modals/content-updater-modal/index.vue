@@ -288,7 +288,6 @@ import {
 	renderHighlightedString,
 } from '@modrinth/utils'
 import { useTimeoutFn } from '@vueuse/core'
-import DOMPurify from 'dompurify'
 import { computed, ref, toRef } from 'vue'
 
 import Avatar from '#ui/components/base/Avatar.vue'
@@ -456,7 +455,7 @@ const isModpack = computed(() => props.projectType === 'modpack')
 const incompatibilityWarningMode = computed(() => props.mode === 'incompatibility-warning')
 const changelogHtml = computed(() =>
 	selectedVersion.value?.id.startsWith('cf-')
-		? DOMPurify.sanitize(selectedVersion.value.changelog)
+		? renderHighlightedString(selectedVersion.value.changelog)
 		: undefined,
 )
 const defaultHeader = computed(() => {
@@ -611,7 +610,9 @@ function formatLoaderGameVersion(version: Labrinth.Versions.v2.Version): string 
 
 function formatGameVersions(version: Labrinth.Versions.v2.Version): string {
 	if (!incompatibilityWarningMode.value) {
-		return version.game_versions[0] || ''
+		const known = (tags?.gameVersions.value ?? []).map((g) => g.version)
+		const match = known.length ? version.game_versions.find((v) => known.includes(v)) : undefined
+		return match || version.game_versions[0] || ''
 	}
 
 	const gameVersions = tags?.gameVersions.value?.length

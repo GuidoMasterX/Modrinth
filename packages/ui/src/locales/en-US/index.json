@@ -380,6 +380,9 @@
   "content.card.source.curseforge": {
     "defaultMessage": "CurseForge"
   },
+  "content.card.source.external": {
+    "defaultMessage": "External"
+  },
   "content.card.source.modrinth": {
     "defaultMessage": "Modrinth"
   },
@@ -1000,6 +1003,12 @@
   },
   "creation-flow.modal.import-instance.action.add": {
     "defaultMessage": "Add"
+  },
+  "creation-flow.modal.import-instance.content.mandatory": {
+    "defaultMessage": "Required"
+  },
+  "creation-flow.modal.import-instance.content.title": {
+    "defaultMessage": "Choose what to import"
   },
   "creation-flow.modal.import-instance.custom-launcher.name": {
     "defaultMessage": "Custom ({pathName})"

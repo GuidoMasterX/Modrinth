@@ -118,11 +118,92 @@ pub async fn get_importable_instances(
     Ok(instances)
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(
+    feature = "export-ts",
+    derive(ts_rs::TS, postcard_bindgen::PostcardBindings)
+)]
+#[serde(rename_all = "camelCase")]
+pub struct ImportableInstanceContent {
+    pub name: String,
+    pub is_dir: bool,
+    pub size: Option<u64>,
+}
+
+/// List the top-level files/folders of an importable instance, for selecting
+/// what to import. Only supported for CurseForge instances.
+
+pub async fn get_importable_instance_contents(
+    launcher_type: ImportLauncherType,
+    base_path: PathBuf,
+    instance_folder: String,
+) -> crate::Result<Vec<ImportableInstanceContent>> {
+    let instance_path = match launcher_type {
+        ImportLauncherType::Curseforge => {
+            base_path.join("Instances").join(&instance_folder)
+        }
+        ImportLauncherType::Unknown => {
+            let curseforge_instance =
+                base_path.join("Instances").join(&instance_folder);
+            if curseforge::is_valid_curseforge(curseforge_instance.clone())
+                .await
+            {
+                curseforge_instance
+            } else {
+                return Err(crate::ErrorKind::InputError(
+                    "Content selection is only supported for CurseForge imports"
+                        .to_string(),
+                )
+                .into())
+            }
+        }
+        _ => {
+            return Err(crate::ErrorKind::InputError(
+                "Content selection is only supported for CurseForge imports"
+                    .to_string(),
+            )
+            .into())
+        }
+    };
+    let mut dir = io::read_dir(&instance_path).await.map_err(|_| {
+        crate::ErrorKind::InputError(format!(
+            "Could not read instance folder '{instance_folder}'"
+        ))
+    })?;
+
+    let mut contents = Vec::new();
+    while let Some(entry) = dir
+        .next_entry()
+        .await
+        .map_err(|e| IOError::with_path(e, &instance_path))?
+    {
+        let is_dir = entry
+            .file_type()
+            .await
+            .map(|file_type| file_type.is_dir())
+            .unwrap_or(false);
+        let size = if is_dir {
+            None
+        } else {
+            entry.metadata().await.ok().map(|metadata| metadata.len())
+        };
+        contents.push(ImportableInstanceContent {
+            name: entry.file_name().to_string_lossy().to_string(),
+            is_dir,
+            size,
+        });
+    }
+    contents.sort_by(|a, b| a.name.cmp(&b.name));
+
+    Ok(contents)
+}
+
 pub(crate) async fn import_instance_with_reporter(
     instance_id: &str,
     launcher_type: ImportLauncherType,
     base_path: PathBuf,
     instance_folder: String,
+    selected_paths: Option<Vec<String>>,
     reporter: InstallProgressReporter,
 ) -> crate::Result<()> {
     import_instance_inner(
@@ -130,6 +211,7 @@ pub(crate) async fn import_instance_with_reporter(
         launcher_type,
         base_path,
         instance_folder,
+        selected_paths,
         reporter,
     )
     .await
@@ -140,6 +222,7 @@ async fn import_instance_inner(
     launcher_type: ImportLauncherType,
     base_path: PathBuf,
     instance_folder: String,
+    selected_paths: Option<Vec<String>>,
     reporter: InstallProgressReporter,
 ) -> crate::Result<()> {
     tracing::debug!("Importing instance from {instance_folder}");
@@ -181,6 +264,7 @@ async fn import_instance_inner(
             curseforge::import_curseforge(
                 base_path.join("Instances").join(instance_folder), // path to curseforge folder
                 instance_id,
+                selected_paths,
                 reporter.clone(),
                 details.clone(),
             )
@@ -207,6 +291,7 @@ async fn import_instance_inner(
                         lt,
                         base_path,
                         instance_folder,
+                        selected_paths,
                         reporter.clone(),
                     ))
                     .await?;
@@ -364,6 +449,7 @@ pub async fn recache_icon(
 pub(crate) async fn copy_dotminecraft_with_reporter(
     instance_id: &str,
     dotminecraft: PathBuf,
+    selected_paths: Option<Vec<String>>,
     io_semaphore: &IoSemaphore,
     reporter: InstallProgressReporter,
     details: InstallPhaseDetails,
@@ -373,24 +459,56 @@ pub(crate) async fn copy_dotminecraft_with_reporter(
     let subfiles = get_all_subfiles(&dotminecraft, false).await?;
     let total_subfiles = subfiles.len() as u64;
 
-    for (index, src_child) in subfiles.into_iter().enumerate() {
-        let dst_child =
-            src_child.strip_prefix(&dotminecraft).map_err(|_| {
+    let selected = std::sync::Arc::new(
+        selected_paths
+            .filter(|paths| !paths.is_empty())
+            .map(|paths| {
+                paths
+                    .into_iter()
+                    .map(|path| path.replace('\\', "/").to_lowercase())
+                    .collect::<std::collections::HashSet<_>>()
+            }),
+    );
+
+    let completed = std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0));
+    let reporter = std::sync::Arc::new(reporter);
+    for (_index, src_child) in subfiles.into_iter().enumerate() {
+        let dst_child = src_child
+            .strip_prefix(&dotminecraft)
+            .map_err(|_| {
                 crate::ErrorKind::InputError(format!(
                     "Invalid file: {}",
                     &src_child.display()
                 ))
-            })?;
+            })?
+            .components()
+            .map(|component| {
+                component.as_os_str().to_string_lossy().to_string()
+            })
+            .collect::<Vec<_>>()
+            .join("/");
+
+        if let Some(selected) = selected.as_ref() {
+            let first = dst_child.split('/').next().unwrap_or("");
+            let included = selected.contains(first)
+                || selected.contains(&dst_child.to_lowercase());
+            if !included {
+                continue;
+            }
+        }
+
         let dst_child = instance_path.join(dst_child);
 
-        tokio::time::sleep(std::time::Duration::from_millis(1)).await;
-
         fetch::copy(&src_child, &dst_child, io_semaphore).await?;
+
+        let current = completed
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+            + 1;
         reporter
             .update(
                 InstallPhaseId::PreparingInstance,
                 Some(InstallProgress {
-                    current: (index + 1) as u64,
+                    current,
                     total: total_subfiles,
                     secondary: None,
                 }),
@@ -405,6 +523,7 @@ pub(crate) async fn copy_dotminecraft_with_reporter(
 pub(crate) async fn finish_import(
     instance_id: &str,
     dotminecraft: PathBuf,
+    selected_paths: Option<Vec<String>>,
     io_semaphore: &IoSemaphore,
     reporter: InstallProgressReporter,
     details: InstallPhaseDetails,
@@ -412,6 +531,7 @@ pub(crate) async fn finish_import(
     copy_dotminecraft_with_reporter(
         instance_id,
         dotminecraft,
+        selected_paths,
         io_semaphore,
         reporter.clone(),
         details,

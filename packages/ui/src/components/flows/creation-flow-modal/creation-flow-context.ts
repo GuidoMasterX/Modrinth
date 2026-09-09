@@ -208,6 +208,7 @@ export interface CreationFlowContextValue {
 	// Import state (instance flow only)
 	importLaunchers: Ref<ImportableLauncher[]>
 	importSelectedInstances: Ref<Record<string, Set<string>>>
+	importSelectedContents: Ref<Record<string, Set<string>>>
 	importSearchQuery: Ref<string>
 
 	// Confirm stage
@@ -372,6 +373,7 @@ export function createCreationFlowContext(
 	// Import state (instance flow only)
 	const importLaunchers = ref<ImportableLauncher[]>([])
 	const importSelectedInstances = ref<Record<string, Set<string>>>({})
+	const importSelectedContents = ref<Record<string, Set<string>>>({})
 	const importSearchQuery = ref('')
 
 	const hardReset = ref(isInitialSetup)
@@ -505,6 +507,7 @@ export function createCreationFlowContext(
 		// Import state
 		importLaunchers.value = []
 		importSelectedInstances.value = {}
+		importSelectedContents.value = {}
 		importSearchQuery.value = ''
 
 		hardReset.value = isInitialSetup
@@ -679,6 +682,7 @@ export function createCreationFlowContext(
 		projectSearchHits,
 		importLaunchers,
 		importSelectedInstances,
+		importSelectedContents,
 		importSearchQuery,
 		hardReset,
 		loading,

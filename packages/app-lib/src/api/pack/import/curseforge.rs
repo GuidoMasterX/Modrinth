@@ -56,6 +56,7 @@ pub async fn is_valid_curseforge(instance_folder: PathBuf) -> bool {
 pub async fn import_curseforge(
     curseforge_instance_folder: PathBuf, // instance's folder
     instance_id: &str,
+    selected_paths: Option<Vec<String>>,
     reporter: InstallProgressReporter,
     details: InstallPhaseDetails,
 ) -> crate::Result<()> {
@@ -131,8 +132,20 @@ pub async fn import_curseforge(
                 mod_loader = Some(ModLoader::Forge);
                 loader_version = Some(version.to_string());
             }
+            ["neoforge", version] => {
+                mod_loader = Some(ModLoader::NeoForge);
+                loader_version = Some(version.to_string());
+            }
             ["fabric", version, _game_version] => {
                 mod_loader = Some(ModLoader::Fabric);
+                loader_version = Some(version.to_string());
+            }
+            ["quilt", version, _game_version] => {
+                mod_loader = Some(ModLoader::Quilt);
+                loader_version = Some(version.to_string());
+            }
+            ["quilt", "loader", version, ..] => {
+                mod_loader = Some(ModLoader::Quilt);
                 loader_version = Some(version.to_string());
             }
             _ => {}
@@ -207,6 +220,7 @@ pub async fn import_curseforge(
     finish_import(
         instance_id,
         curseforge_instance_folder,
+        selected_paths,
         &state.io_semaphore,
         reporter,
         details,

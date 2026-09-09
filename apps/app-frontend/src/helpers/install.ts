@@ -239,11 +239,13 @@ export async function install_import_instance(
 	launcherType: string,
 	basePath: string,
 	instanceFolder: string,
+	selectedPaths?: string[] | null,
 ) {
 	return await invoke<InstallJobSnapshot>('plugin:install|install_import_instance', {
 		launcherType,
 		basePath,
 		instanceFolder,
+		selectedPaths: selectedPaths ?? undefined,
 	})
 }
 

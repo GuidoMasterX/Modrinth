@@ -8,7 +8,6 @@ import {
 	renderHighlightedString,
 } from '@modrinth/utils'
 import { useQuery } from '@tanstack/vue-query'
-import DOMPurify from 'dompurify'
 import { computed, ref } from 'vue'
 
 import { useFormatBytes } from '#ui/composables/format-bytes.ts'
@@ -75,7 +74,7 @@ const isModpack = computed(() => props.version.loaders.includes('mrpack'))
 const changelogHtml = computed(() =>
 	props.version.id.startsWith('cf-')
 		? props.version.changelog
-			? DOMPurify.sanitize(props.version.changelog)
+			? renderHighlightedString(props.version.changelog)
 			: undefined
 		: undefined,
 )
@@ -357,21 +356,23 @@ const authorLink = computed(() =>
 					<span class="bg-surface-5 size-1.5 rounded-full hidden sm:block" />
 					<span class="flex items-center gap-2 sm:content">
 						<span v-tooltip="publishDateTooltip">{{ publishDate }}</span>
-						<span class="bg-surface-5 size-1.5 rounded-full" />
-						<span
-							v-tooltip="
-								compactDownloads !== formattedDownloads
-									? capitalizeString(
-											formatMessage(commonMessages.projectDownloads, {
-												count: props.version.downloads,
-											}),
-										)
-									: undefined
-							"
-							class="flex items-center gap-1"
-						>
-							<DownloadIcon class="size-5" /> {{ compactDownloads }}
-						</span>
+						<template v-if="!version.id.startsWith('cf-')">
+							<span class="bg-surface-5 size-1.5 rounded-full" />
+							<span
+								v-tooltip="
+									compactDownloads !== formattedDownloads
+										? capitalizeString(
+												formatMessage(commonMessages.projectDownloads, {
+													count: props.version.downloads,
+												}),
+											)
+										: undefined
+								"
+								class="flex items-center gap-1"
+							>
+								<DownloadIcon class="size-5" /> {{ compactDownloads }}
+							</span>
+						</template>
 					</span>
 				</div>
 				<div

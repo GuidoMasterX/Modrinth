@@ -695,26 +695,53 @@ function normalizeName(name) {
 function findBestMatch(hits, title, getNames) {
 	const normalizedTitle = normalizeName(title)
 	const names = (hit) => (getNames(hit) ?? []).filter(Boolean).map(normalizeName).filter(Boolean)
+	const byDownloads = (a, b) => (b.downloads ?? 0) - (a.downloads ?? 0)
 	const exact = hits.find((hit) =>
 		getNames(hit)?.some((n) => n.toLowerCase() === title.toLowerCase()),
 	)
 	if (exact) return exact
-	const normalized = hits.filter((hit) => names(hit).some((n) => n === normalizedTitle))
+	const normalized = hits
+		.filter((hit) => names(hit).some((n) => n === normalizedTitle))
+		.sort(byDownloads)
 	if (normalized.length > 0) return normalized[0]
-	const contained = hits.filter((hit) =>
-		names(hit).some((n) => n.includes(normalizedTitle) || normalizedTitle.includes(n)),
-	)
+	const contained = hits
+		.filter((hit) =>
+			names(hit).some((n) => n.includes(normalizedTitle) || normalizedTitle.includes(n)),
+		)
+		.sort(byDownloads)
 	return contained[0] ?? null
+}
+
+function modrinthProjectType(project) {
+	const type = project.project_type
+	if (CF_MODRINTH_TYPE_CLASS_IDS[type]) return type
+	return (
+		{
+			resource_pack: 'resourcepack',
+			shader_pack: 'shader',
+			data_pack: 'datapack',
+		}[type] ?? null
+	)
 }
 
 async function switchSource() {
 	const project = data.value
 	if (!project) return
 	if (isCfProjectId(project.id)) {
-		const results = await get_search_results_v3(
-			`?query=${encodeURIComponent(project.title)}&limit=50`,
-			'must_revalidate',
-		).catch(handleError)
+		let results = null
+		try {
+			const type = modrinthProjectType(project)
+			const facets = type
+				? `&facets=${encodeURIComponent(JSON.stringify([[`project_types:${type}`]]))}`
+				: ''
+			results = await get_search_results_v3(
+				`?query=${encodeURIComponent(project.title)}&limit=50${facets}`,
+				'must_revalidate',
+			)
+		} catch (err) {
+			handleError(err)
+			return
+		}
 		const match = findBestMatch(results?.result?.hits ?? [], project.title, (hit) => [
 			hit.name,
 			hit.slug,
@@ -729,14 +756,41 @@ async function switchSource() {
 			handleError(formatMessage(messages.curseforgeNotConfigured))
 			return
 		}
-		const classId = CF_MODRINTH_TYPE_CLASS_IDS[project.project_type]
-		const results = await get_curseforge_search_results(
-			`?gameId=432&searchFilter=${encodeURIComponent(project.title)}&pageSize=50${
-				classId ? `&classId=${classId}` : ''
-			}`,
-			'must_revalidate',
-		).catch(handleError)
-		const match = findBestMatch(results?.projectHits ?? [], project.title, (hit) => [hit.name])
+		// CF slug search is authoritative; CF relevance searchFilter is not
+		if (project.slug) {
+			let slugResults = null
+			try {
+				slugResults = await get_curseforge_search_results(
+					`?gameId=432&slug=${encodeURIComponent(project.slug)}&pageSize=1`,
+					'must_revalidate',
+				)
+			} catch (err) {
+				handleError(err)
+				return
+			}
+			const slugHit = slugResults?.projectHits?.[0]
+			if (slugHit) {
+				await router.push(`/project/${slugHit.project_id}`)
+				return
+			}
+		}
+		const classId = CF_MODRINTH_TYPE_CLASS_IDS[modrinthProjectType(project)]
+		let results = null
+		try {
+			results = await get_curseforge_search_results(
+				`?gameId=432&searchFilter=${encodeURIComponent(project.title)}&pageSize=50${
+					classId ? `&classId=${classId}` : ''
+				}`,
+				'must_revalidate',
+			)
+		} catch (err) {
+			handleError(err)
+			return
+		}
+		const match = findBestMatch(results?.projectHits ?? [], project.title, (hit) => [
+			hit.name,
+			hit.slug,
+		])
 		if (match) {
 			await router.push(`/project/${match.project_id}`)
 		} else {

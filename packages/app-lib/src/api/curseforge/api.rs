@@ -7,18 +7,50 @@
 use reqwest::Method;
 use serde::de::DeserializeOwned;
 use sqlx::SqlitePool;
+use std::collections::VecDeque;
 
 use crate::state::Settings;
 use crate::util::fetch::{FetchSemaphore, fetch_advanced};
 
 use super::structs::{
-    CFCategory, CFDataVec, CFDescriptionResponse, CFFile, CFFileIdsBody,
+    CFCategory, CFData, CFDataVec, CFDescriptionResponse, CFFile, CFFileIdsBody,
     CFFingerprintsBody, CFFingerprintsResponse, CFModFilesResponse,
     CFModIdsBody, CFProject, CFSearchResponse,
 };
 
 /// CurseForge caps search page size at 50 results per page.
 pub const CF_MAX_PAGE_SIZE: u32 = 50;
+
+/// Sliding-window pacing for all CurseForge API requests, to avoid 429s
+/// when the app issues bursts (import, content listing, updaters).
+const CF_PACE_WINDOW: std::time::Duration =
+    std::time::Duration::from_secs(60);
+const CF_PACE_MAX_REQUESTS: usize = 40;
+static CF_PACER: tokio::sync::Mutex<VecDeque<std::time::Instant>> =
+    tokio::sync::Mutex::const_new(VecDeque::new());
+
+async fn pace_curseforge_request() {
+    loop {
+        let wait = {
+            let mut queue = CF_PACER.lock().await;
+            let now = std::time::Instant::now();
+            while let Some(&front) = queue.front() {
+                if now.duration_since(front) >= CF_PACE_WINDOW {
+                    queue.pop_front();
+                } else {
+                    break;
+                }
+            }
+            if queue.len() < CF_PACE_MAX_REQUESTS {
+                queue.push_back(now);
+                return;
+            }
+            CF_PACE_WINDOW
+                - now.duration_since(*queue.front().expect("non-empty"))
+        };
+        tokio::time::sleep(wait).await;
+    }
+}
 
 pub const CURSEFORGE_API_URL: &str = "https://api.curseforge.com/v1";
 pub const CURSEFORGE_CDN_URL: &str = "https://edge.forgecdn.net";
@@ -45,6 +77,7 @@ pub async fn cf_fetch_json<T: DeserializeOwned>(
     fetch_semaphore: &FetchSemaphore,
     pool: &SqlitePool,
 ) -> crate::Result<T> {
+    pace_curseforge_request().await;
     let api_key = settings_api_key(pool).await?;
     let result = fetch_advanced(
         method,
@@ -155,7 +188,7 @@ pub async fn get_mod(
     fetch_semaphore: &FetchSemaphore,
     pool: &SqlitePool,
 ) -> crate::Result<CFProject> {
-    cf_fetch_json(
+    let res: CFData<CFProject> = cf_fetch_json(
         Method::GET,
         &format!("{}/mods/{}", CURSEFORGE_API_URL, id),
         None,
@@ -163,7 +196,8 @@ pub async fn get_mod(
         fetch_semaphore,
         pool,
     )
-    .await
+    .await?;
+    Ok(res.data)
 }
 
 pub async fn get_mods(

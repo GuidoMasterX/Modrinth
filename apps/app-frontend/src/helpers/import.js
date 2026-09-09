@@ -31,9 +31,18 @@ export async function get_importable_instances(launcherType, basePath) {
 	return await invoke('plugin:import|get_importable_instances', { launcherType, basePath })
 }
 
+/// Lists the top-level files/folders of an importable instance
+export async function get_importable_instance_contents(launcherType, basePath, instanceFolder) {
+	return await invoke('plugin:import|get_importable_instance_contents', {
+		launcherType,
+		basePath,
+		instanceFolder,
+	})
+}
+
 /// Import an instance from a launcher type and base path
-export async function import_instance(launcherType, basePath, instanceFolder) {
-	return await install_import_instance(launcherType, basePath, instanceFolder)
+export async function import_instance(launcherType, basePath, instanceFolder, selectedPaths) {
+	return await install_import_instance(launcherType, basePath, instanceFolder, selectedPaths)
 }
 
 /// Checks if this instance is valid for importing, given a certain launcher type

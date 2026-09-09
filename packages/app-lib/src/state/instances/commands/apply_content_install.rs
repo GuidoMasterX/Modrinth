@@ -13,7 +13,7 @@ use bytes::Bytes;
 use modrinth_content_management::{
     ContentMetadataProvider, ContentType, Error as ResolveError,
     ResolutionPreferences, ResolveContentPlan, ResolveContentRequest,
-    ResolvedContent,
+    ResolvedContent, SkippedContent, SkippedReason,
 };
 use std::collections::{HashSet, VecDeque};
 use std::path::{Path, PathBuf};
@@ -114,7 +114,105 @@ fn resolve_provider_error(error: crate::Error) -> ResolveError {
 }
 
 fn resolver_error(error: ResolveError) -> crate::Error {
-    crate::ErrorKind::InputError(error.to_string()).into()
+	crate::ErrorKind::InputError(error.to_string()).into()
+}
+
+/// Identity key for cross-source matching: lowercase ASCII-alphanumeric only
+fn normalized_identity_key(value: &str) -> String {
+	value
+		.chars()
+		.filter(|c| c.is_ascii_alphanumeric())
+		.map(|c| c.to_ascii_lowercase())
+		.collect()
+}
+
+fn project_matches_identity(
+	slug: Option<&str>,
+	title: &str,
+	identity_keys: &HashSet<String>,
+) -> bool {
+	if identity_keys.is_empty() {
+		return false;
+	}
+	let title_key = normalized_identity_key(title);
+	if !title_key.is_empty() && identity_keys.contains(&title_key) {
+		return true;
+	}
+	slug.map(normalized_identity_key).is_some_and(|slug_key| {
+		!slug_key.is_empty() && identity_keys.contains(&slug_key)
+	})
+}
+
+async fn installed_cf_identity_keys(
+	content_set_id: &str,
+	state: &State,
+) -> crate::Result<HashSet<String>> {
+	let entries =
+		content_rows::get_content_entries(content_set_id, &state.pool).await?;
+	let cf_ids = entries
+		.iter()
+		.filter_map(|entry| entry.cf_project_id.map(|id| id.to_string()))
+		.collect::<Vec<_>>();
+	if cf_ids.is_empty() {
+		return Ok(HashSet::new());
+	}
+	let id_refs = cf_ids.iter().map(String::as_str).collect::<Vec<_>>();
+	let projects = CachedEntry::get_curseforge_project_many(
+		&id_refs,
+		None,
+		&state.pool,
+		&state.api_semaphore,
+	)
+	.await?;
+	Ok(projects
+		.into_iter()
+		.flat_map(|project| {
+			project
+				.slug
+				.iter()
+				.map(|slug| normalized_identity_key(slug))
+				.chain(std::iter::once(normalized_identity_key(
+					&project.title,
+				)))
+				.collect::<HashSet<_>>()
+		})
+		.collect())
+}
+
+async fn installed_mr_identity_keys(
+	content_set_id: &str,
+	state: &State,
+) -> crate::Result<HashSet<String>> {
+	let entries =
+		content_rows::get_content_entries(content_set_id, &state.pool).await?;
+	let mr_ids = entries
+		.iter()
+		.filter_map(|entry| entry.project_id.clone())
+		.collect::<Vec<_>>();
+	if mr_ids.is_empty() {
+		return Ok(HashSet::new());
+	}
+	let id_refs = mr_ids.iter().map(String::as_str).collect::<Vec<_>>();
+	let projects = CachedEntry::get_project_many(
+		&id_refs,
+		None,
+		&state.pool,
+		&state.api_semaphore,
+	)
+	.await?;
+	Ok(projects
+		.into_iter()
+		.flat_map(|project| {
+			project
+				.slug
+				.iter()
+				.map(|slug| normalized_identity_key(slug))
+				.chain(std::iter::once(normalized_identity_key(
+					&project.title,
+				)))
+				.collect::<HashSet<_>>()
+		})
+		.collect())
 }
 
 fn version_to_resolver(
@@ -214,9 +312,64 @@ pub(crate) async fn resolve_install_plan(
         existing_project_ids,
     };
 
-    modrinth_content_management::resolve_content(provider, request)
-        .await
-        .map_err(resolver_error)
+	let mut plan = modrinth_content_management::resolve_content(
+		provider,
+		request,
+	)
+	.await
+	.map_err(resolver_error)?;
+
+	if !plan.dependencies.is_empty() {
+		let cf_identity =
+			installed_cf_identity_keys(&content_set.id, state).await?;
+		if !cf_identity.is_empty() {
+			let mut dependencies = Vec::new();
+			for dependency in plan.dependencies {
+				let skip = match CachedEntry::get_project(
+					&dependency.project_id,
+					Some(CacheBehaviour::MustRevalidate),
+					&state.pool,
+					&state.api_semaphore,
+				)
+				.await
+				{
+					Ok(Some(project)) => project_matches_identity(
+						project.slug.as_deref(),
+						&project.title,
+						&cf_identity,
+					),
+					Ok(None) => false,
+					Err(error) => {
+						tracing::warn!(
+							"Unable to check Modrinth dependency {} \
+							 against CurseForge installs: {error}",
+							dependency.project_id
+						);
+						false
+					}
+				};
+				if skip {
+					tracing::info!(
+						"Skipping Modrinth dependency {}: already \
+						 installed from CurseForge",
+						dependency.project_id
+					);
+					plan.skipped.push(SkippedContent {
+						project_id: dependency.project_id.clone(),
+						version_id: Some(dependency.version_id),
+						dependent_on_version_id: dependency
+							.dependent_on_version_id,
+						reason: SkippedReason::AlreadyInstalled,
+					});
+				} else {
+					dependencies.push(dependency);
+				}
+			}
+			plan.dependencies = dependencies;
+		}
+	}
+
+	Ok(plan)
 }
 
 pub(crate) async fn install_resolved_content_plan(
@@ -720,24 +873,34 @@ pub(crate) async fn resolve_and_install_curseforge_project(
             .into_iter()
             .filter_map(|entry| entry.cf_project_id)
             .collect();
+    let installed_mr_identity =
+        installed_mr_identity_keys(&scope.content_set_id, state).await?;
 
     let mut installed = Vec::new();
     let root_file_id = match cf_file_id {
         Some(id) => id,
-        None => curseforge_file_for_context(
-            cf_project_id,
-            &game_version,
-            &loader_str,
-            update_channel,
-            state,
-        )
-        .await?
-        .ok_or_else(|| {
-            crate::ErrorKind::InputError(format!(
-                "No compatible CurseForge file found for project \
-                 {cf_project_id} targeting Minecraft {game_version}"
-            ))
-        })?,
+        None => {
+            let project = crate::api::curseforge::api::get_mod(
+                cf_project_id,
+                &state.api_semaphore,
+                &state.pool,
+            )
+            .await?;
+            curseforge_file_for_context(
+                &project,
+                &game_version,
+                &loader_str,
+                update_channel,
+                state,
+            )
+            .await?
+            .ok_or_else(|| {
+                crate::ErrorKind::InputError(format!(
+                    "No compatible CurseForge file found for project \
+                     {cf_project_id} targeting Minecraft {game_version}"
+                ))
+            })?
+        }
     };
     add_project_from_curseforge_file(
         instance_id,
@@ -774,11 +937,44 @@ pub(crate) async fn resolve_and_install_curseforge_project(
             continue;
         }
 
+        let dep_project = match crate::api::curseforge::api::get_mod(
+            dep_id,
+            &state.api_semaphore,
+            &state.pool,
+        )
+        .await
+        {
+            Ok(project) => Some(project),
+            Err(error) if dep_file_id.is_none() => {
+                tracing::warn!(
+                    "Skipping CurseForge dependency {dep_id}: {error}"
+                );
+                continue;
+            }
+            Err(_) => None,
+        };
+        if let Some(project) = &dep_project
+            && project_matches_identity(
+                project.slug.as_deref(),
+                &project.name,
+                &installed_mr_identity,
+            )
+        {
+            tracing::info!(
+                "Skipping CurseForge dependency {dep_id}: already installed \
+                 from Modrinth"
+            );
+            continue;
+        }
+
         let file_id = match dep_file_id {
             Some(id) => id,
             None => {
+                let Some(project) = dep_project.as_ref() else {
+                    continue;
+                };
                 match curseforge_file_for_context(
-                    dep_id,
+                    project,
                     &game_version,
                     &loader_str,
                     update_channel,
@@ -847,18 +1043,12 @@ pub(crate) async fn resolve_and_install_curseforge_project(
 /// preferred, loader ignored for vanilla sets), falling back to a paginated
 /// file listing filtered by `curseforge_latest_compatible_file`.
 async fn curseforge_file_for_context(
-    cf_project_id: i64,
+    project: &crate::api::curseforge::structs::CFProject,
     game_version: &str,
     loader_str: &str,
     update_channel: ReleaseChannel,
     state: &State,
 ) -> crate::Result<Option<i64>> {
-    let project = crate::api::curseforge::api::get_mod(
-        cf_project_id,
-        &state.api_semaphore,
-        &state.pool,
-    )
-    .await?;
     let matching = project
         .latest_files_indexes
         .iter()
@@ -882,7 +1072,7 @@ async fn curseforge_file_for_context(
     }
 
     let files = crate::api::curseforge::api::get_mod_files(
-        cf_project_id,
+        project.id,
         Some(game_version),
         None,
         &state.api_semaphore,

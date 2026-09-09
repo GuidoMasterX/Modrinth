@@ -178,6 +178,7 @@ pub enum InstallRequest {
         launcher_type: ImportLauncherType,
         base_path: PathBuf,
         instance_folder: String,
+        selected_paths: Option<Vec<String>>,
     },
     DuplicateInstance {
         source_instance_id: String,

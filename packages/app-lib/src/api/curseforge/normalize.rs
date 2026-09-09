@@ -18,7 +18,7 @@ use super::structs::{
 pub enum Source {
     #[default]
     Modrinth,
-    #[serde(rename = "curseforge")]
+    #[serde(rename = "curseforge", alias = "curse_forge")]
     CurseForge,
 }
 
@@ -223,13 +223,28 @@ impl SourceVersionFile {
 }
 
 impl SourceVersion {
-    pub fn from_cf(file: CFFile, changelog: Option<String>) -> Self {
+    pub fn from_cf(
+        file: CFFile,
+        changelog: Option<String>,
+        project_type: SourceProjectType,
+    ) -> Self {
         let (game_versions, mut loaders) =
             split_file_game_data(&file.game_versions);
         for loader in &file.loaders {
             let loader = loader.to_ascii_lowercase();
             if !loaders.contains(&loader) {
                 loaders.push(loader);
+            }
+        }
+        if loaders.is_empty() {
+            match project_type {
+                SourceProjectType::ResourcePack | SourceProjectType::ShaderPack => {
+                    loaders.push("minecraft".to_string());
+                }
+                SourceProjectType::DataPack => {
+                    loaders.push("datapack".to_string());
+                }
+                SourceProjectType::Mod | SourceProjectType::Modpack => {}
             }
         }
         Self {
@@ -249,11 +264,12 @@ impl SourceVersion {
     }
 }
 
-/// Splits a CF file's `game_versions` list — which mixes loader names into
-/// the versions, since CF files have no dedicated loaders field — into
+/// Splits a CF file's `game_versions` list — which mixes loader names,
+/// client/server side tags, and Java versions into the versions, since CF
+/// files have no dedicated loaders field — into
 /// `(game_versions_without_loaders, loaders)`. Loader names are matched
-/// case-insensitively and returned lowercased; other entries keep their
-/// original order.
+/// case-insensitively and returned lowercased; side and Java tags are
+/// dropped, and the remaining versions are sorted newest-first.
 pub fn split_file_game_data(
     game_versions: &[String],
 ) -> (Vec<String>, Vec<String>) {
@@ -261,13 +277,43 @@ pub fn split_file_game_data(
     let mut loaders = Vec::new();
     for version in game_versions {
         let lower = version.to_ascii_lowercase();
-        if matches!(lower.as_str(), "forge" | "neoforge" | "fabric" | "quilt") {
+        if matches!(
+            lower.as_str(),
+            "forge" | "neoforge" | "fabric" | "quilt" | "iris" | "optifine"
+        ) {
             loaders.push(lower);
-        } else {
+        } else if !matches!(lower.as_str(), "client" | "server")
+            && !lower.starts_with("java ")
+        {
             versions.push(version.clone());
         }
     }
+    versions.sort_by(|a, b| compare_game_versions(b, a));
     (versions, loaders)
+}
+
+/// Compares dotted version strings segment-by-segment, numerically where both
+/// segments parse as numbers.
+fn compare_game_versions(a: &str, b: &str) -> std::cmp::Ordering {
+    let mut a = a.split('.');
+    let mut b = b.split('.');
+    loop {
+        match (a.next(), b.next()) {
+            (Some(x), Some(y)) => {
+                let ord = x
+                    .parse::<u64>()
+                    .unwrap_or(0)
+                    .cmp(&y.parse::<u64>().unwrap_or(0))
+                    .then_with(|| x.cmp(y));
+                if ord != std::cmp::Ordering::Equal {
+                    return ord;
+                }
+            }
+            (Some(_), None) => return std::cmp::Ordering::Greater,
+            (None, Some(_)) => return std::cmp::Ordering::Less,
+            (None, None) => return std::cmp::Ordering::Equal,
+        }
+    }
 }
 
 /// Parses a CurseForge date (RFC 3339 string or epoch milliseconds) to epoch
@@ -365,7 +411,11 @@ mod tests {
             "dependencies": [{ "modId": 789, "relationType": 3 }]
         }))
         .unwrap();
-        let version = SourceVersion::from_cf(file, None);
+        let version = SourceVersion::from_cf(
+            file,
+            None,
+            SourceProjectType::Mod,
+        );
         assert_eq!(version.id, "456");
         assert_eq!(version.version_type, "release");
         assert_eq!(version.files.len(), 1);
@@ -399,5 +449,41 @@ mod tests {
                 "fabric".to_string()
             ]
         );
+    }
+
+    #[test]
+    fn file_game_data_strip_side_and_java_tags() {
+        let (versions, loaders) = split_file_game_data(&[
+            "Client".to_string(),
+            "1.21.1".to_string(),
+            "Server".to_string(),
+            "Java 21".to_string(),
+            "1.9.4".to_string(),
+        ]);
+        assert_eq!(versions, vec!["1.21.1".to_string(), "1.9.4".to_string()]);
+        assert!(loaders.is_empty());
+    }
+
+    #[test]
+    fn resource_pack_version_synthesizes_platform() {
+        let file: CFFile = serde_json::from_value(serde_json::json!({
+            "id": 456,
+            "gameId": 432,
+            "modId": 123,
+            "displayName": "1.0.0",
+            "fileName": "pack.zip",
+            "releaseType": 1,
+            "fileLength": 1024,
+            "fileDate": "2021-01-01T00:00:00Z",
+            "gameVersions": ["Client", "1.21.1"]
+        }))
+        .unwrap();
+        let version = SourceVersion::from_cf(
+            file,
+            None,
+            SourceProjectType::ResourcePack,
+        );
+        assert_eq!(version.loaders, vec!["minecraft".to_string()]);
+        assert_eq!(version.game_versions, vec!["1.21.1".to_string()]);
     }
 }

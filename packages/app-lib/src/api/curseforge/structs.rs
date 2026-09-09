@@ -4,6 +4,19 @@
 //! fields stay snake_case.
 
 use serde::{Deserialize, Serialize};
+use serde::de::DeserializeOwned;
+
+/// Deserializes `null` as `T::default()`; serde's `default` attribute only
+/// covers missing fields, but the CF API returns explicit `null`s (e.g.
+/// `unmatchedFingerprints`).
+fn deserialize_null_default<'de, D, T>(deserializer: D) -> Result<T, D::Error>
+where
+	D: serde::Deserializer<'de>,
+	T: DeserializeOwned + Default,
+{
+	let value: Option<T> = Option::deserialize(deserializer)?;
+	Ok(value.unwrap_or_default())
+}
 
 pub const CF_CLASS_MOD: i64 = 6;
 pub const CF_CLASS_RESOURCE_PACK: i64 = 12;
@@ -123,13 +136,17 @@ pub struct CFFile {
     pub display_name: String,
     pub file_name: String,
     pub release_type: i32,
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     pub hashes: Vec<CFHash>,
     pub file_date: Option<String>,
     pub file_length: u64,
     pub download_count: u64,
     pub download_url: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     pub game_versions: Vec<String>,
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     pub loaders: Vec<String>,
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     pub dependencies: Vec<CFFileDependency>,
     pub is_available: Option<bool>,
 }
@@ -156,6 +173,7 @@ pub struct CFModFilesResponse {
 pub struct CFFingerprintMatch {
     pub id: i64,
     pub file: CFFile,
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     pub latest_files: Vec<CFFile>,
 }
 
@@ -163,8 +181,11 @@ pub struct CFFingerprintMatch {
 #[serde(rename_all = "camelCase", default)]
 pub struct CFFingerprintData {
     pub is_cache_built: bool,
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     pub exact_matches: Vec<CFFingerprintMatch>,
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     pub exact_fingerprints: Vec<i64>,
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     pub unmatched_fingerprints: Vec<i64>,
 }
 
@@ -204,4 +225,10 @@ pub struct CFFingerprintsBody {
 #[serde(rename_all = "camelCase", default)]
 pub struct CFDataVec<T> {
     pub data: Vec<T>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+#[serde(rename_all = "camelCase", default)]
+pub struct CFData<T> {
+    pub data: T,
 }

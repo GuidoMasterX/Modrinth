@@ -267,6 +267,7 @@ async fn import_atlauncher_unmanaged(
     finish_import(
         instance_id,
         minecraft_folder,
+        None,
         &state.io_semaphore,
         reporter,
         details,

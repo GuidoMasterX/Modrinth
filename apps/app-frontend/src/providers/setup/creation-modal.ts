@@ -113,7 +113,13 @@ export function setupCreationModal(
 					if (!launcher || instanceSet.size === 0) continue
 					for (const name of instanceSet) {
 						importCount += 1
-						const job = await import_instance(launcher.name, launcher.path, name).catch(handleError)
+						const selectedContents = config.importSelectedContents.value[`${launcherName}/${name}`]
+						const job = await import_instance(
+							launcher.name,
+							launcher.path,
+							name,
+							selectedContents ? Array.from(selectedContents) : undefined,
+						).catch(handleError)
 						if (job) {
 							importedInstanceId = installJobInstanceId(job)
 						}

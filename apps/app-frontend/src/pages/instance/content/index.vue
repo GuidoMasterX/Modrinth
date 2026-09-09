@@ -232,6 +232,11 @@ const messages = defineMessages({
 let savedModalState: ManagedContentModalState | null = null
 
 function contentOwnerLink(owner: ContentOwner): NonNullable<ContentOwner['link']> {
+	if (owner.id.startsWith('cf-author-')) {
+		return () => {
+			void openUrl(`https://www.curseforge.com/members/${encodeURIComponent(owner.name)}`)
+		}
+	}
 	if (owner.type === 'user') return `/user/${encodeURIComponent(owner.id)}`
 	return () => {
 		void openUrl(`https://modrinth.com/organization/${owner.id}`)
@@ -1751,7 +1756,7 @@ provideContentManager({
 				}
 			: undefined,
 		external: item.external ?? (!item.project && item.package_source !== 'curseforge'),
-		package_source: item.package_source ?? 'modrinth',
+		package_source: item.package_source ?? null,
 		external_url: item.external_url,
 		enabled: canMutateContent(item) ? item.enabled : undefined,
 		locked: item.locked,

@@ -22,7 +22,7 @@ pub struct ContentItem {
     pub update_version_id: Option<String>,
     pub date_added: Option<String>,
     pub source_kind: Option<ContentSourceKind>,
-    pub package_source: Source,
+    pub package_source: Option<Source>,
     pub cf_project_id: Option<i64>,
     pub cf_version_id: Option<i64>,
     pub external_url: Option<String>,

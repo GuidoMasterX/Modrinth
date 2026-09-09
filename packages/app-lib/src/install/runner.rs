@@ -82,11 +82,13 @@ pub async fn import_instance(
     launcher_type: crate::api::pack::import::ImportLauncherType,
     base_path: PathBuf,
     instance_folder: String,
+    selected_paths: Option<Vec<String>>,
 ) -> crate::Result<InstallJobSnapshot> {
     start(InstallRequest::ImportInstance {
         launcher_type,
         base_path,
         instance_folder,
+        selected_paths,
     })
     .await
 }
@@ -916,6 +918,7 @@ async fn run_request(
             launcher_type,
             base_path,
             instance_folder,
+            selected_paths,
         } => {
             let Some(instance_id) = current_instance_id(job_state) else {
                 return Err(crate::ErrorKind::InputError(
@@ -939,6 +942,7 @@ async fn run_request(
                 launcher_type,
                 base_path,
                 instance_folder,
+                selected_paths,
                 InstallProgressReporter::new(job_id, job_state.clone()),
             )
             .await?;
@@ -964,6 +968,7 @@ async fn run_request(
                 &instance_id,
                 crate::api::instance::get_full_path(&source_instance_id)
                     .await?,
+                None,
                 &state.io_semaphore,
                 InstallProgressReporter::new(job_id, job_state.clone()),
                 InstallPhaseDetails::Empty,

@@ -107,6 +107,10 @@ const messages = defineMessages({
 		id: 'content.metadata-filter.source.curseforge',
 		defaultMessage: 'CurseForge',
 	},
+	externalSource: {
+		id: 'content.metadata-filter.source.external',
+		defaultMessage: 'External',
+	},
 	warnings: {
 		id: 'content.metadata-filter.warnings',
 		defaultMessage: 'Warnings',
@@ -139,10 +143,6 @@ const messages = defineMessages({
 		id: 'content.metadata-filter.warning.none',
 		defaultMessage: 'No warnings',
 	},
-	external: {
-		id: 'content.metadata-filter.source.external',
-		defaultMessage: 'External',
-	},
 	sharedContent: {
 		id: 'content.metadata-filter.shared-content',
 		defaultMessage: 'Shared content',
@@ -168,14 +168,15 @@ export function useContentMetadataFilters(
 		return !!licenseId && openSourceLicenseIds.has(licenseId)
 	}
 
-	function isExternal(item: ContentItem) {
-		return item.external || (!item.project?.license && item.package_source !== 'curseforge')
-	}
-
 	function getSourceLabel(item: ContentItem) {
-		return item.package_source === 'curseforge'
-			? formatMessage(messages.curseforgeSource)
-			: formatMessage(messages.modrinthSource)
+		switch (item.package_source) {
+			case 'curseforge':
+				return formatMessage(messages.curseforgeSource)
+			case 'modrinth':
+				return formatMessage(messages.modrinthSource)
+			default:
+				return formatMessage(messages.externalSource)
+		}
 	}
 
 	function getEnvironmentFilterLabel(value: EnvironmentFilterValue) {
@@ -230,7 +231,7 @@ export function useContentMetadataFilters(
 		{
 			key: 'source',
 			label: formatMessage(messages.source),
-			values: (item) => [option(item.package_source ?? 'modrinth', getSourceLabel(item))],
+			values: (item) => [option(item.package_source ?? 'external', getSourceLabel(item))],
 		},
 		{
 			key: 'warnings',
@@ -262,13 +263,6 @@ export function useContentMetadataFilters(
 			direct: true,
 			values: (item) =>
 				isOpenSource(item) ? [option('open_source', formatMessage(messages.openSource))] : [],
-		},
-		{
-			key: 'external',
-			label: formatMessage(messages.external),
-			direct: true,
-			values: (item) =>
-				isExternal(item) ? [option('external', formatMessage(messages.external))] : [],
 		},
 		...(config?.showSharedContent?.value
 			? [

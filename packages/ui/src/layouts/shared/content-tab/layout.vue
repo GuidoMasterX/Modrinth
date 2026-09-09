@@ -264,7 +264,7 @@ const { selectedFilters, filterOptions, toggleFilter, applyFilters } = useConten
 	ctx.items,
 	{
 		showTypeFilters: true,
-		showUpdateFilter: false,
+		showUpdateFilter: true,
 		showWarningsFilter: false,
 		showStatusFilters: false,
 		showEnvironmentWarnings: ctx.showEnvironmentWarnings,

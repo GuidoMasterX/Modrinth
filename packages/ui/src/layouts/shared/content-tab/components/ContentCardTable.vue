@@ -162,10 +162,11 @@ function toggleItemSelection(
 	}
 }
 
-function isItemSelected(itemId: string): boolean {
-	return selectedIds.value.includes(itemId)
-}
+const selectedIdSet = computed(() => new Set(selectedIds.value))
 
+function isItemSelected(itemId: string): boolean {
+	return selectedIdSet.value.has(itemId)
+}
 function handleSort(column: ContentCardTableSortColumn) {
 	if (!props.sortable) return
 
@@ -254,13 +255,13 @@ function handleSort(column: ContentCardTableSortColumn) {
 				}}</span>
 			</div>
 
-			<div class="hidden @[800px]:flex" :class="hasAnyActions ? 'flex-1 min-w-0' : 'flex-1'">
+			<div class="hidden w-32 shrink-0 @[800px]:flex">
 				<span role="columnheader" class="font-semibold text-secondary">{{
 					formatMessage(messages.source)
 				}}</span>
 			</div>
 
-			<div v-if="hasAnyActions" role="columnheader" class="min-w-[160px] shrink-0 text-right">
+			<div v-if="hasAnyActions" role="columnheader" class="min-w-[160px] shrink-0">
 				<span class="font-semibold text-secondary">{{
 					formatMessage(commonMessages.actionsLabel)
 				}}</span>

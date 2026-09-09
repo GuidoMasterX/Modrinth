@@ -572,7 +572,7 @@ pub(crate) async fn dependencies_to_content_items(
                 update_version_id: None,
                 date_added: None,
                 source_kind: None,
-                package_source: Source::Modrinth,
+                package_source: Some(Source::Modrinth),
                 cf_project_id: None,
                 cf_version_id: None,
                 external_url: None,
@@ -1133,9 +1133,7 @@ async fn content_files_to_content_items(
                 update_version_id: file.update_version_id.clone(),
                 date_added: modification_times[index].clone(),
                 source_kind: file.source_kind,
-                package_source: metadata
-                    .map(|metadata| metadata.source)
-                    .unwrap_or(Source::Modrinth),
+                package_source: metadata.map(|metadata| metadata.source),
                 cf_project_id: cf_metadata
                     .and_then(|metadata| metadata.cf_project_id),
                 cf_version_id: cf_metadata
@@ -1145,9 +1143,45 @@ async fn content_files_to_content_items(
             }
         })
         .collect::<Vec<_>>();
+    merge_cross_source_authors(&mut items);
     sort_content_items(&mut items);
 
     Ok(items)
+}
+
+fn merge_cross_source_authors(items: &mut [ContentItem]) {
+	let modrinth_owners: HashMap<String, (String, String, Option<String>)> = items
+		.iter()
+		.filter_map(|item| {
+			let owner = item.owner.as_ref()?;
+			if owner.owner_type != OwnerType::User || owner.id.starts_with("cf-author-") {
+				return None;
+			}
+			Some((
+				owner.name.trim().to_lowercase(),
+				(owner.id.clone(), owner.name.clone(), owner.avatar_url.clone()),
+			))
+		})
+		.collect();
+
+	for item in items.iter_mut() {
+		let Some(owner) = item.owner.as_mut() else {
+			continue;
+		};
+		if owner.owner_type != OwnerType::User || !owner.id.starts_with("cf-author-") {
+			continue;
+		}
+		let Some((id, name, avatar_url)) = modrinth_owners.get(&owner.name.trim().to_lowercase())
+		else {
+			continue;
+		};
+		*owner = ContentItemOwner {
+			id: id.clone(),
+			name: name.clone(),
+			avatar_url: avatar_url.clone().or_else(|| owner.avatar_url.clone()),
+			owner_type: OwnerType::User,
+		};
+	}
 }
 
 struct ResolvedMetadata {
@@ -1393,7 +1427,6 @@ async fn detect_curseforge_metadata(
                 .map(|bytes| crate::util::murmur2::murmur2(&bytes));
         fingerprints.push(fingerprint);
     }
-
     let mut unique: Vec<u32> = fingerprints.iter().flatten().copied().collect();
     unique.sort_unstable();
     unique.dedup();

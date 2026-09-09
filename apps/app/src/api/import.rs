@@ -9,6 +9,7 @@ pub fn init<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
     tauri::plugin::Builder::new("import")
         .invoke_handler(tauri::generate_handler![
             get_importable_instances,
+            get_importable_instance_contents,
             is_valid_importable_instance,
             get_default_launcher_path,
         ])
@@ -24,6 +25,23 @@ pub async fn get_importable_instances(
     base_path: PathBuf,
 ) -> Result<Vec<String>> {
     Ok(import::get_importable_instances(launcher_type, base_path).await?)
+}
+
+/// Lists the top-level files/folders of an importable instance
+#[tauri::command]
+pub async fn get_importable_instance_contents(
+    launcher_type: ImportLauncherType,
+    base_path: PathBuf,
+    instance_folder: String,
+) -> Result<Vec<import::ImportableInstanceContent>> {
+    Ok(
+        import::get_importable_instance_contents(
+            launcher_type,
+            base_path,
+            instance_folder,
+        )
+        .await?,
+    )
 }
 
 /// Checks if this instance is valid for importing, given a certain launcher type

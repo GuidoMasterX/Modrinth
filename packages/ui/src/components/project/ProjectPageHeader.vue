@@ -45,13 +45,13 @@
 				</template>
 				<span
 					v-if="showSourceBadge"
-					class="inline-flex w-fit items-center gap-1 rounded-full px-1.5 py-0.5 text-[0.65rem] font-semibold leading-none"
+					class="inline-flex w-fit items-center gap-1.5 rounded-full px-2 py-1 text-sm font-semibold leading-none"
 					:style="{
 						backgroundColor: `color-mix(in srgb, ${sourceBadgeColor} 18%, transparent)`,
 						color: sourceBadgeColor,
 					}"
 				>
-					<span class="size-1.5 rounded-full" :style="{ backgroundColor: sourceBadgeColor }" />
+					<span class="size-2 rounded-full" :style="{ backgroundColor: sourceBadgeColor }" />
 					{{
 						formatMessage(
 							project.id.startsWith('cf-') ? messages.sourceCurseforge : messages.sourceModrinth,

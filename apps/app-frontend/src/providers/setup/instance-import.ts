@@ -4,6 +4,7 @@ import { open } from '@tauri-apps/plugin-dialog'
 
 import {
 	get_default_launcher_path,
+	get_importable_instance_contents,
 	get_importable_instances,
 	import_instance,
 } from '@/helpers/import.js'
@@ -31,6 +32,13 @@ export function setupInstanceImportProvider(notificationManager: AbstractWebNoti
 		},
 		async getImportableInstances(launcherName: string, path: string) {
 			return (await get_importable_instances(launcherName, path)) ?? []
+		},
+		async getImportableInstanceContents(launcherType: string, path: string, instanceName: string) {
+			try {
+				return (await get_importable_instance_contents(launcherType, path, instanceName)) ?? null
+			} catch {
+				return null
+			}
 		},
 		async importInstances(selections) {
 			for (const sel of selections) {

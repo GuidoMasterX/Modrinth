@@ -374,7 +374,7 @@ pub(super) async fn collect_publish_snapshot(
 
     for item in items {
         let is_curseforge = item.package_source
-            == crate::api::curseforge::normalize::Source::CurseForge;
+            == Some(crate::api::curseforge::normalize::Source::CurseForge);
         if item.enabled {
             if is_curseforge || item.version.is_none() {
                 if item.file_path.is_empty() {

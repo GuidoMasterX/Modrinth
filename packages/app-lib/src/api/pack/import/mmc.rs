@@ -330,6 +330,7 @@ async fn import_mmc_unmanaged(
     finish_import(
         instance_id,
         minecraft_folder,
+        None,
         &state.io_semaphore,
         reporter,
         details,

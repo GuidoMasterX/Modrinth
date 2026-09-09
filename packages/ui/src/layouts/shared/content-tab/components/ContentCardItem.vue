@@ -10,7 +10,6 @@ import {
 	TriangleAlertIcon,
 	UploadIcon,
 } from '@modrinth/assets'
-import { useMagicKeys } from '@vueuse/core'
 import { computed, getCurrentInstance, ref } from 'vue'
 import type { RouteLocationRaw } from 'vue-router'
 
@@ -24,6 +23,7 @@ import ProgressSpinner from '#ui/components/base/ProgressSpinner.vue'
 import Toggle from '#ui/components/base/Toggle.vue'
 import { defineMessages, useVIntl } from '#ui/composables/i18n'
 import { commonMessages } from '#ui/utils/common-messages'
+import { useShiftKey } from '#ui/utils/shift-key'
 import { truncatedTooltip } from '#ui/utils/truncate'
 
 import type {
@@ -57,6 +57,10 @@ const messages = defineMessages({
 		id: 'content.card.source.modrinth',
 		defaultMessage: 'Modrinth',
 	},
+	external: {
+		id: 'content.card.source.external',
+		defaultMessage: 'External',
+	},
 })
 
 interface Props {
@@ -66,7 +70,7 @@ interface Props {
 	versionLink?: string | RouteLocationRaw
 	owner?: ContentOwner
 	source?: ContentSource
-	packageSource?: 'modrinth' | 'curseforge'
+	packageSource?: 'modrinth' | 'curseforge' | null
 	externalUrl?: string
 	external?: boolean
 	enabled?: boolean
@@ -152,7 +156,7 @@ const clientWarningMessage = computed(() => {
 	}
 })
 
-const { shift: shiftHeld } = useMagicKeys()
+const { shift: shiftHeld } = useShiftKey()
 const deleteHovered = ref(false)
 const installTooltip = computed(() => {
 	if (!props.installing) return undefined
@@ -163,10 +167,16 @@ const installTooltip = computed(() => {
 const sourcePillColor = computed(() =>
 	props.packageSource === 'curseforge'
 		? 'var(--color-source-curseforge)'
-		: 'var(--color-source-modrinth)',
+		: props.packageSource === 'modrinth'
+			? 'var(--color-source-modrinth)'
+			: 'var(--color-source-external)',
 )
 const sourcePillMessage = computed(() =>
-	props.packageSource === 'curseforge' ? messages.curseforge : messages.modrinth,
+	props.packageSource === 'curseforge'
+		? messages.curseforge
+		: props.packageSource === 'modrinth'
+			? messages.modrinth
+			: messages.external,
 )
 </script>
 
@@ -205,6 +215,7 @@ const sourcePillMessage = computed(() =>
 						:src="project.icon_url"
 						:alt="project.title"
 						size="3rem"
+						loading="lazy"
 						no-shadow
 						class="rounded-2xl border border-surface-5"
 					/>
@@ -241,7 +252,7 @@ const sourcePillMessage = computed(() =>
 							v-tooltip="formatMessage(messages.curseforge)"
 							:to="externalUrl"
 							target="_blank"
-							class="inline-flex shrink-0 items-center gap-1 rounded-full px-1.5 py-0.5 text-[0.65rem] font-semibold leading-none"
+							class="inline-flex shrink-0 items-center gap-1.5 rounded-full px-2 py-1 text-sm font-semibold leading-none @[800px]:hidden"
 							:style="{
 								backgroundColor:
 									'color-mix(in srgb, var(--color-source-curseforge) 18%, transparent)',
@@ -249,7 +260,7 @@ const sourcePillMessage = computed(() =>
 							}"
 						>
 							<span
-								class="size-1.5 rounded-full"
+								class="size-2 rounded-full"
 								:style="{ backgroundColor: 'var(--color-source-curseforge)' }"
 							/>
 							{{ formatMessage(messages.curseforge) }}
@@ -281,6 +292,7 @@ const sourcePillMessage = computed(() =>
 									:alt="source.project.title"
 									:tint-by="source.project.id"
 									size="1.25rem"
+									loading="lazy"
 									no-shadow
 									class="shrink-0 rounded-md"
 								/>
@@ -305,6 +317,7 @@ const sourcePillMessage = computed(() =>
 								:alt="owner.name"
 								size="1.5rem"
 								:circle="owner.type === 'user'"
+								loading="lazy"
 								no-shadow
 								class="shrink-0"
 							/>
@@ -372,18 +385,15 @@ const sourcePillMessage = computed(() =>
 			</template>
 		</div>
 
-		<div
-			class="hidden items-center @[800px]:flex"
-			:class="hideActions ? 'flex-1' : 'flex-1 min-w-0'"
-		>
+		<div class="hidden w-32 shrink-0 items-center @[800px]:flex">
 			<span
-				class="inline-flex shrink-0 items-center gap-1 rounded-full px-1.5 py-0.5 text-[0.65rem] font-semibold leading-none"
+				class="inline-flex w-28 shrink-0 items-center justify-center gap-1.5 rounded-full px-2 py-1 text-sm font-semibold leading-none"
 				:style="{
 					backgroundColor: `color-mix(in srgb, ${sourcePillColor} 18%, transparent)`,
 					color: sourcePillColor,
 				}"
 			>
-				<span class="size-1.5 rounded-full" :style="{ backgroundColor: sourcePillColor }" />
+				<span class="size-2 rounded-full" :style="{ backgroundColor: sourcePillColor }" />
 				{{ formatMessage(sourcePillMessage) }}
 			</span>
 		</div>

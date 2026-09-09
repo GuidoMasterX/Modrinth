@@ -59,15 +59,45 @@
 						<div class="flex flex-col">
 							<template v-for="(instance, i) in filteredInstances(launcher)" :key="instance">
 								<div
-									class="flex items-center gap-3 border-0 border-t border-solid border-surface-4 py-3 pr-3"
+									class="border-0 border-t border-solid border-surface-4 py-3 pr-3"
 									:class="i % 2 === 0 ? 'bg-surface-2' : 'bg-surface-1.5'"
 									style="padding-left: 2.75rem"
 								>
-									<Checkbox
-										:model-value="isInstanceSelected(launcher.name, instance)"
-										@update:model-value="toggleInstance(launcher.name, instance, $event)"
-									/>
-									<span class="text-sm">{{ instance }}</span>
+									<div class="flex items-center gap-3">
+										<Checkbox
+											:model-value="isInstanceSelected(launcher.name, instance)"
+											@update:model-value="toggleInstance(launcher.name, instance, $event)"
+										/>
+										<span class="text-sm">{{ instance }}</span>
+									</div>
+									<div
+										v-if="
+											isInstanceSelected(launcher.name, instance) &&
+											instanceContents(launcher.name, instance)?.length
+										"
+										class="mt-2 ml-6 flex flex-col gap-1.5 rounded-xl border border-solid border-surface-4 bg-surface-3 p-2"
+									>
+										<span class="text-xs font-semibold text-secondary">
+											{{ formatMessage(messages.chooseContentTitle) }}
+										</span>
+										<div
+											v-for="entry in instanceContents(launcher.name, instance)"
+											:key="entry.name"
+											class="flex items-center gap-2"
+										>
+											<Checkbox
+												:model-value="isContentSelected(launcher.name, instance, entry.name)"
+												:disabled="isMandatoryContent(entry.name)"
+												@update:model-value="
+													toggleContent(launcher.name, instance, entry.name, $event)
+												"
+											/>
+											<span class="text-sm">{{ entry.name }}</span>
+											<span v-if="isMandatoryContent(entry.name)" class="text-xs text-secondary">
+												({{ formatMessage(messages.mandatoryContent) }})
+											</span>
+										</div>
+									</div>
 								</div>
 							</template>
 						</div>
@@ -106,7 +136,10 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { Button, IconButton } from '#ui/components/base/buttons'
 
 import { injectInstanceImport, injectNotificationManager } from '../../../../providers'
-import type { ImportableLauncher } from '../../../../providers/instance-import'
+import type {
+	ImportableLauncher,
+	ImportInstanceContentEntry,
+} from '../../../../providers/instance-import'
 import Checkbox from '../../../base/Checkbox.vue'
 import Collapsible from '../../../base/Collapsible.vue'
 import Input from '../../../base/inputs/Input.vue'
@@ -163,6 +196,14 @@ const messages = defineMessages({
 	customLauncherName: {
 		id: 'creation-flow.modal.import-instance.custom-launcher.name',
 		defaultMessage: 'Custom ({pathName})',
+	},
+	chooseContentTitle: {
+		id: 'creation-flow.modal.import-instance.content.title',
+		defaultMessage: 'Choose what to import',
+	},
+	mandatoryContent: {
+		id: 'creation-flow.modal.import-instance.content.mandatory',
+		defaultMessage: 'Required',
 	},
 })
 
@@ -230,14 +271,80 @@ function isInstanceSelected(launcherName: string, instance: string): boolean {
 	return ctx.importSelectedInstances.value[launcherName]?.has(instance) ?? false
 }
 
+const MANDATORY_CONTENT = 'minecraftinstance.json'
+
+const contentsMap = ref<Record<string, ImportInstanceContentEntry[] | null>>({})
+const contentsPending = new Set<string>()
+
+function contentKey(launcherName: string, instance: string) {
+	return `${launcherName}/${instance}`
+}
+
+function instanceContents(launcherName: string, instance: string) {
+	return contentsMap.value[contentKey(launcherName, instance)] ?? null
+}
+
+function isMandatoryContent(name: string) {
+	return name.toLowerCase() === MANDATORY_CONTENT
+}
+
+function setDefaultContentsSelection(key: string, entries: ImportInstanceContentEntry[]) {
+	ctx.importSelectedContents.value[key] = new Set(entries.map((entry) => entry.name))
+	ctx.importSelectedContents.value = { ...ctx.importSelectedContents.value }
+}
+
+function ensureContents(launcher: ImportableLauncher, instance: string) {
+	const key = contentKey(launcher.name, instance)
+	const cached = contentsMap.value[key]
+	if (cached) {
+		if (!ctx.importSelectedContents.value[key]) {
+			setDefaultContentsSelection(key, cached)
+		}
+		return
+	}
+	if (contentsPending.has(key)) return
+	contentsPending.add(key)
+	importProvider
+		.getImportableInstanceContents(launcher.name, launcher.path, instance)
+		.then((entries) => {
+			contentsMap.value[key] = entries
+			if (entries) {
+				setDefaultContentsSelection(key, entries)
+			}
+		})
+		.catch(() => {})
+		.finally(() => contentsPending.delete(key))
+}
+
+function isContentSelected(launcherName: string, instance: string, name: string): boolean {
+	return ctx.importSelectedContents.value[contentKey(launcherName, instance)]?.has(name) ?? true
+}
+
+function toggleContent(launcherName: string, instance: string, name: string, selected: boolean) {
+	const key = contentKey(launcherName, instance)
+	const set = ctx.importSelectedContents.value[key] ?? new Set<string>()
+	if (selected) {
+		set.add(name)
+	} else {
+		set.delete(name)
+	}
+	ctx.importSelectedContents.value[key] = set
+	ctx.importSelectedContents.value = { ...ctx.importSelectedContents.value }
+}
+
 function toggleInstance(launcherName: string, instance: string, selected: boolean) {
 	if (!ctx.importSelectedInstances.value[launcherName]) {
 		ctx.importSelectedInstances.value[launcherName] = new Set()
 	}
 	if (selected) {
 		ctx.importSelectedInstances.value[launcherName].add(instance)
+		const launcher = ctx.importLaunchers.value.find((l) => l.name === launcherName)
+		if (launcher) void ensureContents(launcher, instance)
 	} else {
 		ctx.importSelectedInstances.value[launcherName].delete(instance)
+		const key = contentKey(launcherName, instance)
+		const { [key]: _removed, ...rest } = ctx.importSelectedContents.value
+		ctx.importSelectedContents.value = rest
 	}
 	// Trigger reactivity
 	ctx.importSelectedInstances.value = { ...ctx.importSelectedInstances.value }
@@ -263,11 +370,24 @@ function toggleLauncherAll(launcher: ImportableLauncher, selected: boolean) {
 		ctx.importSelectedInstances.value[launcher.name] = new Set()
 	}
 	const visible = filteredInstances(launcher)
+	let removedContents = false
 	for (const instance of visible) {
 		if (selected) {
 			ctx.importSelectedInstances.value[launcher.name].add(instance)
+			void ensureContents(launcher, instance)
 		} else {
 			ctx.importSelectedInstances.value[launcher.name].delete(instance)
+			const key = contentKey(launcher.name, instance)
+			if (ctx.importSelectedContents.value[key] !== undefined) {
+				const { [key]: _removed, ...rest } = ctx.importSelectedContents.value
+				ctx.importSelectedContents.value = rest
+				removedContents = true
+			}
+		}
+	}
+	if (!selected && removedContents) {
+		ctx.importSelectedContents.value = {
+			...ctx.importSelectedContents.value,
 		}
 	}
 	// Trigger reactivity
@@ -293,6 +413,7 @@ const totalSelectedCount = computed(() => {
 
 function clearAll() {
 	ctx.importSelectedInstances.value = {}
+	ctx.importSelectedContents.value = {}
 }
 
 async function browseForLauncherPath() {
