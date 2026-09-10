@@ -553,6 +553,8 @@ export function createContentInstall(opts: {
 				project.id,
 				project.project_type,
 				getInstallTargets(versions),
+				project.slug,
+				project.title,
 			)
 			const newInstanceMap: Record<string, InstallTargetInstance> = {}
 			const newInstances: ContentInstallInstance[] = candidates.map((instance) => {

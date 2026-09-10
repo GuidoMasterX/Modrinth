@@ -8,4 +8,5 @@ pub struct ContentUpdateCheck {
     pub update_channel: ReleaseChannel,
     pub update_version_id: Option<String>,
     pub checked_at: DateTime<Utc>,
+    pub skipped_version_id: Option<String>,
 }

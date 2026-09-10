@@ -50,6 +50,7 @@ pub use self::projects::{
     install_curseforge_project_with_dependencies,
     install_project_with_dependencies, is_file_on_modrinth, remove_project,
     repair_managed_modrinth, set_project_locked,
+    set_project_skipped_update_version, set_project_updates_ignored,
     switch_project_version_with_dependencies, toggle_disable_project,
     update_all_projects, update_managed_modrinth_version, update_project,
 };

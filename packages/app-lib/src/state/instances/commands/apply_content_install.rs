@@ -125,7 +125,11 @@ fn normalized_identity_key(value: &str) -> String {
 		.collect()
 }
 
-fn project_matches_identity(
+pub(crate) fn normalized_identity_key_pub(value: &str) -> String {
+	normalized_identity_key(value)
+}
+
+pub(crate) fn project_matches_identity(
 	slug: Option<&str>,
 	title: &str,
 	identity_keys: &HashSet<String>,
@@ -1473,6 +1477,42 @@ pub(crate) async fn set_project_locked(
         &scope.instance.id,
         project_path,
         locked,
+        &state.pool,
+    )
+    .await
+}
+
+pub(crate) async fn set_project_updates_ignored(
+    instance_id: &str,
+    project_path: &str,
+    ignored: bool,
+    state: &State,
+) -> crate::Result<()> {
+    let _content_lock = state.lock_instance_content(instance_id).await;
+    let scope = resolve_content_scope(instance_id, None, state).await?;
+    content_rows::set_content_entry_updates_ignored(
+        &scope.instance.id,
+        &scope.content_set_id,
+        project_path,
+        ignored,
+        &state.pool,
+    )
+    .await
+}
+
+pub(crate) async fn set_project_skipped_update_version(
+    instance_id: &str,
+    project_path: &str,
+    skipped_version_id: Option<String>,
+    state: &State,
+) -> crate::Result<()> {
+    let _content_lock = state.lock_instance_content(instance_id).await;
+    let scope = resolve_content_scope(instance_id, None, state).await?;
+    content_rows::set_content_update_check_skipped_version(
+        &scope.instance.id,
+        &scope.content_set_id,
+        project_path,
+        skipped_version_id.as_deref(),
         &state.pool,
     )
     .await

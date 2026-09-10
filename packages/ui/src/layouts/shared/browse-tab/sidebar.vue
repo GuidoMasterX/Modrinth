@@ -296,6 +296,7 @@ function handleModrinthFilterOpen(filterId: string, open: boolean) {
 				:key="`cf-filter-${filterType.id}`"
 				v-model:selected-filters="ctx.curseforgeCurrentFilters.value"
 				v-model:toggled-groups="ctx.curseforgeToggledGroups.value"
+				v-model:overridden-provided-filter-types="ctx.curseforgeOverriddenProvidedFilterTypes.value"
 				:provided-filters="cfProvidedFilters"
 				:filter-type="filterType"
 				:project-type="ctx.projectType.value"

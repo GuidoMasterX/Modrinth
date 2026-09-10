@@ -297,8 +297,9 @@ function getProjectCardTags(result: Labrinth.Search.v3.ResultSearchProject, disp
 		v-model:selected-filters="ctx.curseforgeCurrentFilters.value"
 		:filters="ctx.curseforgeFilterTypes.value"
 		:project-type="ctx.projectType.value"
-		:provided-filters="[]"
-		:overridden-provided-filter-types="[]"
+		:provided-filters="ctx.cfProvidedFilters.value"
+		:overridden-provided-filter-types="ctx.curseforgeOverriddenProvidedFilterTypes.value"
+		:provided-message="lockedMessages?.providedBy"
 	/>
 	<SearchFilterControl
 		v-else

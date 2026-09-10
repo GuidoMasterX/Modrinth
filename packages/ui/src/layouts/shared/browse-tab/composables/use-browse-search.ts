@@ -75,6 +75,8 @@ export interface BrowseSearchState {
 	curseforgeFilterTypes: ComputedRef<FilterType[]>
 	curseforgeCurrentFilters: Ref<FilterValue[]>
 	curseforgeToggledGroups: Ref<string[]>
+	curseforgeOverriddenProvidedFilterTypes: Ref<string[]>
+	cfProvidedFilters: ComputedRef<FilterValue[]>
 
 	effectiveSortTypes: ComputedRef<readonly SortType[]>
 	effectiveCurrentSortType: Ref<SortType>
@@ -156,10 +158,15 @@ export function useBrowseSearch(options: UseBrowseSearchOptions): BrowseSearchSt
 		() => activeSource.value === 'curseforge' && !!options.searchCurseforge,
 	)
 
+	const cfProvidedFilters = computed(() =>
+		mapProvidedFiltersToCf(options.providedFilters?.value ?? []),
+	)
+
 	const {
 		curseforgeCurrentSortType,
 		curseforgeCurrentFilters,
 		curseforgeToggledGroups,
+		curseforgeOverriddenProvidedFilterTypes,
 		curseforgeSortTypes,
 		curseforgeFilterTypes,
 		curseforgeRequestParams,
@@ -171,19 +178,8 @@ export function useBrowseSearch(options: UseBrowseSearchOptions): BrowseSearchSt
 		query,
 		maxResults,
 		currentPage,
+		providedFilters: cfProvidedFilters,
 	})
-
-	function applyProvidedFiltersToCf(filters: FilterValue[]) {
-		for (const entry of mapProvidedFiltersToCf(filters)) {
-			if (!curseforgeCurrentFilters.value.some((f) => f.type === entry.type)) {
-				curseforgeCurrentFilters.value.push(entry)
-			}
-		}
-	}
-
-	if (activeSource.value === 'curseforge') {
-		applyProvidedFiltersToCf(options.providedFilters?.value ?? [])
-	}
 
 	const effectiveRequestParams = computed(() =>
 		isServerType.value
@@ -217,9 +213,6 @@ export function useBrowseSearch(options: UseBrowseSearchOptions): BrowseSearchSt
 		if (source === activeSource.value) return
 		if (source === 'curseforge' && !options.searchCurseforge) return
 		activeSource.value = source
-		if (source === 'curseforge') {
-			applyProvidedFiltersToCf(options.providedFilters?.value ?? [])
-		}
 		currentPage.value = 1
 	}
 
@@ -382,6 +375,7 @@ export function useBrowseSearch(options: UseBrowseSearchOptions): BrowseSearchSt
 			effectiveCurrentSortType,
 			effectiveCurrentFilters,
 			overriddenProvidedFilterTypes,
+			curseforgeOverriddenProvidedFilterTypes,
 			providedFiltersOrEmpty,
 		],
 		() => {
@@ -550,6 +544,8 @@ export function useBrowseSearch(options: UseBrowseSearchOptions): BrowseSearchSt
 		curseforgeFilterTypes,
 		curseforgeCurrentFilters,
 		curseforgeToggledGroups,
+		curseforgeOverriddenProvidedFilterTypes,
+		cfProvidedFilters,
 		effectiveSortTypes,
 		effectiveCurrentSortType,
 		loading,

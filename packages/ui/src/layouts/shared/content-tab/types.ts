@@ -7,7 +7,12 @@ export type ContentCardProject = Pick<
 	Labrinth.Projects.v2.Project,
 	'id' | 'slug' | 'title' | 'icon_url'
 > &
-	Partial<Pick<Labrinth.Projects.v2.Project, 'license' | 'categories' | 'additional_categories'>>
+	Partial<
+		Pick<
+			Labrinth.Projects.v2.Project,
+			'license' | 'categories' | 'additional_categories' | 'downloads'
+		>
+	>
 
 export type ContentCardVersion = Pick<Labrinth.Versions.v2.Version, 'id' | 'version_number'> & {
 	file_name: string
@@ -107,6 +112,7 @@ export interface ContentItem extends Omit<
 	project_type: string
 	has_update: boolean
 	update_version_id: string | null
+	updates_ignored?: boolean
 	date_added?: string
 	environment?: Labrinth.Projects.v3.Environment
 	pack_client_retained?: boolean

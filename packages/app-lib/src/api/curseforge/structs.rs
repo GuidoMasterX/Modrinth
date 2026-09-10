@@ -81,6 +81,9 @@ pub struct CFProject {
     pub allow_mod_distribution: Option<bool>,
     pub main_file_id: Option<i64>,
     pub latest_files_indexes: Vec<CFLatestFileIndex>,
+    #[serde(deserialize_with = "deserialize_null_default")]
+    pub latest_files: Vec<CFFile>,
+    pub date_last_released_file: Option<String>,
     pub screenshots: Vec<CFModAsset>,
     pub date_released: Option<String>,
     pub thumbs_up_count: Option<i64>,

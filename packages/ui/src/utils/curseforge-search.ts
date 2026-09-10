@@ -62,6 +62,7 @@ export function useCurseforgeSearch(opts: {
 	query: Ref<string>
 	maxResults: Ref<number>
 	currentPage: Ref<number>
+	providedFilters?: Ref<FilterValue[]>
 }) {
 	const { formatMessage } = useVIntl()
 	const route = useRoute()
@@ -69,6 +70,7 @@ export function useCurseforgeSearch(opts: {
 	const curseforgeCurrentSortType = shallowRef<SortType>(CURSEFORGE_SORT_TYPES[0])
 	const curseforgeCurrentFilters = ref<FilterValue[]>([])
 	const curseforgeToggledGroups = ref<string[]>([])
+	const curseforgeOverriddenProvidedFilterTypes = ref<string[]>([])
 
 	const classId = computed(() => CURSEFORGE_CLASS_IDS[opts.projectType.value])
 
@@ -221,7 +223,15 @@ export function useCurseforgeSearch(opts: {
 			params.push(`classId=${classId.value}`)
 		}
 
-		const included = curseforgeCurrentFilters.value.filter((f) => !f.negative)
+		const overridden = curseforgeOverriddenProvidedFilterTypes.value
+		const validProvidedFilters = (opts.providedFilters?.value ?? []).filter(
+			(providedFilter) => !overridden.includes(providedFilter.type),
+		)
+		const filteredFilters = curseforgeCurrentFilters.value.filter(
+			(userFilter) =>
+				!validProvidedFilters.some((providedFilter) => providedFilter.type === userFilter.type),
+		)
+		const included = [...filteredFilters, ...validProvidedFilters].filter((f) => !f.negative)
 		const categoryIds = included
 			.filter((f) => f.type === 'cf_category')
 			.map((f) =>
@@ -335,6 +345,7 @@ export function useCurseforgeSearch(opts: {
 		curseforgeCurrentSortType,
 		curseforgeCurrentFilters,
 		curseforgeToggledGroups,
+		curseforgeOverriddenProvidedFilterTypes,
 		curseforgeSortTypes: CURSEFORGE_SORT_TYPES,
 		curseforgeFilterTypes,
 		curseforgeRequestParams,

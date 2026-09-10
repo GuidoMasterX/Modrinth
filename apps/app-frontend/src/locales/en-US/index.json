@@ -608,6 +608,9 @@
   "app.instance.mods.freeze-content": {
     "message": "Freeze version"
   },
+  "app.instance.mods.ignore-updates": {
+    "message": "Ignore updates"
+  },
   "app.instance.mods.locked-content": {
     "message": "Content in locked instances cannot be changed."
   },
@@ -623,11 +626,17 @@
   "app.instance.mods.share-title": {
     "message": "Sharing modpack content"
   },
+  "app.instance.mods.skip-version": {
+    "message": "Skip this version"
+  },
   "app.instance.mods.successfully-uploaded": {
     "message": "Successfully uploaded"
   },
   "app.instance.mods.unfreeze-content": {
     "message": "Unfreeze version"
+  },
+  "app.instance.mods.unignore-updates": {
+    "message": "Unignore updates"
   },
   "app.instance.navigation.back-to-instance": {
     "message": "Back to instance"
@@ -1313,6 +1322,9 @@
   "app.project.coming-soon": {
     "message": "Coming soon"
   },
+  "app.project.download-latest": {
+    "message": "Download latest version"
+  },
   "app.project.install-button.already-installed": {
     "message": "This project is already installed"
   },
@@ -1330,6 +1342,9 @@
   },
   "app.project.more-options": {
     "message": "More options"
+  },
+  "app.project.open-in-browser": {
+    "message": "Open in browser"
   },
   "app.project.switch-source": {
     "message": "Switch source"

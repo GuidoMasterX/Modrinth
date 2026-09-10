@@ -90,7 +90,15 @@
 
 <script setup lang="ts">
 import type { Labrinth } from '@modrinth/api-client'
-import { ClipboardCopyIcon, FolderOpenIcon, LockIcon, LockOpenIcon } from '@modrinth/assets'
+import {
+	EyeIcon,
+	EyeOffIcon,
+	CircleSlashIcon,
+	ClipboardCopyIcon,
+	FolderOpenIcon,
+	LockIcon,
+	LockOpenIcon,
+} from '@modrinth/assets'
 import {
 	type BulkOperationStatus,
 	type ButtonMenuOption,
@@ -122,7 +130,7 @@ import { getCurrentWebview } from '@tauri-apps/api/webview'
 import { open } from '@tauri-apps/plugin-dialog'
 import { openUrl } from '@tauri-apps/plugin-opener'
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { onBeforeRouteLeave, useRouter } from 'vue-router'
 
 import ExportModal from '@/components/ui/ExportModal.vue'
 import SyncedContentModal from '@/components/ui/instance/SyncedContentModal.vue'
@@ -154,6 +162,8 @@ import {
 	is_file_on_modrinth,
 	remove_project,
 	set_project_locked,
+	set_project_skipped_update_version,
+	set_project_updates_ignored,
 	switch_project_version_with_dependencies,
 	toggle_disable_project,
 	update_all,
@@ -171,6 +181,7 @@ import { injectContentInstall } from '@/providers/content-install'
 import { injectInstancePage } from '../instance-context'
 import { instanceContentQueryOptions, instanceKeys } from '../query-options'
 import { injectSharedInstance } from '../shared-instance-context'
+import { contentScrollTop } from './view-state'
 
 type InstanceBulkUpdateProgress = AppEventPayload<'instance_bulk_update_progress'>
 
@@ -214,6 +225,18 @@ const messages = defineMessages({
 	unfreezeContent: {
 		id: 'app.instance.mods.unfreeze-content',
 		defaultMessage: 'Unfreeze version',
+	},
+	ignoreUpdates: {
+		id: 'app.instance.mods.ignore-updates',
+		defaultMessage: 'Ignore updates',
+	},
+	unignoreUpdates: {
+		id: 'app.instance.mods.unignore-updates',
+		defaultMessage: 'Unignore updates',
+	},
+	skipVersion: {
+		id: 'app.instance.mods.skip-version',
+		defaultMessage: 'Skip this version',
 	},
 	contentTypeProject: {
 		id: 'app.instance.mods.content-type-project',
@@ -282,6 +305,34 @@ const contentQuery = useQuery(
 )
 const loading = ref(contentQuery.data.value === undefined)
 const projects = ref<ContentItem[]>([])
+
+onBeforeRouteLeave(() => {
+	contentScrollTop.set(instance.value.id, document.querySelector('.app-viewport')?.scrollTop ?? 0)
+})
+
+function restoreContentScroll() {
+	const saved = contentScrollTop.get(instance.value.id)
+	if (!saved) return
+	void nextTick(() => {
+		requestAnimationFrame(() => {
+			requestAnimationFrame(() => {
+				const viewport = document.querySelector('.app-viewport')
+				if (!viewport) return
+				const max = viewport.scrollHeight - viewport.clientHeight
+				viewport.scrollTo(0, Math.min(saved, max))
+			})
+		})
+	})
+}
+
+watch(
+	loading,
+	(ready) => {
+		if (ready) return
+		restoreContentScroll()
+	},
+	{ once: true, immediate: true },
+)
 
 const installingBuffer = ref<ContentItem[]>([])
 const handledInstallRevision = ref(0)
@@ -1620,9 +1671,47 @@ function getOverflowOptions(item: ContentItem): ButtonMenuOption[] {
 				action: () => handleContentFreeze(item, !item.locked),
 			},
 		)
+		if (item.has_update && item.update_version_id) {
+			options.push({
+				id: 'skip-version',
+				label: formatMessage(messages.skipVersion),
+				icon: CircleSlashIcon,
+				action: () => handleContentSkipVersion(item, item.update_version_id!),
+			})
+		}
+		options.push({
+			id: item.updates_ignored ? 'unignore-updates' : 'ignore-updates',
+			label: formatMessage(
+				item.updates_ignored ? messages.unignoreUpdates : messages.ignoreUpdates,
+			),
+			icon: item.updates_ignored ? EyeIcon : EyeOffIcon,
+			action: () => handleContentIgnoreUpdates(item, !item.updates_ignored),
+		})
 	}
 
 	return options
+}
+
+async function handleContentIgnoreUpdates(item: ContentItem, ignored: boolean) {
+	if (!item.file_path || !canMutateContent(item)) return
+	try {
+		await set_project_updates_ignored(instance.value.id, item.file_path, ignored)
+		item.updates_ignored = ignored
+		if (ignored) item.has_update = false
+		else void refreshContentState('must_revalidate')
+	} catch (err) {
+		handleError(err as Error)
+	}
+}
+
+async function handleContentSkipVersion(item: ContentItem, versionId: string) {
+	if (!item.file_path || !canMutateContent(item)) return
+	try {
+		await set_project_skipped_update_version(instance.value.id, item.file_path, versionId)
+		item.has_update = false
+	} catch (err) {
+		handleError(err as Error)
+	}
 }
 
 async function handleContentFreeze(item: ContentItem, frozen: boolean) {

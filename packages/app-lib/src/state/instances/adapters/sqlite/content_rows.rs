@@ -141,6 +141,7 @@ pub(crate) struct ContentEntryRow {
     pub server_requirement: String,
     pub client_requirement: String,
     pub enabled: i64,
+    pub updates_ignored: i64,
     pub added_at: i64,
     pub modified_at: i64,
 }
@@ -168,6 +169,7 @@ impl TryFrom<ContentEntryRow> for ContentEntry {
                 &row.client_requirement,
             )?,
             enabled: row.enabled == 1,
+            updates_ignored: row.updates_ignored == 1,
             added_at: timestamp(row.added_at),
             modified_at: timestamp(row.modified_at),
         })
@@ -180,6 +182,7 @@ pub(crate) struct ContentUpdateCheckRow {
     pub update_channel: String,
     pub update_version_id: Option<String>,
     pub checked_at: i64,
+    pub skipped_version_id: Option<String>,
 }
 
 impl From<ContentUpdateCheckRow> for ContentUpdateCheck {
@@ -189,6 +192,7 @@ impl From<ContentUpdateCheckRow> for ContentUpdateCheck {
             update_channel: ReleaseChannel::from_key(&row.update_channel),
             update_version_id: row.update_version_id,
             checked_at: timestamp(row.checked_at),
+            skipped_version_id: row.skipped_version_id,
         }
     }
 }
@@ -904,6 +908,26 @@ pub(crate) async fn get_content_update_checks_for_content_set(
         .collect())
 }
 
+pub(crate) async fn get_content_update_skips_for_content_set(
+    content_set_id: &str,
+    pool: &SqlitePool,
+) -> crate::Result<HashMap<String, Option<String>>> {
+    let rows = sqlx::query_as::<_, (String, Option<String>)>(
+        "
+		SELECT check_row.content_entry_id, check_row.skipped_version_id
+		FROM instance_content_update_checks check_row
+		INNER JOIN instance_content_entries entry
+			ON entry.id = check_row.content_entry_id
+		WHERE entry.content_set_id = ?
+		",
+    )
+    .bind(content_set_id)
+    .fetch_all(pool)
+    .await?;
+
+    Ok(rows.into_iter().collect())
+}
+
 pub(crate) struct UpsertInstanceFile<'a> {
     pub instance_id: &'a str,
     pub relative_path: &'a str,
@@ -1224,6 +1248,7 @@ pub(crate) async fn upsert_content_entry_from_parts(
 				server_requirement,
 				client_requirement,
 				enabled,
+				updates_ignored,
 				added_at,
 				modified_at
 			",
@@ -1301,6 +1326,7 @@ pub(crate) async fn upsert_content_entry_from_parts(
 				server_requirement,
 				client_requirement,
 				enabled,
+				updates_ignored,
 				added_at,
 				modified_at
 			",
@@ -1360,6 +1386,7 @@ pub(crate) async fn upsert_content_entry_from_parts(
 				server_requirement,
 				client_requirement,
 				enabled,
+				updates_ignored,
 				added_at,
 				modified_at
 			",
@@ -1410,6 +1437,84 @@ pub(crate) async fn set_content_entry_enabled_for_file(
     .await?;
 
     Ok(result.rows_affected() > 0)
+}
+
+pub(crate) async fn set_content_entry_updates_ignored(
+    instance_id: &str,
+    content_set_id: &str,
+    relative_path: &str,
+    ignored: bool,
+    pool: &SqlitePool,
+) -> crate::Result<()> {
+    let file = get_instance_file_by_relative_path(
+        instance_id,
+        relative_path,
+        pool,
+    )
+    .await?
+    .ok_or_else(|| {
+        crate::ErrorKind::InputError(format!(
+            "Unknown content file {relative_path}"
+        ))
+    })?;
+
+    let ignored = i64::from(ignored);
+    let modified_at = Utc::now().timestamp();
+
+    sqlx::query!(
+        "
+		UPDATE instance_content_entries
+		SET updates_ignored = ?, modified_at = ?
+		WHERE content_set_id = ? AND file_id = ?
+		",
+        ignored,
+        modified_at,
+        content_set_id,
+        file.id,
+    )
+    .execute(pool)
+    .await?;
+
+    Ok(())
+}
+
+pub(crate) async fn set_content_update_check_skipped_version(
+    instance_id: &str,
+    content_set_id: &str,
+    relative_path: &str,
+    skipped_version_id: Option<&str>,
+    pool: &SqlitePool,
+) -> crate::Result<()> {
+    let file = get_instance_file_by_relative_path(
+        instance_id,
+        relative_path,
+        pool,
+    )
+    .await?
+    .ok_or_else(|| {
+        crate::ErrorKind::InputError(format!(
+            "Unknown content file {relative_path}"
+        ))
+    })?;
+
+    sqlx::query!(
+        "
+		UPDATE instance_content_update_checks
+		SET skipped_version_id = ?
+		WHERE content_entry_id = (
+			SELECT entry.id
+			FROM instance_content_entries entry
+			WHERE entry.content_set_id = ? AND entry.file_id = ?
+		)
+		",
+        skipped_version_id,
+        content_set_id,
+        file.id,
+    )
+    .execute(pool)
+    .await?;
+
+    Ok(())
 }
 
 pub(crate) async fn remove_content_entries_for_file(

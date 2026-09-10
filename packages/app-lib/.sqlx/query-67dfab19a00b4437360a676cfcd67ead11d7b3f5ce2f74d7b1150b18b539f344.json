@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "\n\t\t\tINSERT INTO instance_content_entries (\n\t\t\t\tid,\n\t\t\t\tinstance_id,\n\t\t\t\tcontent_set_id,\n\t\t\t\tfile_id,\n\t\t\t\tproject_type,\n\t\t\t\tproject_id,\n\t\t\t\tversion_id,\n\t\t\t\tsource_kind,\n\t\t\t\tsource,\n\t\t\t\tcf_project_id,\n\t\t\t\tcf_version_id,\n\t\t\t\tserver_requirement,\n\t\t\t\tclient_requirement,\n\t\t\t\tenabled,\n\t\t\t\tadded_at,\n\t\t\t\tmodified_at\n\t\t\t)\n\t\t\tVALUES (?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)\n\t\t\tRETURNING\n\t\t\t\tid,\n\t\t\t\tinstance_id,\n\t\t\t\tcontent_set_id,\n\t\t\t\tfile_id,\n\t\t\t\tproject_type,\n\t\t\t\tproject_id,\n\t\t\t\tversion_id,\n\t\t\t\tsource_kind,\n\t\t\t\tsource,\n\t\t\t\tcf_project_id,\n\t\t\t\tcf_version_id,\n\t\t\t\tserver_requirement,\n\t\t\t\tclient_requirement,\n\t\t\t\tenabled,\n\t\t\t\tadded_at,\n\t\t\t\tmodified_at\n\t\t\t",
+  "query": "\n\t\t\tINSERT INTO instance_content_entries (\n\t\t\t\tid,\n\t\t\t\tinstance_id,\n\t\t\t\tcontent_set_id,\n\t\t\t\tfile_id,\n\t\t\t\tproject_type,\n\t\t\t\tproject_id,\n\t\t\t\tversion_id,\n\t\t\t\tsource_kind,\n\t\t\t\tsource,\n\t\t\t\tcf_project_id,\n\t\t\t\tcf_version_id,\n\t\t\t\tserver_requirement,\n\t\t\t\tclient_requirement,\n\t\t\t\tenabled,\n\t\t\t\tadded_at,\n\t\t\t\tmodified_at\n\t\t\t)\n\t\t\tVALUES (?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)\n\t\t\tRETURNING\n\t\t\t\tid,\n\t\t\t\tinstance_id,\n\t\t\t\tcontent_set_id,\n\t\t\t\tfile_id,\n\t\t\t\tproject_type,\n\t\t\t\tproject_id,\n\t\t\t\tversion_id,\n\t\t\t\tsource_kind,\n\t\t\t\tsource,\n\t\t\t\tcf_project_id,\n\t\t\t\tcf_version_id,\n\t\t\t\tserver_requirement,\n\t\t\t\tclient_requirement,\n\t\t\t\tenabled,\n\t\t\t\tupdates_ignored,\n\t\t\t\tadded_at,\n\t\t\t\tmodified_at\n\t\t\t",
   "describe": {
     "columns": [
       {
@@ -74,13 +74,18 @@
         "type_info": "Integer"
       },
       {
-        "name": "added_at",
+        "name": "updates_ignored",
         "ordinal": 14,
         "type_info": "Integer"
       },
       {
-        "name": "modified_at",
+        "name": "added_at",
         "ordinal": 15,
+        "type_info": "Integer"
+      },
+      {
+        "name": "modified_at",
+        "ordinal": 16,
         "type_info": "Integer"
       }
     ],
@@ -103,8 +108,9 @@
       false,
       false,
       false,
+      false,
       false
     ]
   },
-  "hash": "d675edb5034193c1a81c955d2bd04f8ac412f6b6bae73332ee10c61504dc8d6b"
+  "hash": "67dfab19a00b4437360a676cfcd67ead11d7b3f5ce2f74d7b1150b18b539f344"
 }

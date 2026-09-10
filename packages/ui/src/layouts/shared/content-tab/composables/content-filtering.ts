@@ -109,7 +109,9 @@ export function useContentFilters(items: Ref<ContentItem[]>, config?: ContentFil
 		filterOptions,
 		() => {
 			selectedFilters.value = selectedFilters.value.filter((f) =>
-				filterOptions.value.some((opt) => opt.id === f),
+				f === 'updates'
+					? items.value.some((item) => item.has_update)
+					: filterOptions.value.some((opt) => opt.id === f),
 			)
 		},
 		{ immediate: true },

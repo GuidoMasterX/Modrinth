@@ -148,7 +148,17 @@ impl SourceProject {
                 .map(|category| category.name.clone())
                 .collect(),
             downloads: project.download_count,
-            updated: project.date_modified,
+            updated: project
+                .date_last_released_file
+                .clone()
+                .or_else(|| {
+                    project
+                        .latest_files
+                        .iter()
+                        .filter_map(|file| file.file_date.clone())
+                        .max()
+                })
+                .or(project.date_modified),
             date_created: project.date_created,
             website_url: project.links.website_url,
             issues_url: project.links.issues_url,

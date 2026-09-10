@@ -100,6 +100,8 @@ pub fn init<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
             instance_is_file_on_modrinth,
             instance_toggle_disable_project,
             instance_set_project_locked,
+            instance_set_project_updates_ignored,
+            instance_set_project_skipped_update_version,
             instance_remove_project,
             instance_update_managed_modrinth_version,
             instance_repair_managed_modrinth,
@@ -631,11 +633,15 @@ pub async fn instance_get_installed_project_ids(
 #[tauri::command]
 pub async fn instance_get_install_candidates(
     project_id: &str,
+    slug: Option<&str>,
+    title: Option<&str>,
     project_type: ProjectType,
     targets: Vec<InstanceInstallTarget>,
 ) -> Result<Vec<InstanceInstallCandidate>> {
     Ok(theseus::instance::get_install_candidates(
         project_id,
+        slug,
+        title.unwrap_or_default(),
         project_type,
         targets,
     )
@@ -1290,6 +1296,36 @@ pub async fn instance_set_project_locked(
 ) -> Result<()> {
     theseus::instance::set_project_locked(instance_id, project_path, locked)
         .await?;
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn instance_set_project_updates_ignored(
+    instance_id: &str,
+    project_path: &str,
+    ignored: bool,
+) -> Result<()> {
+    theseus::instance::set_project_updates_ignored(
+        instance_id,
+        project_path,
+        ignored,
+    )
+    .await?;
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn instance_set_project_skipped_update_version(
+    instance_id: &str,
+    project_path: &str,
+    skipped_version_id: Option<String>,
+) -> Result<()> {
+    theseus::instance::set_project_skipped_update_version(
+        instance_id,
+        project_path,
+        skipped_version_id,
+    )
+    .await?;
     Ok(())
 }
 

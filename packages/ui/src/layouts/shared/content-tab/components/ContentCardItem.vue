@@ -11,6 +11,7 @@ import {
 	TriangleAlertIcon,
 	UploadIcon,
 } from '@modrinth/assets'
+import { capitalizeString } from '@modrinth/utils'
 import { computed, getCurrentInstance, ref } from 'vue'
 import type { RouteLocationRaw } from 'vue-router'
 
@@ -22,6 +23,7 @@ import { IconButton, TeleportOverflowMenu } from '#ui/components/base/buttons'
 import Checkbox from '#ui/components/base/Checkbox.vue'
 import ProgressSpinner from '#ui/components/base/ProgressSpinner.vue'
 import Toggle from '#ui/components/base/Toggle.vue'
+import { useCompactNumber } from '#ui/composables'
 import { defineMessages, useVIntl } from '#ui/composables/i18n'
 import { commonMessages } from '#ui/utils/common-messages'
 import { useShiftKey } from '#ui/utils/shift-key'
@@ -36,6 +38,7 @@ import type {
 } from '../types'
 
 const { formatMessage } = useVIntl()
+const { formatCompactNumber } = useCompactNumber()
 
 const messages = defineMessages({
 	selectProject: {
@@ -204,7 +207,7 @@ const sourcePillMessage = computed(() =>
 		role="row"
 		class="flex items-center justify-between"
 		:class="{
-			'h-[74px] gap-4 px-3': !inline,
+			'h-[92px] gap-4 px-3': !inline,
 			'gap-3': inline,
 			'opacity-50 grayscale': disabled && !installing,
 			'opacity-50': installing,
@@ -372,6 +375,32 @@ const sourcePillMessage = computed(() =>
 							>
 								{{ version.version_number }}
 							</AutoLink>
+						</template>
+					</div>
+
+					<div
+						v-if="project.downloads || project.categories?.length"
+						class="flex min-w-0 items-center gap-1.5"
+					>
+						<span
+							v-if="project.downloads"
+							v-tooltip="
+								capitalizeString(
+									formatMessage(commonMessages.projectDownloads, {
+										count: project.downloads,
+									}),
+								)
+							"
+							class="flex shrink-0 items-center gap-1 text-sm leading-5 text-secondary"
+						>
+							<DownloadIcon class="size-4 shrink-0" aria-hidden="true" />
+							{{ formatCompactNumber(project.downloads) }}
+						</span>
+						<template v-if="project.categories?.length">
+							<BulletDivider v-if="project.downloads" class="shrink-0" />
+							<span class="truncate text-sm leading-5 text-secondary">
+								{{ project.categories.slice(0, 2).join(', ') }}
+							</span>
 						</template>
 					</div>
 				</div>

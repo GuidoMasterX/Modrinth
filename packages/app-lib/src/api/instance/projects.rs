@@ -414,6 +414,48 @@ pub async fn set_project_locked(
     Ok(())
 }
 
+#[tracing::instrument]
+pub async fn set_project_updates_ignored(
+    instance_id: &str,
+    project: &str,
+    ignored: bool,
+) -> crate::Result<()> {
+    let state = State::get().await?;
+    ensure_shared_instance_can_modify_project(instance_id, project, &state)
+        .await?;
+    crate::state::instances::commands::set_project_updates_ignored(
+        instance_id,
+        project,
+        ignored,
+        &state,
+    )
+    .await?;
+    emit_instance(instance_id, InstancePayloadType::Edited).await?;
+
+    Ok(())
+}
+
+#[tracing::instrument]
+pub async fn set_project_skipped_update_version(
+    instance_id: &str,
+    project: &str,
+    skipped_version_id: Option<String>,
+) -> crate::Result<()> {
+    let state = State::get().await?;
+    ensure_shared_instance_can_modify_project(instance_id, project, &state)
+        .await?;
+    crate::state::instances::commands::set_project_skipped_update_version(
+        instance_id,
+        project,
+        skipped_version_id,
+        &state,
+    )
+    .await?;
+    emit_instance(instance_id, InstancePayloadType::Edited).await?;
+
+    Ok(())
+}
+
 async fn ensure_shared_instance_can_modify_project(
     instance_id: &str,
     project_path: &str,

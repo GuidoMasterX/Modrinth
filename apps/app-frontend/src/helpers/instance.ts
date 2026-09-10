@@ -66,9 +66,13 @@ export async function get_install_candidates(
 	projectId: string,
 	projectType: string,
 	targets: InstanceInstallTarget[],
+	slug?: string,
+	title?: string,
 ): Promise<InstanceInstallCandidate[]> {
 	return await invoke('plugin:instance|instance_get_install_candidates', {
 		projectId,
+		slug: slug ?? null,
+		title: title ?? null,
 		projectType,
 		targets,
 	})
@@ -556,6 +560,30 @@ export async function set_project_locked(
 		instanceId,
 		projectPath,
 		locked,
+	})
+}
+
+export async function set_project_updates_ignored(
+	instanceId: string,
+	projectPath: string,
+	ignored: boolean,
+): Promise<void> {
+	return await invoke('plugin:instance|instance_set_project_updates_ignored', {
+		instanceId,
+		projectPath,
+		ignored,
+	})
+}
+
+export async function set_project_skipped_update_version(
+	instanceId: string,
+	projectPath: string,
+	skippedVersionId: string | null,
+): Promise<void> {
+	return await invoke('plugin:instance|instance_set_project_skipped_update_version', {
+		instanceId,
+		projectPath,
+		skippedVersionId,
 	})
 }
 

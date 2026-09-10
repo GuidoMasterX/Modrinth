@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n\t\tUPDATE instance_content_entries\n\t\tSET updates_ignored = ?, modified_at = ?\n\t\tWHERE content_set_id = ? AND file_id = ?\n\t\t",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": []
+  },
+  "hash": "ad77645690caf8eb31eac29f528f02a23b05801f6aedd62fb8511a760a3e0bfa"
+}

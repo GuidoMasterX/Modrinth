@@ -20,6 +20,8 @@ pub struct ContentItem {
     pub owner: Option<ContentItemOwner>,
     pub has_update: bool,
     pub update_version_id: Option<String>,
+    #[serde(default)]
+    pub updates_ignored: bool,
     pub date_added: Option<String>,
     pub source_kind: Option<ContentSourceKind>,
     pub package_source: Option<Source>,
@@ -62,6 +64,8 @@ pub struct ContentItemProject {
     pub license: License,
     pub categories: Vec<String>,
     pub additional_categories: Vec<String>,
+    #[serde(default)]
+    pub downloads: u64,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

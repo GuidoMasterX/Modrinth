@@ -3560,6 +3560,15 @@
   "project.about.creators.title": {
     "defaultMessage": "Creators"
   },
+  "project.about.dependencies.incompatible": {
+    "defaultMessage": "Incompatible"
+  },
+  "project.about.dependencies.optional": {
+    "defaultMessage": "Optional"
+  },
+  "project.about.dependencies.title": {
+    "defaultMessage": "Dependencies"
+  },
   "project.about.details.created": {
     "defaultMessage": "Created {date}"
   },
@@ -3613,6 +3622,30 @@
   },
   "project.about.links.wiki": {
     "defaultMessage": "Visit wiki"
+  },
+  "project.about.modpacks.title": {
+    "defaultMessage": "Included in modpacks"
+  },
+  "project.about.repository.fork": {
+    "defaultMessage": "fork"
+  },
+  "project.about.repository.forks": {
+    "defaultMessage": "forks"
+  },
+  "project.about.repository.issue": {
+    "defaultMessage": "issue"
+  },
+  "project.about.repository.issues": {
+    "defaultMessage": "issues"
+  },
+  "project.about.repository.star": {
+    "defaultMessage": "star"
+  },
+  "project.about.repository.stars": {
+    "defaultMessage": "stars"
+  },
+  "project.about.repository.title": {
+    "defaultMessage": "Repository"
   },
   "project.about.server.address.tooltip": {
     "defaultMessage": "Copy Java server address"

@@ -52,6 +52,8 @@ pub async fn get_installed_project_ids(
 #[tracing::instrument]
 pub async fn get_install_candidates(
     project_id: &str,
+    slug: Option<&str>,
+    title: &str,
     project_type: ProjectType,
     targets: Vec<InstanceInstallTarget>,
 ) -> crate::Result<Vec<InstanceInstallCandidate>> {
@@ -61,9 +63,11 @@ pub async fn get_install_candidates(
         project_id
             .strip_prefix("cf-")
             .and_then(|s| s.parse::<i64>().ok()),
+        slug,
+        title,
         project_type,
         &targets,
-        &state.pool,
+        &state,
     )
     .await
 }

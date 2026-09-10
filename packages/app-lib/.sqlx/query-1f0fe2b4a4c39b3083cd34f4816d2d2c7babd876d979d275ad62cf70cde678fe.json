@@ -82,6 +82,11 @@
         "name": "cf_version_id",
         "ordinal": 15,
         "type_info": "Integer"
+      },
+      {
+        "name": "updates_ignored",
+        "ordinal": 16,
+        "type_info": "Integer"
       }
     ],
     "parameters": {
@@ -103,7 +108,8 @@
       false,
       false,
       true,
-      true
+      true,
+      false
     ]
   },
   "hash": "1f0fe2b4a4c39b3083cd34f4816d2d2c7babd876d979d275ad62cf70cde678fe"

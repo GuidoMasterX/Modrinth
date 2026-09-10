@@ -83,6 +83,12 @@ async fn check_content_updates_with_cache_behaviours(
             entry.file_id.as_deref().map(|file_id| (file_id, entry))
         })
         .collect::<HashMap<_, _>>();
+    let skips_by_entry_id =
+        content_rows::get_content_update_skips_for_content_set(
+            &content_set.id,
+            &state.pool,
+        )
+        .await?;
     let files = sync_instance_content_files(&instance, state).await?;
     let hashes = files
         .iter()
@@ -105,6 +111,7 @@ async fn check_content_updates_with_cache_behaviours(
         content_set.loader.as_str(),
         &files,
         &entries_by_file_id,
+        &skips_by_entry_id,
         &state.pool,
         &state.api_semaphore,
     )
@@ -187,6 +194,19 @@ async fn check_content_updates_with_cache_behaviours(
         }
 
         if let Some(update_version_id) = update_version_id {
+            let suppressed = candidate
+                .entry
+                .as_ref()
+                .is_some_and(|entry| {
+                    entry.updates_ignored
+                        || skips_by_entry_id
+                            .get(entry.id.as_str())
+                            .and_then(|skipped| skipped.as_deref())
+                            == Some(update_version_id.as_str())
+                });
+            if suppressed {
+                continue;
+            }
             output.push(ContentUpdate {
                 relative_path: candidate.file.relative_path,
                 current_version_id: candidate.current_version_id,
@@ -238,6 +258,7 @@ async fn check_curseforge_content_updates(
     loader: &str,
     files: &[InstanceFile],
     entries_by_file_id: &HashMap<&str, &ContentEntry>,
+    skips_by_entry_id: &HashMap<String, Option<String>>,
     pool: &sqlx::SqlitePool,
     api_semaphore: &crate::util::fetch::FetchSemaphore,
 ) -> crate::Result<Vec<ContentUpdate>> {
@@ -294,6 +315,11 @@ async fn check_curseforge_content_updates(
                 continue;
             }
             let update_version_id = format!("cf-{}", latest.id);
+            let suppressed = entry.updates_ignored
+                || skips_by_entry_id
+                    .get(entry.id.as_str())
+                    .and_then(|skipped| skipped.as_deref())
+                    == Some(update_version_id.as_str());
             content_rows::upsert_content_update_check(
                 &entry.id,
                 update_channel,
@@ -301,6 +327,9 @@ async fn check_curseforge_content_updates(
                 pool,
             )
             .await?;
+            if suppressed {
+                continue;
+            }
             output.push(ContentUpdate {
                 relative_path: file.relative_path.clone(),
                 current_version_id: format!("cf-{cf_version_id}"),

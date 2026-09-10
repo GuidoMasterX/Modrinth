@@ -1,3 +1,4 @@
+use super::apply_content_install::project_matches_identity;
 use super::sync_content_files::{
     project_type_for_file, sync_instance_content_files,
 };
@@ -93,8 +94,19 @@ pub(crate) async fn get_installed_project_ids_for_instance(
 
     Ok(projects
         .into_iter()
-        .filter_map(|(_, file)| {
-            file.metadata.map(|metadata| metadata.project_id)
+        .flat_map(|(_, file)| {
+            let metadata = file.metadata;
+            let mr_id = metadata
+                .as_ref()
+                .map(|metadata| metadata.project_id.clone())
+                .unwrap_or_default();
+            let cf_id = metadata
+                .as_ref()
+                .and_then(|metadata| metadata.cf_project_id)
+                .map(|id| format!("cf-{id}"));
+            [(!mr_id.is_empty()).then_some(mr_id), cf_id]
+                .into_iter()
+                .flatten()
         })
         .collect::<HashSet<_>>()
         .into_iter()
@@ -109,14 +121,17 @@ struct InstanceInstallCandidateRow {
     game_version: String,
     loader: String,
     installed: i64,
+    content_set_id: String,
 }
 
 pub(crate) async fn get_instance_install_candidates(
     project_id: &str,
     cf_project_id: Option<i64>,
+    slug: Option<&str>,
+    title: &str,
     project_type: ProjectType,
     targets: &[InstanceInstallTarget],
-    pool: &SqlitePool,
+    state: &State,
 ) -> crate::Result<Vec<InstanceInstallCandidate>> {
     let rows = sqlx::query_as!(
         InstanceInstallCandidateRow,
@@ -140,7 +155,8 @@ pub(crate) async fn get_instance_install_candidates(
 				)
 					THEN 1
 				ELSE 0
-			END AS "installed!: i64"
+			END AS "installed!: i64",
+			cs.id AS "content_set_id!"
 		FROM instances i
 		INNER JOIN instance_content_sets cs
 			ON cs.id = i.applied_content_set_id
@@ -155,7 +171,16 @@ pub(crate) async fn get_instance_install_candidates(
         project_id,
         cf_project_id,
     )
-    .fetch_all(pool)
+    .fetch_all(&state.pool)
+    .await?;
+
+    let identity_keys_by_set = identity_keys_by_content_set(
+        &rows
+            .iter()
+            .map(|row| row.content_set_id.as_str())
+            .collect::<Vec<_>>(),
+        state,
+    )
     .await?;
 
     Ok(rows
@@ -169,17 +194,118 @@ pub(crate) async fn get_instance_install_candidates(
                 targets,
             );
 
+            let identity_keys =
+                identity_keys_by_set
+                    .get(&row.content_set_id)
+                    .cloned()
+                    .unwrap_or_default();
+            let installed = row.installed != 0
+                || project_matches_identity(slug, title, &identity_keys);
+
             InstanceInstallCandidate {
                 id: row.id,
                 name: row.name,
                 icon_path: row.icon_path,
                 game_version: row.game_version,
                 loader,
-                installed: row.installed != 0,
+                installed,
                 compatible,
             }
         })
         .collect())
+}
+
+async fn identity_keys_by_content_set(
+    content_set_ids: &[&str],
+    state: &State,
+) -> crate::Result<std::collections::HashMap<String, HashSet<String>>> {
+    let mut keys_by_set = std::collections::HashMap::new();
+    if content_set_ids.is_empty() {
+        return Ok(keys_by_set);
+    }
+
+    let mut all_cf_ids: Vec<String> = Vec::new();
+    let mut all_mr_ids: Vec<String> = Vec::new();
+    let mut ids_by_set: Vec<(String, Vec<String>, Vec<String>)> = Vec::new();
+    for content_set_id in content_set_ids {
+        let entries = sqlite::content_rows::get_content_entries(content_set_id, &state.pool).await?;
+        let cf_ids = entries
+            .iter()
+            .filter_map(|entry| entry.cf_project_id.map(|id| id.to_string()))
+            .collect::<Vec<_>>();
+        let mr_ids = entries
+            .iter()
+            .filter_map(|entry| entry.project_id.clone())
+            .collect::<Vec<_>>();
+        all_cf_ids.extend(cf_ids.iter().cloned());
+        all_mr_ids.extend(mr_ids.iter().cloned());
+        ids_by_set.push(((*content_set_id).to_string(), cf_ids, mr_ids));
+    }
+
+    if all_cf_ids.is_empty() && all_mr_ids.is_empty() {
+        return Ok(keys_by_set);
+    }
+
+    let mut keys_by_id: std::collections::HashMap<String, HashSet<String>> =
+        std::collections::HashMap::new();
+    if !all_cf_ids.is_empty() {
+        let id_refs = all_cf_ids.iter().map(String::as_str).collect::<Vec<_>>();
+        let projects = CachedEntry::get_curseforge_project_many(
+            &id_refs,
+            None,
+            &state.pool,
+            &state.api_semaphore,
+        )
+        .await?;
+        for (project, id) in projects.into_iter().zip(all_cf_ids.iter()) {
+            let mut keys = HashSet::new();
+            keys.extend(
+                project
+                    .slug
+                    .iter()
+                    .map(|slug| super::apply_content_install::normalized_identity_key_pub(slug)),
+            );
+            keys.insert(super::apply_content_install::normalized_identity_key_pub(
+                &project.title,
+            ));
+            keys_by_id.insert(id.clone(), keys);
+        }
+    }
+    if !all_mr_ids.is_empty() {
+        let id_refs = all_mr_ids.iter().map(String::as_str).collect::<Vec<_>>();
+        let projects = CachedEntry::get_project_many(
+            &id_refs,
+            None,
+            &state.pool,
+            &state.api_semaphore,
+        )
+        .await?;
+        for (project, id) in projects.into_iter().zip(all_mr_ids.iter()) {
+            let mut keys = HashSet::new();
+            keys.extend(
+                project
+                    .slug
+                    .iter()
+                    .map(|slug| super::apply_content_install::normalized_identity_key_pub(slug)),
+            );
+            keys.insert(super::apply_content_install::normalized_identity_key_pub(
+                &project.title,
+            ));
+            keys_by_id.insert(id.clone(), keys);
+        }
+    }
+
+    for (content_set_id, cf_ids, mr_ids) in ids_by_set {
+        let mut keys = HashSet::new();
+        for id in cf_ids.iter().chain(mr_ids.iter()) {
+            if let Some(id_keys) = keys_by_id.get(id) {
+                keys.extend(id_keys.iter().cloned());
+            }
+        }
+        keys_by_set.insert(content_set_id, keys);
+    }
+
+    Ok(keys_by_set)
 }
 
 fn instance_matches_targets(
@@ -599,6 +725,7 @@ pub(crate) async fn dependencies_to_content_items(
                 owner,
                 has_update: false,
                 update_version_id: None,
+                updates_ignored: false,
                 date_added: None,
                 source_kind: None,
                 package_source: Some(Source::Modrinth),
@@ -707,6 +834,11 @@ async fn content_projects_for_scope_inner(
             &state.pool,
         )
         .await?;
+    let update_skips = sqlite::content_rows::get_content_update_skips_for_content_set(
+        &resolved.content_set.id,
+        &state.pool,
+    )
+    .await?;
     let entries_by_file_id = entries
         .iter()
         .filter_map(|entry| {
@@ -862,11 +994,22 @@ async fn content_projects_for_scope_inner(
                 .and_then(|entry| cf_update_checks.get(entry.id.as_str()))
                 .cloned();
         }
+        if let Some(entry) = entry {
+            let skipped = update_skips
+                .get(entry.id.as_str())
+                .and_then(|skipped| skipped.as_deref());
+            if entry.updates_ignored
+                || skipped.is_some() && skipped == update_version_id.as_deref()
+            {
+                update_version_id = None;
+            }
+        }
 
         output.insert(
             file.relative_path.clone(),
             ContentFile {
                 update_version_id,
+                updates_ignored: entry.is_some_and(|entry| entry.updates_ignored),
                 hash: file.sha1,
                 file_name: file.file_name,
                 enabled: entry.map_or(file.enabled, |entry| {
@@ -1161,6 +1304,7 @@ async fn content_files_to_content_items(
                         },
                         categories: project.categories.clone(),
                         additional_categories: Vec::new(),
+                        downloads: project.downloads,
                     })
                 }),
                 version: version
@@ -1192,6 +1336,7 @@ async fn content_files_to_content_items(
                 owner,
                 has_update: file.update_version_id.is_some(),
                 update_version_id: file.update_version_id.clone(),
+                updates_ignored: file.updates_ignored,
                 date_added: modification_times[index].clone(),
                 source_kind: file.source_kind,
                 package_source: metadata.map(|metadata| metadata.source),
@@ -1415,6 +1560,7 @@ fn content_item_project(project: &Project) -> ContentItemProject {
         license: project.license.clone(),
         categories: project.categories.clone(),
         additional_categories: project.additional_categories.clone(),
+        downloads: u64::from(project.downloads),
     }
 }
 

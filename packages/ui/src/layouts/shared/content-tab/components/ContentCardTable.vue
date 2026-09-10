@@ -99,7 +99,7 @@ const hasAnyActions = computed(() => {
 const { listContainer, totalHeight, visibleRange, visibleTop, visibleItems } = useVirtualScroll(
 	toRef(props, 'items'),
 	{
-		itemHeight: 74,
+		itemHeight: 92,
 		bufferSize: 5,
 		initialItemCount: 20,
 		enabled: toRef(props, 'virtualized'),

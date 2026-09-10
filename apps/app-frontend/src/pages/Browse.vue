@@ -26,6 +26,7 @@ import {
 	getSelectedInstallPreferences,
 	getTargetInstallPreferences,
 	injectNotificationManager,
+	mapProvidedFiltersToCf,
 	preferencesDiffer,
 	provideBrowseManager,
 	resolveInstallPlan,
@@ -328,7 +329,7 @@ const hideInstalledModpacks = computed({
 const instanceFilters = computed(() => {
 	const filters = []
 
-	if (instance.value && projectType.value !== 'resourcepack') {
+	if (instance.value) {
 		const isVanillaShader = projectType.value === 'shader' && instance.value.loader === 'vanilla'
 		const gameVersion = instance.value.game_version
 		if (gameVersion && !isVanillaShader) {
@@ -947,8 +948,16 @@ async function savePinnedTabs() {
 	try {
 		const settings = await getSettings()
 		const tabs = settings.pinned_browse_tabs ?? {}
-		tabs[pinnedTabsKey('modrinth')] = searchState.currentFilters.value.map(toPinnedTab)
-		tabs[pinnedTabsKey('curseforge')] = searchState.curseforgeCurrentFilters.value.map(toPinnedTab)
+		const providedModrinthTypes = new Set(combinedProvidedFilters.value.map((f) => f.type))
+		const providedCfTypes = new Set(
+			mapProvidedFiltersToCf(combinedProvidedFilters.value).map((f) => f.type),
+		)
+		tabs[pinnedTabsKey('modrinth')] = searchState.currentFilters.value
+			.filter((f) => !providedModrinthTypes.has(f.type))
+			.map(toPinnedTab)
+		tabs[pinnedTabsKey('curseforge')] = searchState.curseforgeCurrentFilters.value
+			.filter((f) => !providedCfTypes.has(f.type))
+			.map(toPinnedTab)
 		settings.pinned_browse_tabs = tabs
 		await setSettings(settings)
 	} catch (err) {
@@ -976,10 +985,17 @@ if (projectType.value !== 'server') {
 			const isCf = searchState.isCfSource.value
 			const source = isCf ? 'curseforge' : 'modrinth'
 			const pinned = settings.pinned_browse_tabs?.[pinnedTabsKey(source)] ?? []
+			const providedTypes = new Set(
+				(isCf
+					? mapProvidedFiltersToCf(combinedProvidedFilters.value)
+					: combinedProvidedFilters.value
+				).map((f) => f.type),
+			)
 			const target = isCf
 				? searchState.curseforgeCurrentFilters.value
 				: searchState.currentFilters.value
 			for (const tab of pinned) {
+				if (providedTypes.has(tab.filter_type)) continue
 				if (target.some((f) => f.type === tab.filter_type && f.option === tab.option)) continue
 				target.push({
 					type: tab.filter_type,

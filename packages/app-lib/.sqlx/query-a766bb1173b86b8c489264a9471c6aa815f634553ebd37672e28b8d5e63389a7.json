@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n\t\tUPDATE instance_content_update_checks\n\t\tSET skipped_version_id = ?\n\t\tWHERE content_entry_id = (\n\t\t\tSELECT entry.id\n\t\t\tFROM instance_content_entries entry\n\t\t\tWHERE entry.content_set_id = ? AND entry.file_id = ?\n\t\t)\n\t\t",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "a766bb1173b86b8c489264a9471c6aa815f634553ebd37672e28b8d5e63389a7"
+}

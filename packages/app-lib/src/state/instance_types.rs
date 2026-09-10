@@ -128,6 +128,8 @@ pub struct ContentFile {
     pub size: u64,
     pub metadata: Option<FileMetadata>,
     pub update_version_id: Option<String>,
+    #[serde(default)]
+    pub updates_ignored: bool,
     pub project_type: ProjectType,
     pub source_kind: Option<ContentSourceKind>,
 }

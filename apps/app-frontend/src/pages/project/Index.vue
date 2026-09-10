@@ -26,6 +26,17 @@
 				:project-v3="projectV3"
 				class="project-sidebar-section"
 			/>
+			<ProjectSidebarDependencies
+				v-if="!isServerProject"
+				:dependencies="sidebarDependencies"
+				class="project-sidebar-section"
+			/>
+			<ProjectSidebarModpacks
+				v-if="!isServerProject && data.id && !isCfProjectId(data.id)"
+				:project-id="data.id"
+				class="project-sidebar-section"
+			/>
+			<ProjectSidebarRepository :source-url="data.source_url" class="project-sidebar-section" />
 			<ProjectSidebarTags :project="data" class="project-sidebar-section" />
 			<ProjectSidebarCreators
 				:organization="organization"
@@ -163,6 +174,25 @@
 								<ArrowLeftRightIcon />
 								{{ formatMessage(messages.switchSource) }}
 							</Button>
+							<IconButton
+								v-tooltip="formatMessage(messages.openInBrowser)"
+								size="xl"
+								:label="formatMessage(messages.openInBrowser)"
+								native-type="button"
+								@click="openInBrowser"
+							>
+								<GlobeIcon />
+							</IconButton>
+							<IconButton
+								v-if="latestFileUrl"
+								v-tooltip="formatMessage(messages.downloadLatest)"
+								size="xl"
+								:label="formatMessage(messages.downloadLatest)"
+								native-type="button"
+								@click="downloadLatest"
+							>
+								<DownloadIcon />
+							</IconButton>
 							<TeleportOverflowMenu
 								type="quiet"
 								size="xl"
@@ -249,8 +279,11 @@ import {
 	ProjectPageHeader,
 	ProjectSidebarCompatibility,
 	ProjectSidebarCreators,
+	ProjectSidebarDependencies,
 	ProjectSidebarDetails,
 	ProjectSidebarLinks,
+	ProjectSidebarModpacks,
+	ProjectSidebarRepository,
 	ProjectSidebarServerInfo,
 	ProjectSidebarTags,
 	SelectedProjectsFloatingBar,
@@ -291,6 +324,7 @@ import {
 } from '@/helpers/curseforge-project'
 import {
 	get as getInstance,
+	get_install_candidates,
 	get_projects as getInstanceProjects,
 	getInstanceIconUrl,
 	kill,
@@ -337,6 +371,8 @@ const { formatMessage } = useVIntl()
 
 const messages = defineMessages({
 	moreOptions: { id: 'app.project.more-options', defaultMessage: 'More options' },
+	openInBrowser: { id: 'app.project.open-in-browser', defaultMessage: 'Open in browser' },
+	downloadLatest: { id: 'app.project.download-latest', defaultMessage: 'Download latest version' },
 	projectActionsLabel: { id: 'app.project.actions.label', defaultMessage: 'Project actions' },
 	descriptionTab: { id: 'app.project.tab.description', defaultMessage: 'Description' },
 	versionsTab: { id: 'app.project.tab.versions', defaultMessage: 'Versions' },
@@ -442,6 +478,62 @@ const serverPing = ref(undefined)
 const serverStatusOnline = ref(false)
 const serverInstancePath = ref(null)
 const serverPlaying = ref(false)
+
+/** @typedef {{ dependency_type: string, project_id: string, title: string, icon_url?: string | null }} SidebarDependency */
+const sidebarDependencies = shallowRef([])
+
+watch([data, versions], async () => {
+	sidebarDependencies.value = []
+	const deps = (versions.value[0]?.dependencies ?? []).filter(
+		(dep) => dep.project_id && dep.dependency_type !== 'embedded',
+	)
+	const projectId = data.value?.id
+	if (!deps.length || !projectId) return
+	const depIds = deps.map((dep) => dep.project_id)
+	const [mrIds, cfIds] = [
+		depIds.filter((id) => !id.startsWith('cf-')),
+		depIds.filter((id) => id.startsWith('cf-')),
+	]
+	const [mrProjects, cfProjects] = await Promise.all([
+		mrIds.length ? get_project_many(mrIds, 'must_revalidate').catch(() => null) : null,
+		cfIds.length ? get_curseforge_project_many(cfIds, 'must_revalidate').catch(() => null) : null,
+	])
+	if (data.value?.id !== projectId) return
+	const resolved = new Map()
+	for (const project of [...(mrProjects ?? []), ...(cfProjects ?? [])]) {
+		resolved.set(project.id, project)
+	}
+	sidebarDependencies.value = deps.map((dep) => {
+		const project = resolved.get(dep.project_id)
+		return {
+			dependency_type: dep.dependency_type,
+			project_id: dep.project_id,
+			title: project?.title ?? dep.file_name ?? dep.project_id,
+			icon_url: project?.icon_url ?? null,
+		}
+	})
+})
+
+const externalProjectUrl = computed(() => {
+	if (!data.value) return null
+	if (isCfProjectId(data.value.id)) return cfProjectUrl(data.value)
+	return data.value.slug
+		? `https://modrinth.com/${data.value.project_type}/${data.value.slug}`
+		: `https://modrinth.com/project/${data.value.id}`
+})
+
+const latestFileUrl = computed(() => {
+	const files = versions.value[0]?.files ?? []
+	return (files.find((file) => file.primary) ?? files[0])?.url ?? null
+})
+
+function openInBrowser() {
+	if (externalProjectUrl.value) void openUrl(externalProjectUrl.value)
+}
+
+function downloadLatest() {
+	if (latestFileUrl.value) void openUrl(latestFileUrl.value)
+}
 
 const instanceFilters = computed(() => {
 	if (!instance.value) {
@@ -860,6 +952,9 @@ async function fetchProjectData() {
 			)
 		: undefined
 	installed.value = !!installedFile
+	if (!installed.value) {
+		installed.value = await checkCrossSourceInstalled(project, requestedId)
+	}
 	installedVersion.value = installedFile?.metadata.version_id ?? null
 
 	if (project.organization) {
@@ -909,6 +1004,9 @@ async function fetchCfProjectData(requestedId) {
 			)
 		: undefined
 	installed.value = !!installedFile
+	if (!installed.value) {
+		installed.value = await checkCrossSourceInstalled(project, requestedId)
+	}
 	installedVersion.value = installedFile?.metadata.cf_version_id
 		? `cf-${installedFile.metadata.cf_version_id}`
 		: null
@@ -916,6 +1014,22 @@ async function fetchCfProjectData(requestedId) {
 	organization.value = null
 	isServerProject.value = false
 	serverStatusOnline.value = false
+}
+
+async function checkCrossSourceInstalled(project, requestedId) {
+	if (!route.query.i || !project) return false
+	try {
+		const candidates = await get_install_candidates(
+			requestedId,
+			project.project_type,
+			[],
+			project.slug,
+			project.title,
+		)
+		return candidates.some((candidate) => candidate.id === route.query.i && candidate.installed)
+	} catch {
+		return false
+	}
 }
 
 function fetchDeferredServerData(project) {
