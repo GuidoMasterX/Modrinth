@@ -174,25 +174,6 @@
 								<ArrowLeftRightIcon />
 								{{ formatMessage(messages.switchSource) }}
 							</Button>
-							<IconButton
-								v-tooltip="formatMessage(messages.openInBrowser)"
-								size="xl"
-								:label="formatMessage(messages.openInBrowser)"
-								native-type="button"
-								@click="openInBrowser"
-							>
-								<GlobeIcon />
-							</IconButton>
-							<IconButton
-								v-if="latestFileUrl"
-								v-tooltip="formatMessage(messages.downloadLatest)"
-								size="xl"
-								:label="formatMessage(messages.downloadLatest)"
-								native-type="button"
-								@click="downloadLatest"
-							>
-								<DownloadIcon />
-							</IconButton>
 							<TeleportOverflowMenu
 								type="quiet"
 								size="xl"
@@ -306,9 +287,11 @@ import { useAppEvent } from '@/composables/use-app-event'
 import { useAppSettings } from '@/composables/use-app-settings.ts'
 import { useCurseforgeKey } from '@/composables/use-curseforge-key'
 import {
+	get_curseforge_project_many,
 	get_curseforge_search_results,
 	get_organization,
 	get_project,
+	get_project_many,
 	get_project_v3,
 	get_search_results_v3,
 	get_team,
@@ -371,7 +354,6 @@ const { formatMessage } = useVIntl()
 
 const messages = defineMessages({
 	moreOptions: { id: 'app.project.more-options', defaultMessage: 'More options' },
-	openInBrowser: { id: 'app.project.open-in-browser', defaultMessage: 'Open in browser' },
 	downloadLatest: { id: 'app.project.download-latest', defaultMessage: 'Download latest version' },
 	projectActionsLabel: { id: 'app.project.actions.label', defaultMessage: 'Project actions' },
 	descriptionTab: { id: 'app.project.tab.description', defaultMessage: 'Description' },
@@ -514,22 +496,10 @@ watch([data, versions], async () => {
 	})
 })
 
-const externalProjectUrl = computed(() => {
-	if (!data.value) return null
-	if (isCfProjectId(data.value.id)) return cfProjectUrl(data.value)
-	return data.value.slug
-		? `https://modrinth.com/${data.value.project_type}/${data.value.slug}`
-		: `https://modrinth.com/project/${data.value.id}`
-})
-
 const latestFileUrl = computed(() => {
 	const files = versions.value[0]?.files ?? []
 	return (files.find((file) => file.primary) ?? files[0])?.url ?? null
 })
-
-function openInBrowser() {
-	if (externalProjectUrl.value) void openUrl(externalProjectUrl.value)
-}
 
 function downloadLatest() {
 	if (latestFileUrl.value) void openUrl(latestFileUrl.value)
@@ -1153,15 +1123,25 @@ const handleRightClick = (event) => {
 		},
 		{ type: 'divider' },
 		{
-			id: 'open_link',
+			id: 'open-in-browser',
 			label: formatMessage(
 				isCfProjectId(data.value?.id)
 					? commonMessages.openInBrowserButton
 					: commonMessages.openInModrinthButton,
 			),
-			icon: GlobeIcon,
-			action: () => openProjectLink(project),
+			icon: ExternalIcon,
+			action: openProjectInBrowser,
 		},
+		...(latestFileUrl.value
+			? [
+					{
+						id: 'download-latest',
+						label: formatMessage(messages.downloadLatest),
+						icon: DownloadIcon,
+						action: downloadLatest,
+					},
+				]
+			: []),
 		{
 			id: 'copy_link',
 			label: formatMessage(commonMessages.copyLinkButton),
@@ -1182,7 +1162,6 @@ const getProjectLink = (project) =>
 	isCfProjectId(project.id)
 		? cfProjectUrl(project)
 		: `https://modrinth.com/${project.project_type}/${project.slug}`
-const openProjectLink = (project) => openUrl(getProjectLink(project))
 const copyProjectLink = (project) => navigator.clipboard.writeText(getProjectLink(project))
 </script>
 

@@ -289,6 +289,8 @@ fn main() {
                         "instance_is_file_on_modrinth",
                         "instance_toggle_disable_project",
                         "instance_set_project_locked",
+                        "instance_set_project_updates_ignored",
+                        "instance_set_project_skipped_update_version",
                         "instance_remove_project",
                         "instance_update_managed_modrinth_version",
                         "instance_repair_managed_modrinth",

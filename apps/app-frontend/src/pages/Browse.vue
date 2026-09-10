@@ -3,6 +3,7 @@ import type { Labrinth } from '@modrinth/api-client'
 import {
 	CheckIcon,
 	CompassIcon,
+	DownloadIcon,
 	ExternalIcon,
 	GlobeIcon,
 	PlusIcon,
@@ -35,11 +36,13 @@ import {
 	useVIntl,
 } from '@modrinth/ui'
 import { useQuery, useQueryClient } from '@tanstack/vue-query'
+import { openUrl } from '@tauri-apps/plugin-opener'
 import type { Ref } from 'vue'
 import { computed, onBeforeUnmount, ref, shallowRef, watch } from 'vue'
 import type { LocationQuery } from 'vue-router'
 import { useRoute, useRouter } from 'vue-router'
 
+import VersionDownloadModal from '@/components/ui/VersionDownloadModal.vue'
 import { useAppServerBrowse } from '@/composables/browse/use-app-server-browse'
 import { useAppEvent } from '@/composables/use-app-event'
 import { useAppSettings } from '@/composables/use-app-settings.ts'
@@ -385,6 +388,29 @@ const {
 	router,
 })
 
+const versionDownloadModalRef = ref<InstanceType<typeof VersionDownloadModal> | null>(null)
+
+function openProjectInBrowser(
+	result: Labrinth.Search.v3.ResultSearchProject,
+	currentProjectType: string,
+) {
+	const url = isCfProjectId(result.project_id)
+		? `https://www.curseforge.com/projects/${encodeURIComponent(result.slug ?? result.project_id)}`
+		: result.slug
+			? `https://modrinth.com/${result.project_types?.[0] ?? currentProjectType}/${result.slug}`
+			: `https://modrinth.com/project/${result.project_id}`
+	void openUrl(url)
+}
+
+async function openVersionDownloadModal(result: Labrinth.Search.v3.ResultSearchProject) {
+	try {
+		const versions = await getInstallProjectVersions(result.project_id)
+		versionDownloadModalRef.value?.show({ title: result.name, versions })
+	} catch (err) {
+		handleError(err)
+	}
+}
+
 const offline = ref(!navigator.onLine)
 const handleOffline = () => {
 	debugLog('went offline')
@@ -414,6 +440,10 @@ const messages = defineMessages({
 	addToAnInstance: {
 		id: 'app.browse.add-to-an-instance',
 		defaultMessage: 'Add to an instance',
+	},
+	download: {
+		id: 'app.browse.download',
+		defaultMessage: 'Download',
 	},
 	environmentProvidedByServer: {
 		id: 'search.filter.locked.server-environment.title',
@@ -767,6 +797,26 @@ function getCardActions(
 					handleError(err)
 				}
 			},
+		},
+		{
+			key: 'open-in-browser',
+			label: formatMessage(commonMessages.openInBrowserButton),
+			tooltip: formatMessage(commonMessages.openInBrowserButton),
+			icon: GlobeIcon,
+			circular: true,
+			type: 'outlined',
+			color: 'brand',
+			onClick: () => openProjectInBrowser(projectResult, currentProjectType),
+		},
+		{
+			key: 'download',
+			label: formatMessage(messages.download),
+			tooltip: formatMessage(messages.download),
+			icon: DownloadIcon,
+			circular: true,
+			type: 'outlined',
+			color: 'brand',
+			onClick: () => openVersionDownloadModal(projectResult),
 		},
 	]
 }
@@ -1182,5 +1232,6 @@ provideBrowseManager({
 		<Teleport v-if="browseRouteActive" to="#sidebar-teleport-target">
 			<BrowseSidebar />
 		</Teleport>
+		<VersionDownloadModal ref="versionDownloadModalRef" />
 	</div>
 </template>

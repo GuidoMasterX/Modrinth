@@ -43,6 +43,7 @@ import { computed } from 'vue'
 
 import { useCompactNumber } from '../../composables'
 import { defineMessages, useVIntl } from '../../composables/i18n'
+import { injectModrinthClient } from '../../providers'
 
 interface GitHubRepo {
 	stargazers_count: number
@@ -56,22 +57,30 @@ const props = defineProps<{
 
 const { formatMessage } = useVIntl()
 const { formatCompactNumber } = useCompactNumber()
+const client = injectModrinthClient()
 
 const repo = computed(() => {
 	const match = props.sourceUrl?.match(
 		/^https?:\/\/github\.com\/([A-Za-z0-9-_.]+)\/([A-Za-z0-9-_.]+?)(?:\.git)?\/?$/,
 	)
-	return match ? { url: `https://github.com/${match[1]}/${match[2]}` } : null
+	return match
+		? { owner: match[1], name: match[2], url: `https://github.com/${match[1]}/${match[2]}` }
+		: null
 })
 
 const { data: repoStats } = useQuery({
 	queryKey: computed(() => ['github-repo', repo.value?.url] as const),
 	queryFn: async () => {
-		const response = await fetch(
-			`https://api.github.com/repos/${repo.value.url.slice('https://github.com/'.length)}`,
-		)
-		if (!response.ok) return null
-		return (await response.json()) as GitHubRepo
+		if (!repo.value) return null
+		try {
+			return await client.request<GitHubRepo>(`/${repo.value.owner}/${repo.value.name}`, {
+				api: 'https://api.github.com',
+				version: 'repos',
+				skipAuth: true,
+			})
+		} catch {
+			return null
+		}
 	},
 	staleTime: 1000 * 60 * 60,
 })

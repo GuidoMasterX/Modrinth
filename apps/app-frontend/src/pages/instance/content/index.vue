@@ -91,10 +91,10 @@
 <script setup lang="ts">
 import type { Labrinth } from '@modrinth/api-client'
 import {
-	EyeIcon,
-	EyeOffIcon,
 	CircleSlashIcon,
 	ClipboardCopyIcon,
+	EyeIcon,
+	EyeOffIcon,
 	FolderOpenIcon,
 	LockIcon,
 	LockOpenIcon,

@@ -21,7 +21,9 @@ import BulletDivider from '#ui/components/base/BulletDivider.vue'
 import type { ButtonMenuOption } from '#ui/components/base/buttons'
 import { IconButton, TeleportOverflowMenu } from '#ui/components/base/buttons'
 import Checkbox from '#ui/components/base/Checkbox.vue'
+import FormattedTag from '#ui/components/base/FormattedTag.vue'
 import ProgressSpinner from '#ui/components/base/ProgressSpinner.vue'
+import TagItem from '#ui/components/base/TagItem.vue'
 import Toggle from '#ui/components/base/Toggle.vue'
 import { useCompactNumber } from '#ui/composables'
 import { defineMessages, useVIntl } from '#ui/composables/i18n'
@@ -265,7 +267,7 @@ const sourcePillMessage = computed(() =>
 									: undefined
 							"
 							:to="projectLink"
-							class="truncate font-semibold leading-6 text-contrast !decoration-contrast"
+							class="truncate text-base font-semibold leading-6 text-contrast !decoration-contrast"
 							:class="{ 'hover:underline': projectLink }"
 						>
 							{{ project.title }}
@@ -376,31 +378,29 @@ const sourcePillMessage = computed(() =>
 								{{ version.version_number }}
 							</AutoLink>
 						</template>
-					</div>
-
-					<div
-						v-if="project.downloads || project.categories?.length"
-						class="flex min-w-0 items-center gap-1.5"
-					>
-						<span
-							v-if="project.downloads"
-							v-tooltip="
-								capitalizeString(
-									formatMessage(commonMessages.projectDownloads, {
-										count: project.downloads,
-									}),
-								)
-							"
-							class="flex shrink-0 items-center gap-1 text-sm leading-5 text-secondary"
-						>
-							<DownloadIcon class="size-4 shrink-0" aria-hidden="true" />
-							{{ formatCompactNumber(project.downloads) }}
-						</span>
-						<template v-if="project.categories?.length">
-							<BulletDivider v-if="project.downloads" class="shrink-0" />
-							<span class="truncate text-sm leading-5 text-secondary">
-								{{ project.categories.slice(0, 2).join(', ') }}
+						<template v-if="project.downloads || project.categories?.length">
+							<BulletDivider class="shrink-0" />
+							<span
+								v-if="project.downloads"
+								v-tooltip="
+									capitalizeString(
+										formatMessage(commonMessages.projectDownloads, {
+											count: project.downloads,
+										}),
+									)
+								"
+								class="flex shrink-0 items-center gap-1 text-sm leading-5 text-secondary"
+							>
+								<DownloadIcon class="size-4 shrink-0" aria-hidden="true" />
+								{{ formatCompactNumber(project.downloads) }}
 							</span>
+							<TagItem
+								v-for="category in project.categories?.slice(0, 2)"
+								:key="category"
+								class="shrink-0"
+							>
+								<FormattedTag :tag="category" />
+							</TagItem>
 						</template>
 					</div>
 				</div>

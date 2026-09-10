@@ -57,6 +57,9 @@
 				},
 				{
 					"url": "https://media.forgecdn.net/*"
+				},
+				{
+					"url": "https://api.github.com/*"
 				}
 			]
 		},

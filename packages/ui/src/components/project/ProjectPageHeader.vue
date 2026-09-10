@@ -43,21 +43,22 @@
 						:tooltip="formatNumber(project.followers)"
 					/>
 				</template>
-				<span
-					v-if="showSourceBadge"
-					class="inline-flex w-fit items-center gap-1.5 rounded-full px-2 py-1 text-sm font-semibold leading-none"
-					:style="{
-						backgroundColor: `color-mix(in srgb, ${sourceBadgeColor} 18%, transparent)`,
-						color: sourceBadgeColor,
-					}"
-				>
-					<span class="size-2 rounded-full" :style="{ backgroundColor: sourceBadgeColor }" />
-					{{
-						formatMessage(
-							project.id.startsWith('cf-') ? messages.sourceCurseforge : messages.sourceModrinth,
-						)
-					}}
-				</span>
+				<PageHeaderMetadataItem v-if="showSourceBadge">
+					<span
+						class="inline-flex w-fit items-center gap-1.5 rounded-full px-2 py-1 text-sm font-semibold leading-none"
+						:style="{
+							backgroundColor: `color-mix(in srgb, ${sourceBadgeColor} 18%, transparent)`,
+							color: sourceBadgeColor,
+						}"
+					>
+						<span class="size-2 rounded-full" :style="{ backgroundColor: sourceBadgeColor }" />
+						{{
+							formatMessage(
+								project.id.startsWith('cf-') ? messages.sourceCurseforge : messages.sourceModrinth,
+							)
+						}}
+					</span>
+				</PageHeaderMetadataItem>
 				<PageHeaderMetadataTagsItem v-if="project.categories.length > 0" class="hidden md:flex">
 					<TagItem
 						v-for="category in project.categories"

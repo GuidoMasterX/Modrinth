@@ -233,6 +233,9 @@
   "app.browse.discover-servers": {
     "message": "Discover servers"
   },
+  "app.browse.download": {
+    "message": "Download"
+  },
   "app.browse.hide-added-servers": {
     "message": "Hide servers already added"
   },
@@ -1342,9 +1345,6 @@
   },
   "app.project.more-options": {
     "message": "More options"
-  },
-  "app.project.open-in-browser": {
-    "message": "Open in browser"
   },
   "app.project.switch-source": {
     "message": "Switch source"
