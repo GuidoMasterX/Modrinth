@@ -3566,6 +3566,9 @@
   "project.about.dependencies.optional": {
     "defaultMessage": "Optional"
   },
+  "project.about.dependencies.required": {
+    "defaultMessage": "Required"
+  },
   "project.about.dependencies.title": {
     "defaultMessage": "Dependencies"
   },

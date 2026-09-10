@@ -60,6 +60,9 @@
 				},
 				{
 					"url": "https://api.github.com/*"
+				},
+				{
+					"url": "https://www.curseforge.com/*"
 				}
 			]
 		},

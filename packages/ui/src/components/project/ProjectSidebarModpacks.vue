@@ -24,22 +24,66 @@ import { injectModrinthClient } from '../../providers'
 import { buildDependentsSearchFilters } from '../../utils/search'
 import { AutoLink, Avatar } from '../base'
 
+interface CfDependent {
+	id: number
+	name: string
+	logoUrl?: string | null
+	categoryClass?: { id?: number } | null
+}
+
+interface CfDependentsResponse {
+	data?: CfDependent[]
+}
+
+interface ModpackRow {
+	project_id: string
+	name: string
+	icon_url?: string | null
+}
+
 const props = defineProps<{
 	projectId: string
 }>()
 
 const { formatMessage } = useVIntl()
-const { labrinth } = injectModrinthClient()
+const client = injectModrinthClient()
+
+const isCf = computed(() => props.projectId.startsWith('cf-'))
 
 const { data } = useQuery({
 	queryKey: computed(() => ['project', props.projectId, 'modpack-dependents'] as const),
-	queryFn: async () => {
-		const results = await labrinth.projects_v3.search({
-			limit: 10,
-			index: 'downloads',
-			filters: buildDependentsSearchFilters(['modpack'], [props.projectId]),
-		})
-		return results.hits
+	queryFn: async (): Promise<ModpackRow[]> => {
+		try {
+			if (isCf.value) {
+				const cfId = props.projectId.slice('cf-'.length)
+				const response = await client.request<CfDependentsResponse>(`/mods/${cfId}/dependents`, {
+					api: 'https://www.curseforge.com/api',
+					version: 'v1',
+					skipAuth: true,
+					params: { pageSize: 50, index: 0 },
+					headers: { 'User-Agent': 'ModrinthApp/1.0' },
+				})
+				return (response.data ?? [])
+					.filter((dependent) => dependent.categoryClass?.id === 4471)
+					.map((dependent) => ({
+						project_id: `cf-${dependent.id}`,
+						name: dependent.name,
+						icon_url: dependent.logoUrl ?? null,
+					}))
+			}
+			const results = await client.labrinth.projects_v3.search({
+				limit: 10,
+				index: 'downloads',
+				filters: buildDependentsSearchFilters(['modpack'], [props.projectId]),
+			})
+			return results.hits.map((hit) => ({
+				project_id: hit.project_id,
+				name: hit.name,
+				icon_url: hit.icon_url ?? null,
+			}))
+		} catch {
+			return []
+		}
 	},
 	staleTime: 1000 * 60 * 30,
 })

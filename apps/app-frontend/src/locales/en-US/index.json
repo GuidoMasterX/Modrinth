@@ -233,9 +233,6 @@
   "app.browse.discover-servers": {
     "message": "Discover servers"
   },
-  "app.browse.download": {
-    "message": "Download"
-  },
   "app.browse.hide-added-servers": {
     "message": "Hide servers already added"
   },
@@ -1324,9 +1321,6 @@
   },
   "app.project.coming-soon": {
     "message": "Coming soon"
-  },
-  "app.project.download-latest": {
-    "message": "Download latest version"
   },
   "app.project.install-button.already-installed": {
     "message": "This project is already installed"

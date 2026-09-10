@@ -23,7 +23,6 @@ import { IconButton, TeleportOverflowMenu } from '#ui/components/base/buttons'
 import Checkbox from '#ui/components/base/Checkbox.vue'
 import FormattedTag from '#ui/components/base/FormattedTag.vue'
 import ProgressSpinner from '#ui/components/base/ProgressSpinner.vue'
-import TagItem from '#ui/components/base/TagItem.vue'
 import Toggle from '#ui/components/base/Toggle.vue'
 import { useCompactNumber } from '#ui/composables'
 import { defineMessages, useVIntl } from '#ui/composables/i18n'
@@ -209,7 +208,7 @@ const sourcePillMessage = computed(() =>
 		role="row"
 		class="flex items-center justify-between"
 		:class="{
-			'h-[92px] gap-4 px-3': !inline,
+			'h-[84px] gap-4 px-3': !inline,
 			'gap-3': inline,
 			'opacity-50 grayscale': disabled && !installing,
 			'opacity-50': installing,
@@ -394,13 +393,16 @@ const sourcePillMessage = computed(() =>
 								<DownloadIcon class="size-4 shrink-0" aria-hidden="true" />
 								{{ formatCompactNumber(project.downloads) }}
 							</span>
-							<TagItem
-								v-for="category in project.categories?.slice(0, 2)"
-								:key="category"
-								class="shrink-0"
-							>
-								<FormattedTag :tag="category" />
-							</TagItem>
+							<template v-if="project.categories?.length">
+								<BulletDivider v-if="project.downloads" class="shrink-0" />
+								<span
+									v-for="category in project.categories?.slice(0, 2)"
+									:key="category"
+									class="inline-flex shrink-0 items-center rounded-full border-[1px] border-solid border-surface-5 bg-[--_bg-color,var(--color-button-bg)] px-1.5 py-0.5 text-xs leading-none font-normal text-nowrap text-secondary"
+								>
+									<FormattedTag :tag="category" />
+								</span>
+							</template>
 						</template>
 					</div>
 				</div>

@@ -32,7 +32,7 @@
 				class="project-sidebar-section"
 			/>
 			<ProjectSidebarModpacks
-				v-if="!isServerProject && data.id && !isCfProjectId(data.id)"
+				v-if="!isServerProject && data.id"
 				:project-id="data.id"
 				class="project-sidebar-section"
 			/>
@@ -299,6 +299,7 @@ import {
 	get_version_many,
 } from '@/helpers/cache.js'
 import {
+	CF_ID_PREFIX,
 	cfProjectUrl,
 	getCfProject,
 	getCfVersions,
@@ -354,7 +355,6 @@ const { formatMessage } = useVIntl()
 
 const messages = defineMessages({
 	moreOptions: { id: 'app.project.more-options', defaultMessage: 'More options' },
-	downloadLatest: { id: 'app.project.download-latest', defaultMessage: 'Download latest version' },
 	projectActionsLabel: { id: 'app.project.actions.label', defaultMessage: 'Project actions' },
 	descriptionTab: { id: 'app.project.tab.description', defaultMessage: 'Description' },
 	versionsTab: { id: 'app.project.tab.versions', defaultMessage: 'Versions' },
@@ -478,12 +478,20 @@ watch([data, versions], async () => {
 	]
 	const [mrProjects, cfProjects] = await Promise.all([
 		mrIds.length ? get_project_many(mrIds, 'must_revalidate').catch(() => null) : null,
-		cfIds.length ? get_curseforge_project_many(cfIds, 'must_revalidate').catch(() => null) : null,
+		cfIds.length
+			? get_curseforge_project_many(
+					cfIds.map((id) => id.slice(CF_ID_PREFIX.length)),
+					'must_revalidate',
+				).catch(() => null)
+			: null,
 	])
 	if (data.value?.id !== projectId) return
 	const resolved = new Map()
-	for (const project of [...(mrProjects ?? []), ...(cfProjects ?? [])]) {
+	for (const project of mrProjects ?? []) {
 		resolved.set(project.id, project)
+	}
+	for (const project of cfProjects ?? []) {
+		resolved.set(`${CF_ID_PREFIX}${project.id}`, project)
 	}
 	sidebarDependencies.value = deps.map((dep) => {
 		const project = resolved.get(dep.project_id)
@@ -495,15 +503,6 @@ watch([data, versions], async () => {
 		}
 	})
 })
-
-const latestFileUrl = computed(() => {
-	const files = versions.value[0]?.files ?? []
-	return (files.find((file) => file.primary) ?? files[0])?.url ?? null
-})
-
-function downloadLatest() {
-	if (latestFileUrl.value) void openUrl(latestFileUrl.value)
-}
 
 const instanceFilters = computed(() => {
 	if (!instance.value) {
@@ -1132,16 +1131,6 @@ const handleRightClick = (event) => {
 			icon: ExternalIcon,
 			action: openProjectInBrowser,
 		},
-		...(latestFileUrl.value
-			? [
-					{
-						id: 'download-latest',
-						label: formatMessage(messages.downloadLatest),
-						icon: DownloadIcon,
-						action: downloadLatest,
-					},
-				]
-			: []),
 		{
 			id: 'copy_link',
 			label: formatMessage(commonMessages.copyLinkButton),

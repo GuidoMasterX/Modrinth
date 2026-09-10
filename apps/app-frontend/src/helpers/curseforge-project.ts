@@ -26,10 +26,21 @@ export async function getCfVersions(requestedId: string): Promise<Labrinth.Versi
 	return (await get_curseforge_project_versions(requestedId.slice(CF_ID_PREFIX.length))) ?? []
 }
 
+const CF_CLASS_PATHS: Record<string, string> = {
+	mod: 'mc-mods',
+	modpack: 'modpacks',
+	resourcepack: 'texture-packs',
+	shader: 'shaders',
+	datapack: 'customization',
+}
+
 export function cfProjectUrl(
-	project: Pick<Labrinth.Projects.v2.Project, 'slug' | 'id'> & { website_url?: string | null },
+	project: Pick<Labrinth.Projects.v2.Project, 'slug' | 'id' | 'project_type'> & {
+		website_url?: string | null
+	},
 ): string {
-	if (project.website_url) return project.website_url
+	if (project.website_url?.startsWith('https://www.curseforge.com/')) return project.website_url
+	const classPath = CF_CLASS_PATHS[project.project_type ?? 'mod'] ?? 'mc-mods'
 	const slugOrId = project.slug ?? project.id.slice(CF_ID_PREFIX.length)
-	return `https://www.curseforge.com/projects/${slugOrId}`
+	return `https://www.curseforge.com/minecraft/${classPath}/${slugOrId}`
 }

@@ -295,11 +295,9 @@ watch([() => props.versions, () => route.params.version], async () => {
 	if (route.params.version) {
 		version.value = props.versions.find((v) => v.id === route.params.version)
 		cfChangelog.value = undefined
-		await refreshEnrichment()
-		await refreshChangelog()
+		await Promise.all([refreshEnrichment(), refreshChangelog()])
 	}
 })
 
-await refreshEnrichment()
-await refreshChangelog()
+await Promise.all([refreshEnrichment(), refreshChangelog()])
 </script>
