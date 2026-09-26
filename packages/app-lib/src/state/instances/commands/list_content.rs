@@ -129,6 +129,34 @@ async fn cached_or_empty<T>(
     }
 }
 
+/// Like `cached_or_empty`, but a failed live fetch retries from cache first:
+/// a throttled lookup must not blank out badges that the cache can still
+/// answer. The bool reports whether live data was used.
+async fn cached_or_stale<T>(
+    live: impl std::future::Future<Output = crate::Result<Vec<T>>>,
+    stale: impl std::future::Future<Output = crate::Result<Vec<T>>>,
+    what: &str,
+) -> (Vec<T>, bool) {
+    match live.await {
+        Ok(values) => (values, true),
+        Err(err) => {
+            tracing::warn!(
+                "Unable to fetch {what}: {err}; falling back to cached data"
+            );
+            match stale.await {
+                Ok(values) => (values, false),
+                Err(err) => {
+                    tracing::warn!(
+                        "Unable to fetch cached {what}: {err}; continuing \
+                         without it"
+                    );
+                    (Vec::new(), false)
+                }
+            }
+        }
+    }
+}
+
 #[derive(sqlx::FromRow)]
 struct InstanceInstallCandidateRow {
     id: String,
@@ -839,8 +867,14 @@ async fn content_projects_for_scope_inner(
         .iter()
         .map(|file| file.sha1.as_str())
         .collect::<Vec<_>>();
-    let file_info = cached_or_empty(
+    let (file_info, file_info_live) = cached_or_stale(
         CachedEntry::get_file_many(&hashes, cache_behaviour, &state.pool, &state.api_semaphore),
+        CachedEntry::get_file_many(
+            &hashes,
+            Some(CacheBehaviour::StaleWhileRevalidateSkipOffline),
+            &state.pool,
+            &state.api_semaphore,
+        ),
         "Modrinth file metadata",
     )
     .await;
@@ -860,13 +894,23 @@ async fn content_projects_for_scope_inner(
     let installed_channels = if packs_only {
         HashMap::new()
     } else {
-        get_installed_update_channels(
+        match get_installed_update_channels(
             &file_info_by_hash,
             cache_behaviour,
             &state.pool,
             &state.api_semaphore,
         )
-        .await?
+        .await
+        {
+            Ok(channels) => channels,
+            Err(err) => {
+                tracing::warn!(
+                    "Unable to fetch installed update channels: {err}; using \
+                     instance defaults"
+                );
+                HashMap::new()
+            }
+        }
     };
     let update_keys = files
         .iter()
@@ -890,10 +934,16 @@ async fn content_projects_for_scope_inner(
         .collect::<Vec<_>>();
     let update_key_refs =
         update_keys.iter().map(String::as_str).collect::<Vec<_>>();
-    let file_updates = cached_or_empty(
+    let (file_updates, file_updates_live) = cached_or_stale(
         CachedEntry::get_file_update_many(
             &update_key_refs,
             cache_behaviour,
+            &state.pool,
+            &state.api_semaphore,
+        ),
+        CachedEntry::get_file_update_many(
+            &update_key_refs,
+            Some(CacheBehaviour::StaleWhileRevalidateSkipOffline),
             &state.pool,
             &state.api_semaphore,
         ),
@@ -972,15 +1022,27 @@ async fn content_projects_for_scope_inner(
             Some(entry) if entry.source == Source::CurseForge => {
                 cf_update_checks.get(entry.id.as_str()).cloned()
             }
-            _ => metadata.as_ref().and_then(|metadata| {
-                let update_ids =
-                    updates_by_hash.remove(&file.sha1).unwrap_or_default();
-                if !update_ids.contains(&metadata.version_id) {
-                    update_ids.into_iter().next()
+            _ => {
+                let live = metadata.as_ref().and_then(|metadata| {
+                    let update_ids = updates_by_hash
+                        .remove(&file.sha1)
+                        .unwrap_or_default();
+                    if !update_ids.contains(&metadata.version_id) {
+                        update_ids.into_iter().next()
+                    } else {
+                        None
+                    }
+                });
+                // A degraded (cache-only) listing must not hide a stored
+                // update: fall back to the last successful check's row.
+                if live.is_none() && !(file_info_live && file_updates_live) {
+                    entry.as_ref().and_then(|entry| {
+                        cf_update_checks.get(entry.id.as_str()).cloned()
+                    })
                 } else {
-                    None
+                    live
                 }
-            }),
+            }
         };
         if let Some(entry) = entry {
             let skipped = update_skips
@@ -1581,24 +1643,28 @@ fn file_metadata_from_entry_or_cache(
         }
     }
 
-    if let Some(cf) = cf {
-        return Some(cf.clone());
-    }
+    // A file tracked or known on Modrinth stays Modrinth: the fingerprint
+    // based CurseForge metadata is only a fallback for untracked files,
+    // otherwise a throttled Modrinth metadata fetch would relabel the whole
+    // list as CurseForge.
+    let modrinth = (|| {
+        let project_id = entry
+            .and_then(|entry| entry.project_id.clone())
+            .or_else(|| cached.as_ref().map(|file| file.project_id.clone()))?;
+        let version_id = entry
+            .and_then(|entry| entry.version_id.clone())
+            .or_else(|| cached.as_ref().map(|file| file.version_id.clone()))?;
 
-    let project_id = entry
-        .and_then(|entry| entry.project_id.clone())
-        .or_else(|| cached.as_ref().map(|file| file.project_id.clone()))?;
-    let version_id = entry
-        .and_then(|entry| entry.version_id.clone())
-        .or_else(|| cached.as_ref().map(|file| file.version_id.clone()))?;
+        Some(crate::state::FileMetadata {
+            project_id,
+            version_id,
+            source: Source::Modrinth,
+            cf_project_id: None,
+            cf_version_id: None,
+        })
+    })();
 
-    Some(crate::state::FileMetadata {
-        project_id,
-        version_id,
-        source: Source::Modrinth,
-        cf_project_id: None,
-        cf_version_id: None,
-    })
+    modrinth.or_else(|| cf.cloned())
 }
 
 async fn detect_curseforge_metadata(

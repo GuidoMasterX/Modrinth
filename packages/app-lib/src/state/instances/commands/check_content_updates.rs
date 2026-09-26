@@ -46,15 +46,15 @@ pub(crate) async fn refresh_content_updates(
     cache_behaviour: Option<CacheBehaviour>,
     state: &State,
 ) -> crate::Result<()> {
-    // Modrinth's per-file update lookup stays stale-while-revalidate: forcing
-    // a live lookup for every installed file burns its request budget, and a
-    // throttled response would fail the whole check. The CurseForge side is
-    // cheap (one batched request for the entire instance), so it honors the
-    // caller's behaviour and revalidates on demand.
+    // A failed Modrinth lookup must stay detectable: with
+    // stale-while-revalidate its error is swallowed and the missing keys look
+    // like "no update", which is what cleared every Modrinth badge on refresh.
+    // Failures are non-destructive now, so both sources revalidate when asked.
+    // CurseForge costs one batched request for the whole instance.
     check_content_updates_with_cache_behaviours(
         instance_id,
         None,
-        None,
+        Some(cache_behaviour.unwrap_or(CacheBehaviour::MustRevalidate)),
         Some(cache_behaviour.unwrap_or(CacheBehaviour::MustRevalidate)),
         state,
     )
@@ -103,13 +103,25 @@ async fn check_content_updates_with_cache_behaviours(
         .iter()
         .map(|file| file.sha1.as_str())
         .collect::<Vec<_>>();
-    let file_info = CachedEntry::get_file_many(
+    // Modrinth enrichment must degrade, never abort: a throttled metadata
+    // lookup should still leave the CurseForge results below intact.
+    let file_info = match CachedEntry::get_file_many(
         &hashes,
         cache_behaviour,
         &state.pool,
         &state.api_semaphore,
     )
-    .await?;
+    .await
+    {
+        Ok(file_info) => file_info,
+        Err(err) => {
+            tracing::warn!(
+                "Unable to fetch Modrinth file metadata: {err}; continuing \
+                 without it"
+            );
+            Vec::new()
+        }
+    };
     let file_info_by_hash = file_info
         .into_iter()
         .map(|file| (file.hash.clone(), file))
@@ -166,7 +178,18 @@ async fn check_content_updates_with_cache_behaviours(
     }
 
     let installed_channels =
-        installed_update_channels(&candidates, cache_behaviour, state).await?;
+        match installed_update_channels(&candidates, cache_behaviour, state)
+            .await
+        {
+            Ok(channels) => channels,
+            Err(err) => {
+                tracing::warn!(
+                    "Unable to fetch installed update channels: {err}; using \
+                     instance defaults"
+                );
+                HashMap::new()
+            }
+        };
     let update_keys = candidates
         .iter()
         .map(|candidate| {
@@ -186,9 +209,9 @@ async fn check_content_updates_with_cache_behaviours(
         .iter()
         .map(|key| key.as_str())
         .collect::<Vec<_>>();
-    // A rate-limited Modrinth response must not fail the entire check: the
-    // CurseForge results above are already resolved, and losing them because an
-    // unrelated source throttled us is what made CF updates appear broken.
+    // A failed Modrinth lookup means "unknown", not "no update": leave every
+    // stored row and badge untouched instead of clearing them. Only a
+    // successful response may write the (possibly empty) update result.
     let updates = match CachedEntry::get_file_update_many(
         &update_key_refs,
         update_cache_behaviour,
@@ -197,62 +220,65 @@ async fn check_content_updates_with_cache_behaviours(
     )
     .await
     {
-        Ok(updates) => updates,
+        Ok(updates) => Some(updates),
         Err(err) => {
             tracing::warn!(
-                "Unable to fetch Modrinth version updates: {err}; continuing \
-                 without them this cycle"
+                "Unable to fetch Modrinth version updates: {err}; leaving \
+                 stored update state alone this cycle"
             );
-            Vec::new()
+            None
         }
     };
-    let mut updates_by_hash: HashMap<String, Vec<String>> = HashMap::new();
-    for update in updates {
-        updates_by_hash
-            .entry(update.hash)
-            .or_default()
-            .push(update.update_version_id);
-    }
 
     let mut output = Vec::new();
-    for candidate in candidates {
-        let update_version_id = updates_by_hash
-            .remove(&candidate.file.sha1)
-            .unwrap_or_default()
-            .into_iter()
-            .find(|update_version_id| {
-                update_version_id != &candidate.current_version_id
-            });
-
-        if let Some(entry) = &candidate.entry {
-            content_rows::upsert_content_update_check(
-                &entry.id,
-                instance.update_channel,
-                update_version_id.as_deref(),
-                &state.pool,
-            )
-            .await?;
+    if let Some(updates) = updates {
+        let mut updates_by_hash: HashMap<String, Vec<String>> = HashMap::new();
+        for update in updates {
+            updates_by_hash
+                .entry(update.hash)
+                .or_default()
+                .push(update.update_version_id);
         }
 
-        if let Some(update_version_id) = update_version_id {
-            let suppressed = candidate
-                .entry
-                .as_ref()
-                .is_some_and(|entry| {
-                    entry.updates_ignored
-                        || skips_by_entry_id
-                            .get(entry.id.as_str())
-                            .and_then(|skipped| skipped.as_deref())
-                            == Some(update_version_id.as_str())
+        for candidate in candidates {
+            let update_version_id = updates_by_hash
+                .remove(&candidate.file.sha1)
+                .unwrap_or_default()
+                .into_iter()
+                .find(|update_version_id| {
+                    update_version_id != &candidate.current_version_id
                 });
-            if suppressed {
-                continue;
+
+            if let Some(entry) = &candidate.entry {
+                content_rows::upsert_content_update_check(
+                    &entry.id,
+                    instance.update_channel,
+                    update_version_id.as_deref(),
+                    &state.pool,
+                )
+                .await?;
             }
-            output.push(ContentUpdate {
-                relative_path: candidate.file.relative_path,
-                current_version_id: candidate.current_version_id,
-                update_version_id,
-            });
+
+            if let Some(update_version_id) = update_version_id {
+                let suppressed = candidate
+                    .entry
+                    .as_ref()
+                    .is_some_and(|entry| {
+                        entry.updates_ignored
+                            || skips_by_entry_id
+                                .get(entry.id.as_str())
+                                .and_then(|skipped| skipped.as_deref())
+                                == Some(update_version_id.as_str())
+                    });
+                if suppressed {
+                    continue;
+                }
+                output.push(ContentUpdate {
+                    relative_path: candidate.file.relative_path,
+                    current_version_id: candidate.current_version_id,
+                    update_version_id,
+                });
+            }
         }
     }
     output.extend(curseforge_updates);
