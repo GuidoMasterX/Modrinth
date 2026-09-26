@@ -1615,14 +1615,26 @@ async fn detect_curseforge_metadata(
         .map(ToString::to_string)
         .collect::<Vec<_>>()
         .join(",");
-    let Some(cached) = CachedEntry::get_curseforge_fingerprints(
+    // Fingerprint resolution is best-effort: a throttled CurseForge must not
+    // fail the whole content listing.
+    let cached = match CachedEntry::get_curseforge_fingerprints(
         &key,
         cache_behaviour,
         &state.pool,
         &state.api_semaphore,
     )
-    .await?
-    else {
+    .await
+    {
+        Ok(cached) => cached,
+        Err(err) => {
+            tracing::warn!(
+                "Unable to resolve CurseForge fingerprints: {err}; \
+                 continuing without them"
+            );
+            return Ok(HashMap::new());
+        }
+    };
+    let Some(cached) = cached else {
         return Ok(HashMap::new());
     };
 

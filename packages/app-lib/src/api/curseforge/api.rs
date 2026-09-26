@@ -25,7 +25,9 @@ pub const CF_MAX_PAGE_SIZE: u32 = 50;
 /// when the app issues bursts (import, content listing, updaters).
 const CF_PACE_WINDOW: std::time::Duration =
     std::time::Duration::from_secs(60);
-const CF_PACE_MAX_REQUESTS: usize = 40;
+/// Kept well under CurseForge's sustained limit: exceeding it burns the
+/// account's error budget, which then blocks every request for minutes.
+const CF_PACE_MAX_REQUESTS: usize = 20;
 static CF_PACER: tokio::sync::Mutex<VecDeque<std::time::Instant>> =
     tokio::sync::Mutex::const_new(VecDeque::new());
 

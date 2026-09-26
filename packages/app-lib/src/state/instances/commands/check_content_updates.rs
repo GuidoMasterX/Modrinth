@@ -105,6 +105,9 @@ async fn check_content_updates_with_cache_behaviours(
         .into_iter()
         .map(|file| (file.hash.clone(), file))
         .collect::<HashMap<_, _>>();
+    // CurseForge is rate limited per key, so a manual refresh must not force a
+    // live request for every project: `None` reuses the cached project versions
+    // while stale rows revalidate in the background.
     let curseforge_updates = check_curseforge_content_updates(
         instance.update_channel,
         &content_set.game_version,
@@ -113,7 +116,7 @@ async fn check_content_updates_with_cache_behaviours(
         &entries_by_file_id,
         &skips_by_entry_id,
         state,
-        update_cache_behaviour,
+        None,
     )
     .await?;
     let candidates = files

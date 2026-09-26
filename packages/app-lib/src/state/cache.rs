@@ -2245,61 +2245,108 @@ impl CachedEntry {
                     .iter()
                     .map(|key| key.key().to_string())
                     .collect::<Vec<_>>();
+                let ids = keys
+                    .iter()
+                    .filter_map(|key| key.parse::<i64>().ok())
+                    .collect::<Vec<i64>>();
 
-                let values = futures::future::try_join_all(keys.iter().map(
-                    |key|                     async move {
-                        let mut versions: Vec<SourceVersion> = Vec::new();
-                        if let Some(id) = key.parse::<i64>().ok() {
-                            let project_type =
-                                crate::api::curseforge::api::get_mod(
-                                    id,
-                                    fetch_semaphore,
-                                    pool,
-                                )
-                                .await
-                                .map(|project| {
-                                    SourceProjectType::from_cf_class(
-                                        project.class_id,
-                                    )
-                                })?;
-                            versions =
-                                crate::api::curseforge::api::get_mod_files(
-                                    id,
-                                    None,
-                                    None,
-                                    fetch_semaphore,
-                                    pool,
-                                )
-                                .await?
-                                .into_iter()
-                                .map(|file| {
-                                    SourceVersion::from_cf(
-                                        file,
-                                        None,
-                                        project_type,
-                                    )
-                                })
-                                .collect();
+                // The loader synthesis below needs each project's class id, but
+                // fetching it per project doubled the request count and burned
+                // CurseForge's error budget on large modpacks. One batched
+                // `POST /mods` covers every project instead.
+                let project_types = if ids.is_empty() {
+                    std::collections::HashMap::new()
+                } else {
+                    match crate::api::curseforge::api::get_mods(
+                        &ids,
+                        fetch_semaphore,
+                        pool,
+                    )
+                    .await
+                    {
+                        Ok(projects) => projects
+                            .into_iter()
+                            .filter_map(|project| {
+                                project
+                                    .class_id
+                                    .map(|class_id| (project.id, SourceProjectType::from_cf_class(Some(class_id))))
+                            })
+                            .collect(),
+                        Err(err) => {
+                            tracing::warn!(
+                                "Unable to fetch CurseForge project classes: {err}; \
+                                 assuming mods"
+                            );
+                            std::collections::HashMap::new()
                         }
-                        versions.sort_by(|a, b| {
-                            parse_cf_date(&b.date_published)
-                                .cmp(&parse_cf_date(&a.date_published))
-                        });
+                    }
+                };
 
-                        Ok::<_, crate::Error>(
-                            CacheValue::CurseforgeProjectVersions(
-                                CachedCFProjectVersions {
-                                    project_id: key.clone(),
-                                    versions,
-                                },
-                            )
-                            .get_entry(),
+                let requests = keys
+                    .iter()
+                    .map(|key| {
+                        let project_type = key
+                            .parse::<i64>()
+                            .ok()
+                            .and_then(|id| project_types.get(&id).copied())
+                            .unwrap_or(SourceProjectType::Mod);
+                        (key.clone(), project_type)
+                    })
+                    .collect::<Vec<_>>();
+
+                // A single throttled project must not discard every other
+                // project's freshly fetched versions, so failures drop just
+                // their own key (readers treat it as a cache miss).
+                futures::future::join_all(requests.into_iter().map(
+                    |(key, project_type)| async move {
+                        let Ok(id) = key.parse::<i64>() else {
+                            return None;
+                        };
+                        match crate::api::curseforge::api::get_mod_files(
+                            id,
+                            None,
+                            None,
+                            fetch_semaphore,
+                            pool,
                         )
+                        .await
+                        {
+                            Ok(files) => {
+                                let mut versions: Vec<SourceVersion> = files
+                                    .into_iter()
+                                    .map(|file| {
+                                        SourceVersion::from_cf(file, None, project_type)
+                                    })
+                                    .collect();
+                                versions.sort_by(|a, b| {
+                                    parse_cf_date(&b.date_published)
+                                        .cmp(&parse_cf_date(&a.date_published))
+                                });
+                                Some((
+                                    CacheValue::CurseforgeProjectVersions(
+                                        CachedCFProjectVersions {
+                                            project_id: key,
+                                            versions,
+                                        },
+                                    )
+                                    .get_entry(),
+                                    true,
+                                ))
+                            }
+                            Err(err) => {
+                                tracing::warn!(
+                                    "Unable to fetch CurseForge versions for \
+                                     project {id}: {err}"
+                                );
+                                None
+                            }
+                        }
                     },
                 ))
-                .await?;
-
-                values.into_iter().map(|value| (value, true)).collect()
+                .await
+                .into_iter()
+                .flatten()
+                .collect()
             }
             CacheValueType::CurseforgeCategories => {
                 let categories = crate::api::curseforge::api::get_categories(
