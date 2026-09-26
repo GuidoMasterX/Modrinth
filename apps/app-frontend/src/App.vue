@@ -812,6 +812,7 @@ const {
 	releaseGameVersions: contentInstallReleaseGameVersions,
 	projectInfo: contentInstallProjectInfo,
 	handleInstallToInstance,
+	handleSwitchInstanceSource,
 	handleCreateAndInstall,
 	prepareNewInstance,
 	handleNavigate: handleContentInstallNavigate,
@@ -2173,6 +2174,7 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 		:randomize-icon="randomizeCreationIcon"
 		:customize-icon="customizeContentInstallIcon"
 		@install="handleInstallToInstance"
+		@switch="handleSwitchInstanceSource"
 		@create-and-install="handleCreateAndInstall"
 		@navigate="handleContentInstallNavigate"
 		@cancel="handleContentInstallCancel"

@@ -121,11 +121,24 @@ async fn check_content_updates_with_cache_behaviours(
         .filter_map(|file| {
             let project_type = project_type_for_file(&file)?;
             let metadata = file_info_by_hash.get(&file.sha1)?;
+            let entry = entries_by_file_id
+                .get(file.id.as_str())
+                .copied()
+                .cloned();
+            // A tracked entry has exactly one source of truth: CurseForge
+            // entries are resolved by `check_curseforge_content_updates`, so
+            // never let a Modrinth hash hit (many CurseForge files are
+            // mirrored on Modrinth) overwrite that row here.
+            if entry
+                .as_ref()
+                .is_some_and(|entry| {
+                    entry.source == crate::api::curseforge::normalize::Source::CurseForge
+                })
+            {
+                return None;
+            }
             Some(UpdateCandidate {
-                entry: entries_by_file_id
-                    .get(file.id.as_str())
-                    .copied()
-                    .cloned(),
+                entry,
                 file,
                 project_type,
                 current_version_id: metadata.version_id.clone(),

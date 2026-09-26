@@ -16,4 +16,11 @@ pub struct InstanceInstallCandidate {
     pub loader: ModLoader,
     pub installed: bool,
     pub compatible: bool,
+    /// Installed from the other source, and the exact installed file exists
+    /// there too, so the instance can be switched instead of installed into.
+    #[serde(default)]
+    pub switchable: bool,
+    /// Relative path of the already-installed file a switch would replace.
+    #[serde(default)]
+    pub switchable_path: Option<String>,
 }

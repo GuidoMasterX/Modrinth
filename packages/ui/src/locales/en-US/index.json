@@ -2372,11 +2372,17 @@
   "instance.confirm-repair.server-label": {
     "defaultMessage": "server"
   },
-  "instance.confirm-source-switch.body": {
-    "defaultMessage": "{project} will be re-downloaded from {source}. Only continue if this exact version is available there — its updates will then come from {source} instead."
+  "instance.confirm-source-switch.available-body": {
+    "defaultMessage": "{project} is installed from one source and this exact version is also available on {source}. Switching re-downloads it from {source}, and future updates will come from there."
   },
   "instance.confirm-source-switch.header": {
     "defaultMessage": "Switch source?"
+  },
+  "instance.confirm-source-switch.switch-button": {
+    "defaultMessage": "Switch"
+  },
+  "instance.confirm-source-switch.unavailable-body": {
+    "defaultMessage": "The installed version of {project} is not available on {source}, so it cannot be switched. {source} has to offer the exact same file."
   },
   "instance.worlds.game_mode.adventure": {
     "defaultMessage": "Adventure mode"
@@ -2440,6 +2446,9 @@
   },
   "instances.content-install.show-unavailable": {
     "defaultMessage": "Show unavailable"
+  },
+  "instances.content-install.switch-button": {
+    "defaultMessage": "Switch"
   },
   "instances.managed-content-modal.disabled": {
     "defaultMessage": "Disabled"

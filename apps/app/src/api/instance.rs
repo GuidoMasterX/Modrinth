@@ -97,6 +97,7 @@ pub fn init<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
             instance_install_project_with_dependencies,
             instance_switch_project_version_with_dependencies,
             instance_switch_project_source,
+            instance_get_source_counterpart,
             instance_add_project_from_path,
             instance_is_file_on_modrinth,
             instance_toggle_disable_project,
@@ -1266,6 +1267,14 @@ pub async fn instance_switch_project_source(
         project_path,
     )
     .await?)
+}
+
+#[tauri::command]
+pub async fn instance_get_source_counterpart(
+    instance_id: &str,
+    project_path: &str,
+) -> Result<theseus::instance::SourceCounterpart> {
+    Ok(theseus::instance::get_source_counterpart(instance_id, project_path).await?)
 }
 
 #[tauri::command]

@@ -87,8 +87,9 @@
 					ref="confirmSourceSwitchModalRef"
 					:project-name="sourceSwitchItem?.project?.title ?? sourceSwitchItem?.file_name ?? ''"
 					:target-source="
-						sourceSwitchItem?.package_source === 'curseforge' ? 'Modrinth' : 'CurseForge'
+						sourceSwitchTarget ? SOURCE_LABELS[sourceSwitchTarget] : 'the other source'
 					"
+					:available="sourceSwitchAvailable"
 					@switch="handleSourceSwitchConfirm"
 				/>
 			</template>
@@ -161,12 +162,16 @@ import {
 	parseCfId,
 	toCfProjectId,
 } from '@/helpers/curseforge-project'
+import type { InstalledSource } from '@/helpers/instance'
 import {
 	add_project_from_curseforge_file,
 	add_project_from_path,
+	counterpartCanSwitch,
+	counterpartTargetSource,
 	edit,
 	get_linked_modpack_content,
 	get_shared_instance_publish_preview,
+	get_source_counterpart,
 	getInstanceIconUrl,
 	is_file_on_modrinth,
 	remove_project,
@@ -1151,11 +1156,36 @@ async function switchProjectVersion(mod: ContentItem, version: Labrinth.Versions
 }
 
 const sourceSwitchItem = ref<ContentItem | null>(null)
+const sourceSwitchTarget = ref<InstalledSource | null>(null)
+const sourceSwitchAvailable = ref(false)
+const sourceSwitchLoading = ref(false)
 
-function handleSwitchSource(item: ContentItem) {
+const SOURCE_LABELS: Record<InstalledSource, string> = {
+	modrinth: 'Modrinth',
+	curseforge: 'CurseForge',
+	external: 'External',
+}
+
+async function handleSwitchSource(item: ContentItem) {
 	if (!item.file_path || item.locked) return
 	sourceSwitchItem.value = item
-	confirmSourceSwitchModalRef.value?.show()
+	sourceSwitchAvailable.value = false
+	sourceSwitchTarget.value = item.package_source === 'curseforge' ? 'modrinth' : 'curseforge'
+	sourceSwitchLoading.value = true
+	try {
+		// Ask the backend which sources hold the exact installed file before
+		// offering the switch, so the dialog can explain a refusal.
+		const counterpart = await get_source_counterpart(instance.value.id, item.file_path)
+		const target = counterpartTargetSource(counterpart)
+		if (target) sourceSwitchTarget.value = target
+		sourceSwitchAvailable.value = counterpartCanSwitch(counterpart)
+	} catch (err) {
+		handleError(err as Error)
+		sourceSwitchAvailable.value = false
+	} finally {
+		sourceSwitchLoading.value = false
+		confirmSourceSwitchModalRef.value?.show()
+	}
 }
 
 async function handleSourceSwitchConfirm() {

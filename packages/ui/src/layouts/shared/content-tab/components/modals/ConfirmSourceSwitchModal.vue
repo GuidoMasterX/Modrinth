@@ -1,7 +1,17 @@
 <template>
 	<NewModal ref="modal" :header="formatMessage(messages.header)" max-width="500px">
 		<p class="m-0 text-primary">
-			{{ formatMessage(messages.body, { project: projectName, source: targetSource }) }}
+			{{
+				available
+					? formatMessage(messages.availableBody, {
+							project: projectName,
+							source: targetSource,
+						})
+					: formatMessage(messages.unavailableBody, {
+							project: projectName,
+							source: targetSource,
+						})
+			}}
 		</p>
 
 		<template #actions>
@@ -10,9 +20,9 @@
 					<XIcon />
 					{{ formatMessage(commonMessages.cancelButton) }}
 				</Button>
-				<Button type="colored" color="brand" @click="confirm">
+				<Button v-if="available" type="colored" color="brand" @click="confirm">
 					<ArrowLeftRightIcon />
-					{{ formatMessage(commonMessages.confirmButton) }}
+					{{ formatMessage(messages.switchButton) }}
 				</Button>
 			</div>
 		</template>
@@ -35,16 +45,26 @@ const messages = defineMessages({
 		id: 'instance.confirm-source-switch.header',
 		defaultMessage: 'Switch source?',
 	},
-	body: {
-		id: 'instance.confirm-source-switch.body',
+	availableBody: {
+		id: 'instance.confirm-source-switch.available-body',
 		defaultMessage:
-			'{project} will be re-downloaded from {source}. Only continue if this exact version is available there — its updates will then come from {source} instead.',
+			'{project} is installed from one source and this exact version is also available on {source}. Switching re-downloads it from {source}, and future updates will come from there.',
+	},
+	unavailableBody: {
+		id: 'instance.confirm-source-switch.unavailable-body',
+		defaultMessage:
+			'The installed version of {project} is not available on {source}, so it cannot be switched. {source} has to offer the exact same file.',
+	},
+	switchButton: {
+		id: 'instance.confirm-source-switch.switch-button',
+		defaultMessage: 'Switch',
 	},
 })
 
 defineProps<{
 	projectName: string
 	targetSource: string
+	available: boolean
 }>()
 
 const emit = defineEmits<{

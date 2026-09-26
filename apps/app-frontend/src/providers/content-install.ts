@@ -45,6 +45,7 @@ import {
 	list,
 	remove_project,
 	type ResolveContentPlan,
+	switch_project_source,
 } from '@/helpers/instance'
 import { get_game_versions } from '@/helpers/tags'
 import type { GameInstance, InstanceLoader } from '@/helpers/types'
@@ -564,6 +565,8 @@ export function createContentInstall(opts: {
 					name: instance.name,
 					iconUrl: getInstanceIconUrl(instance.icon_path),
 					installed: instance.installed,
+					switchable: instance.switchable,
+					switchablePath: instance.switchable_path,
 					compatible: instance.compatible,
 					installing: false,
 				}
@@ -640,6 +643,26 @@ export function createContentInstall(opts: {
 			version_id: version.id,
 			content_type: resolveContentType(project.project_type),
 		})
+	}
+
+	async function handleSwitchInstanceSource(instance: ContentInstallInstance) {
+		const projectPath = instance.switchablePath
+		if (!projectPath) {
+			opts.handleError('This project cannot be switched to the other source')
+			return
+		}
+
+		const storeInstance = instances.value.find((i) => i.id === instance.id)
+		if (storeInstance) storeInstance.installing = true
+
+		try {
+			await switch_project_source(instance.id, projectPath)
+			handleCancel()
+		} catch (err) {
+			opts.handleError(err)
+		} finally {
+			if (storeInstance) storeInstance.installing = false
+		}
 	}
 
 	async function handleInstallToInstance(instance: ContentInstallInstance) {
@@ -1064,6 +1087,7 @@ export function createContentInstall(opts: {
 		prepareNewInstance,
 		handleNavigate,
 		handleCancel,
+		handleSwitchInstanceSource,
 		setContentInstallModal(ref: ModalRef) {
 			modalRef = ref
 		},

@@ -174,6 +174,7 @@ pub(crate) async fn get_instance_install_candidates(
     .await?;
 
     let mut candidates = Vec::with_capacity(rows.len());
+    let viewing_is_curseforge = cf_project_id.is_some();
     for row in rows {
         let loader = ModLoader::from_string(&row.loader);
         let compatible = instance_matches_targets(
@@ -202,6 +203,35 @@ pub(crate) async fn get_instance_install_candidates(
             )
         };
 
+        // An instance that already has this project from the other source can
+        // be switched instead of installed into, but only when the exact
+        // installed file also exists on the source being viewed.
+        let mut switchable_path = None;
+        if installed {
+            for path in other_source_install_paths(
+                &row.content_set_id,
+                viewing_is_curseforge,
+                state,
+            )
+            .await
+            {
+                let counterpart =
+                    super::source_link::get_source_counterpart(&row.id, &path, state)
+                        .await;
+                let is_viewed_project = if viewing_is_curseforge {
+                    counterpart.curseforge_project_id == cf_project_id
+                } else {
+                    !project_id.is_empty()
+                        && counterpart.modrinth_project_id.as_deref()
+                            == Some(project_id)
+                };
+                if is_viewed_project && counterpart.can_switch() {
+                    switchable_path = Some(path);
+                    break;
+                }
+            }
+        }
+
         candidates.push(InstanceInstallCandidate {
             id: row.id,
             name: row.name,
@@ -210,10 +240,40 @@ pub(crate) async fn get_instance_install_candidates(
             loader,
             installed,
             compatible,
+            switchable: switchable_path.is_some(),
+            switchable_path,
         });
     }
 
     Ok(candidates)
+}
+
+/// Relative paths of an instance's files that were installed from the source
+/// opposite to the one being viewed. Runtime query so the prepared-query cache
+/// does not need regenerating.
+async fn other_source_install_paths(
+    content_set_id: &str,
+    viewing_is_curseforge: bool,
+    state: &State,
+) -> Vec<String> {
+    let wanted_source = if viewing_is_curseforge { "modrinth" } else { "curseforge" };
+    let rows = sqlx::query_as::<_, (String, String)>(
+        r#"
+		SELECT f.relative_path, entry.source
+		FROM instance_content_entries entry
+		INNER JOIN instance_files f ON f.id = entry.file_id
+		WHERE entry.content_set_id = ? AND f.missing = 0
+		"#,
+    )
+    .bind(content_set_id)
+    .fetch_all(&state.pool)
+    .await
+    .unwrap_or_default();
+
+    rows.into_iter()
+        .filter(|(_, source)| source == wanted_source)
+        .map(|(relative_path, _)| relative_path)
+        .collect()
 }
 
 fn instance_matches_targets(
@@ -886,22 +946,24 @@ async fn content_projects_for_scope_inner(
             }
         }
 
-        let mut update_version_id = metadata.as_ref().and_then(|metadata| {
-            let update_ids =
-                updates_by_hash.remove(&file.sha1).unwrap_or_default();
-            if !update_ids.contains(&metadata.version_id) {
-                update_ids.into_iter().next()
-            } else {
-                None
+        // The entry's own source is the only authority for its update state:
+        // reading Modrinth's hash-based updates first would hide a
+        // CurseForge-sourced update whenever the same file is mirrored on
+        // Modrinth.
+        let mut update_version_id = match entry.as_ref() {
+            Some(entry) if entry.source == Source::CurseForge => {
+                cf_update_checks.get(entry.id.as_str()).cloned()
             }
-        });
-        if update_version_id.is_none()
-            && entry.is_some_and(|entry| entry.source == Source::CurseForge)
-        {
-            update_version_id = entry
-                .and_then(|entry| cf_update_checks.get(entry.id.as_str()))
-                .cloned();
-        }
+            _ => metadata.as_ref().and_then(|metadata| {
+                let update_ids =
+                    updates_by_hash.remove(&file.sha1).unwrap_or_default();
+                if !update_ids.contains(&metadata.version_id) {
+                    update_ids.into_iter().next()
+                } else {
+                    None
+                }
+            }),
+        };
         if let Some(entry) = entry {
             let skipped = update_skips
                 .get(entry.id.as_str())

@@ -11,6 +11,48 @@ use modrinth_content_management::{
 use std::collections::HashMap;
 use std::path::Path;
 
+/// The source an installed file came from.
+#[derive(serde::Serialize, serde::Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum InstalledSource {
+    Modrinth,
+    CurseForge,
+    External,
+}
+
+/// The other-source counterpart of an installed file, if one exists. `None`
+/// for a side means the exact installed file is not available there.
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct SourceCounterpart {
+    pub source: Option<InstalledSource>,
+    pub managed: bool,
+    pub modrinth_project_id: Option<String>,
+    pub modrinth_version_id: Option<String>,
+    pub curseforge_project_id: Option<i64>,
+    pub curseforge_file_id: Option<i64>,
+}
+
+impl SourceCounterpart {
+    /// Whether the installed file can be replaced by its counterpart.
+    pub fn can_switch(&self) -> bool {
+        match self.source {
+            Some(InstalledSource::Modrinth) => self.curseforge_project_id.is_some(),
+            Some(InstalledSource::CurseForge) => self.modrinth_project_id.is_some(),
+            _ => false,
+        }
+    }
+
+    pub fn target_source(&self) -> Option<InstalledSource> {
+        match self.source {
+            Some(InstalledSource::Modrinth) => Some(InstalledSource::CurseForge),
+            Some(InstalledSource::CurseForge) => Some(InstalledSource::Modrinth),
+            _ => None,
+        }
+    }
+}
+
+
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct InstallProjectWithDependenciesRequest {
     pub project_id: String,
@@ -344,6 +386,20 @@ pub async fn switch_project_source(
 }
 
 #[tracing::instrument]
+/// Read-only lookup of where an installed file lives on each source, so the
+/// UI can offer (or explain the lack of) a source switch before installing.
+#[tracing::instrument]
+pub async fn get_source_counterpart(
+    instance_id: &str,
+    project_path: &str,
+) -> crate::Result<SourceCounterpart> {
+    let state = State::get().await?;
+    Ok(crate::state::instances::commands::get_source_counterpart(
+        instance_id, project_path, &state,
+    )
+    .await)
+}
+
 pub async fn add_project_from_path(
     instance_id: &str,
     path: &Path,

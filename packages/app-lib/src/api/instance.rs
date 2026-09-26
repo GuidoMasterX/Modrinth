@@ -8,7 +8,7 @@ mod icon;
 mod install;
 mod lifecycle;
 mod paths;
-mod projects;
+pub(crate) mod projects;
 mod run;
 mod screenshot_groups;
 mod screenshots;
@@ -45,9 +45,10 @@ pub(crate) use self::lifecycle::create;
 pub use self::lifecycle::{edit, remove, set_synced_option};
 pub use self::paths::{get_full_path, get_mod_full_path};
 pub use self::projects::{
-    InstallProjectWithDependenciesRequest, add_project_from_curseforge_file,
+    InstallProjectWithDependenciesRequest, InstalledSource, SourceCounterpart,
+    add_project_from_curseforge_file,
     add_project_from_path, add_project_from_version,
-    install_curseforge_project_with_dependencies,
+    get_source_counterpart, install_curseforge_project_with_dependencies,
     install_project_with_dependencies, is_file_on_modrinth, remove_project,
     repair_managed_modrinth, set_project_locked,
     set_project_skipped_update_version, set_project_updates_ignored,

@@ -1,6 +1,8 @@
 use std::collections::{HashMap, HashSet};
 
+use crate::api::instance::projects::{InstalledSource, SourceCounterpart};
 use crate::state::instances::adapters::sqlite::content_rows;
+use crate::state::instances::{ContentEntry, InstanceFile};
 use crate::state::{CacheBehaviour, CachedEntry, ProjectType, State};
 
 use super::apply_content_install::{
@@ -29,6 +31,79 @@ impl InstalledCrossSource {
 pub(crate) struct FileCounterparts {
 	pub mr: Option<(String, String)>,
 	pub cf: Option<(i64, i64)>,
+}
+
+/// Resolve the installed file's tracked entry and its exact counterparts.
+/// Shared by [`get_source_counterpart`] and [`switch_project_source`] so both
+/// agree on what "available on the other source" means.
+async fn resolve_counterpart_parts(
+	instance_id: &str,
+	file_path: &str,
+	state: &State,
+) -> crate::Result<(ContentScope, InstanceFile, Option<ContentEntry>, FileCounterparts)> {
+	let scope = resolve_content_scope(instance_id, None, state).await?;
+	let file = content_rows::get_instance_file_by_relative_path(
+		instance_id,
+		file_path,
+		&state.pool,
+	)
+	.await?
+	.ok_or_else(|| {
+		crate::ErrorKind::InputError(format!("No file found at {file_path}"))
+	})?;
+	let entry = content_rows::get_content_entry_by_file(
+		&scope.content_set_id,
+		&file.id,
+		&state.pool,
+	)
+	.await?;
+	let counterparts =
+		resolve_file_counterparts(&scope, file_path, &file.sha1, state).await;
+	Ok((scope, file, entry, counterparts))
+}
+
+fn counterpart_source(
+	entry: Option<&ContentEntry>,
+	counterparts: &FileCounterparts,
+) -> Option<InstalledSource> {
+	if let Some(entry) = entry {
+		if entry.source == crate::api::curseforge::normalize::Source::CurseForge {
+			return Some(InstalledSource::CurseForge);
+		}
+		if entry.project_id.as_deref().is_some_and(|id| !id.is_empty()) {
+			return Some(InstalledSource::Modrinth);
+		}
+		return Some(InstalledSource::External);
+	}
+	// Untracked files (imported or dropped into the instance) still have a
+	// source when either side recognizes them.
+	match (counterparts.mr.is_some(), counterparts.cf.is_some()) {
+		(true, false) => Some(InstalledSource::Modrinth),
+		(false, true) => Some(InstalledSource::CurseForge),
+		_ => Some(InstalledSource::External),
+	}
+}
+
+/// Read-only counterpart lookup for the UI. Never fails: an unrecognized or
+/// unmanaged file simply reports no counterpart.
+pub(crate) async fn get_source_counterpart(
+	instance_id: &str,
+	file_path: &str,
+	state: &State,
+) -> SourceCounterpart {
+	let Ok((_, _, entry, counterparts)) =
+		resolve_counterpart_parts(instance_id, file_path, state).await
+	else {
+		return SourceCounterpart::default();
+	};
+	SourceCounterpart {
+		source: counterpart_source(entry.as_ref(), &counterparts),
+		managed: entry.is_some(),
+		modrinth_project_id: counterparts.mr.as_ref().map(|(project, _)| project.clone()),
+		modrinth_version_id: counterparts.mr.as_ref().map(|(_, version)| version.clone()),
+		curseforge_project_id: counterparts.cf.map(|(project, _)| project),
+		curseforge_file_id: counterparts.cf.map(|(_, file)| file),
+	}
 }
 
 fn insert_identity_keys(
@@ -317,24 +392,16 @@ pub(crate) async fn switch_project_source(
 	project_path: &str,
 	state: &State,
 ) -> crate::Result<String> {
-	let scope = resolve_content_scope(instance_id, None, state).await?;
-	let file =
-		content_rows::get_instance_file_by_relative_path(instance_id, project_path, &state.pool)
-			.await?
-			.ok_or_else(|| {
-				crate::ErrorKind::InputError(format!("No file found at {project_path}"))
-			})?;
-	let entry =
-		content_rows::get_content_entry_by_file(&scope.content_set_id, &file.id, &state.pool)
-			.await?
-			.ok_or_else(|| {
-				crate::ErrorKind::InputError(
-					"This project is not managed by the launcher".to_string(),
-				)
-			})?;
+	let (_scope, file, entry, counterparts) =
+		resolve_counterpart_parts(instance_id, project_path, state).await?;
+	let entry = entry.ok_or_else(|| {
+		crate::ErrorKind::InputError(
+			"This project is not managed by the launcher".to_string(),
+		)
+	})?;
 
-	let switching_to_curseforge = entry.project_id.as_deref().is_some_and(|id| !id.is_empty());
-	let counterparts = resolve_file_counterparts(&scope, project_path, &file.sha1, state).await;
+	let switching_to_curseforge =
+		entry.project_id.as_deref().is_some_and(|id| !id.is_empty());
 	let was_disabled = !file.enabled || project_path.ends_with(".disabled");
 
 	let mr_link = counterparts.mr.as_ref();

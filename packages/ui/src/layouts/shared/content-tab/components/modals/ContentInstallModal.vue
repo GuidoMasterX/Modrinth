@@ -119,7 +119,11 @@
 							inst.name
 						}}</span>
 					</button>
-					<Button v-if="inst.installed" disabled>
+					<Button v-if="inst.installed && inst.switchable" @click="emit('switch', inst)">
+						<ArrowLeftRightIcon />
+						{{ formatMessage(messages.switchButton) }}
+					</Button>
+					<Button v-else-if="inst.installed" disabled>
 						<CheckIcon />
 						{{ formatMessage(messages.installedBadge) }}
 					</Button>
@@ -277,6 +281,7 @@
 
 <script setup lang="ts">
 import {
+	ArrowLeftRightIcon,
 	BoxIcon,
 	CheckIcon,
 	DownloadIcon,
@@ -344,6 +349,10 @@ const messages = defineMessages({
 		id: 'instances.content-install.install-button',
 		defaultMessage: 'Install',
 	},
+	switchButton: {
+		id: 'instances.content-install.switch-button',
+		defaultMessage: 'Switch',
+	},
 	incompatibleTooltip: {
 		id: 'instances.content-install.incompatible-tooltip',
 		defaultMessage:
@@ -392,6 +401,8 @@ export interface ContentInstallInstance {
 	name: string
 	iconUrl?: string | null
 	installed: boolean
+	switchable?: boolean
+	switchablePath?: string | null
 	compatible: boolean
 	installing?: boolean
 }
@@ -426,6 +437,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
 	install: [instance: ContentInstallInstance]
+	switch: [instance: ContentInstallInstance]
 	'create-and-install': [
 		data: {
 			name: string

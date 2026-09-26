@@ -60,6 +60,8 @@ export type InstanceInstallCandidate = {
 	loader: InstanceLoader
 	installed: boolean
 	compatible: boolean
+	switchable?: boolean
+	switchable_path?: string | null
 }
 
 export async function get_install_candidates(
@@ -528,6 +530,44 @@ export async function switch_project_source(
 		instanceId,
 		projectPath,
 	})
+}
+
+export type InstalledSource = 'modrinth' | 'curseforge' | 'external'
+
+export type SourceCounterpart = {
+	source?: InstalledSource | null
+	managed: boolean
+	modrinthProjectId?: string | null
+	modrinthVersionId?: string | null
+	curseforgeProjectId?: number | null
+	curseforgeFileId?: number | null
+}
+
+/**
+ * Where an installed file lives on each source, resolved from the exact file
+ * itself. `source` is what is installed now; the other id is only set when the
+ * identical file exists there, i.e. when a source switch is possible.
+ */
+export async function get_source_counterpart(
+	instanceId: string,
+	projectPath: string,
+): Promise<SourceCounterpart> {
+	return await invoke('plugin:instance|instance_get_source_counterpart', {
+		instanceId,
+		projectPath,
+	})
+}
+
+export function counterpartTargetSource(counterpart: SourceCounterpart): InstalledSource | null {
+	if (counterpart.source === 'modrinth') return 'curseforge'
+	if (counterpart.source === 'curseforge') return 'modrinth'
+	return null
+}
+
+export function counterpartCanSwitch(counterpart: SourceCounterpart): boolean {
+	if (counterpart.source === 'modrinth') return !!counterpart.curseforgeProjectId
+	if (counterpart.source === 'curseforge') return !!counterpart.modrinthProjectId
+	return false
 }
 
 // Add a project to an instance from a path + project_type
