@@ -94,8 +94,14 @@ export async function get_content_items(
 	return adaptContentItems(items)
 }
 
-export async function refresh_content_updates(instanceId: string): Promise<void> {
-	return await invoke('plugin:instance|instance_refresh_content_updates', { instanceId })
+export async function refresh_content_updates(
+	instanceId: string,
+	cacheBehaviour?: CacheBehaviour,
+): Promise<void> {
+	return await invoke('plugin:instance|instance_refresh_content_updates', {
+		instanceId,
+		cacheBehaviour,
+	})
 }
 
 // Linked modpack info returned from backend

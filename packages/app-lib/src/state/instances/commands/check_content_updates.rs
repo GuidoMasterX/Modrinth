@@ -35,6 +35,7 @@ pub(crate) async fn check_content_updates(
         instance_id,
         cache_behaviour,
         cache_behaviour,
+        cache_behaviour,
         state,
     )
     .await
@@ -42,13 +43,22 @@ pub(crate) async fn check_content_updates(
 
 pub(crate) async fn refresh_content_updates(
     instance_id: &str,
+    cache_behaviour: Option<CacheBehaviour>,
     state: &State,
 ) -> crate::Result<()> {
-    // No `Bypass` here: forcing a live update lookup for every installed file
-    // on each manual refresh burns the API's request budget, and a throttled
-    // response then fails the whole check. Stale rows revalidate in the
-    // background instead, which never surfaces an error.
-    check_content_updates_with_cache_behaviours(instance_id, None, None, state).await?;
+    // Modrinth's per-file update lookup stays stale-while-revalidate: forcing
+    // a live lookup for every installed file burns its request budget, and a
+    // throttled response would fail the whole check. The CurseForge side is
+    // cheap (one batched request for the entire instance), so it honors the
+    // caller's behaviour and revalidates on demand.
+    check_content_updates_with_cache_behaviours(
+        instance_id,
+        None,
+        None,
+        Some(cache_behaviour.unwrap_or(CacheBehaviour::MustRevalidate)),
+        state,
+    )
+    .await?;
 
     Ok(())
 }
@@ -57,6 +67,7 @@ async fn check_content_updates_with_cache_behaviours(
     instance_id: &str,
     cache_behaviour: Option<CacheBehaviour>,
     update_cache_behaviour: Option<CacheBehaviour>,
+    curseforge_cache_behaviour: Option<CacheBehaviour>,
     state: &State,
 ) -> crate::Result<Vec<ContentUpdate>> {
     let instance = instance_rows::get_instance_by_id(instance_id, &state.pool)
@@ -103,9 +114,8 @@ async fn check_content_updates_with_cache_behaviours(
         .into_iter()
         .map(|file| (file.hash.clone(), file))
         .collect::<HashMap<_, _>>();
-    // CurseForge is rate limited per key, so a manual refresh must not force a
-    // live request for every project: `None` reuses the cached project versions
-    // while stale rows revalidate in the background.
+    // CurseForge's update check costs one batched request for the whole
+    // instance, so it can honor the caller's cache behaviour directly.
     let curseforge_updates = check_curseforge_content_updates(
         instance.update_channel,
         &content_set.game_version,
@@ -114,7 +124,7 @@ async fn check_content_updates_with_cache_behaviours(
         &entries_by_file_id,
         &skips_by_entry_id,
         state,
-        None,
+        curseforge_cache_behaviour,
     )
     .await
     .unwrap_or_else(|err| {
@@ -283,50 +293,48 @@ pub(crate) fn curseforge_latest_compatible_file<'a>(
         .max_by_key(|file| parse_cf_date(&file.file_date))
 }
 
-/// Same as [`curseforge_latest_compatible_file`], but for the cached
-/// [`crate::api::curseforge::normalize::SourceVersion`] representation so the
-/// CurseForge update check can go through the cache layer instead of issuing a
-/// live API request per project.
-pub(crate) fn curseforge_latest_compatible_cached_version<'a>(
-    versions: &'a [crate::api::curseforge::normalize::SourceVersion],
+pub(crate) fn curseforge_loader_code(loader: &str) -> Option<i64> {
+    match loader.to_ascii_lowercase().as_str() {
+        "forge" => Some(1),
+        "fabric" => Some(4),
+        "quilt" => Some(5),
+        "neoforge" => Some(6),
+        _ => None,
+    }
+}
+
+/// Picks the newest file for the instance's game version, loader and update
+/// channel from the cached CurseForge `latestFilesIndexes`. Index entries may
+/// reference files that are no longer part of `latest_files` (per-release-type
+/// entries go stale), so the cached value carries resolved metadata for every
+/// index entry.
+pub(crate) fn curseforge_latest_compatible_latest<'a>(
+    latest: &'a crate::state::CachedCFProjectLatest,
     game_version: &str,
-    loader: &str,
+    loader_code: i64,
     update_channel: ReleaseChannel,
-) -> Option<&'a crate::api::curseforge::normalize::SourceVersion> {
-    let release_type = |version_type: &str| -> i32 {
-        match version_type.to_ascii_lowercase().as_str() {
-            "beta" => 2,
-            "alpha" => 3,
-            _ => 1,
-        }
-    };
+) -> Option<&'a crate::api::curseforge::structs::CFFile> {
+    use crate::api::curseforge::normalize::parse_cf_date;
     let allowed_release_types = match update_channel {
         ReleaseChannel::Release => 1..=1,
         ReleaseChannel::Beta => 1..=2,
         ReleaseChannel::Alpha => 1..=3,
     };
-    versions
+    latest
+        .latest_files_indexes
         .iter()
-        .filter(|version| {
-            version
-                .game_versions
-                .iter()
-                .any(|candidate| candidate == game_version)
+        .filter(|index| index.game_version.as_deref() == Some(game_version))
+        .filter(|index| match index.mod_loader {
+            None | Some(0) => true,
+            Some(loader) => loader == loader_code,
         })
-        .filter(|version| {
-            let (_, game_version_loaders) =
-                crate::api::curseforge::normalize::split_file_game_data(
-                    &version.game_versions,
-                );
-            game_version_loaders
-                .iter()
-                .chain(version.loaders.iter())
-                .any(|candidate| candidate.eq_ignore_ascii_case(loader))
+        .filter(|index| {
+            allowed_release_types.contains(&index.release_type.unwrap_or(1))
         })
-        .filter(|version| {
-            allowed_release_types.contains(&release_type(&version.version_type))
+        .filter_map(|index| {
+            latest.files.iter().find(|file| file.id == index.file_id)
         })
-        .max_by_key(|version| version.date_published.clone().unwrap_or_default())
+        .max_by_key(|file| parse_cf_date(&file.file_date))
 }
 
 async fn check_curseforge_content_updates(
@@ -339,7 +347,7 @@ async fn check_curseforge_content_updates(
     state: &State,
     cache_behaviour: Option<CacheBehaviour>,
 ) -> crate::Result<Vec<ContentUpdate>> {
-    use crate::api::curseforge::normalize::{Source, SourceVersion};
+    use crate::api::curseforge::normalize::Source;
 
     let mut project_entries: HashMap<i64, Vec<(&InstanceFile, &ContentEntry)>> =
         HashMap::new();
@@ -360,6 +368,10 @@ async fn check_curseforge_content_updates(
         return Ok(Vec::new());
     }
 
+    let Some(loader_code) = curseforge_loader_code(loader) else {
+        return Ok(Vec::new());
+    };
+
     let cf_project_ids = project_entries
         .keys()
         .map(|id| id.to_string())
@@ -368,8 +380,8 @@ async fn check_curseforge_content_updates(
         .iter()
         .map(String::as_str)
         .collect::<Vec<_>>();
-    let versions_by_project =
-        match CachedEntry::get_curseforge_project_versions_many(
+    let latest_by_project =
+        match CachedEntry::get_curseforge_project_latest_many(
             &cf_project_id_refs,
             cache_behaviour,
             &state.pool,
@@ -379,11 +391,11 @@ async fn check_curseforge_content_updates(
         {
             Ok(cached) => cached
                 .into_iter()
-                .map(|entry| (entry.project_id.clone(), entry.versions))
-                .collect::<HashMap<String, Vec<SourceVersion>>>(),
+                .map(|entry| (entry.project_id.clone(), entry))
+                .collect::<HashMap<String, crate::state::CachedCFProjectLatest>>(),
             Err(err) => {
                 tracing::warn!(
-                    "Failed to fetch CurseForge project versions for update \
+                    "Failed to fetch CurseForge project files for update \
                      checks: {err}"
                 );
                 HashMap::new()
@@ -392,16 +404,16 @@ async fn check_curseforge_content_updates(
 
     let mut output = Vec::new();
     for (cf_project_id, pairs) in project_entries {
-        let Some(versions) = versions_by_project.get(&cf_project_id.to_string())
+        let Some(latest) = latest_by_project.get(&cf_project_id.to_string())
         else {
             // The fetch failed for this project: leave any previously stored
             // check alone rather than reporting a false "no update".
             continue;
         };
-        let latest = curseforge_latest_compatible_cached_version(
-            versions,
+        let latest = curseforge_latest_compatible_latest(
+            latest,
             game_version,
-            loader,
+            loader_code,
             update_channel,
         );
         for (file, entry) in pairs {
@@ -409,7 +421,7 @@ async fn check_curseforge_content_updates(
                 continue;
             };
             let update_version_id = latest.and_then(|latest| {
-                if latest.id.parse::<i64>().ok() == Some(cf_version_id) {
+                if latest.id == cf_version_id {
                     None
                 } else {
                     Some(format!("cf-{}", latest.id))

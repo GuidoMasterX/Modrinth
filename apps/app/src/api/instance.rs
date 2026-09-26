@@ -670,8 +670,14 @@ pub async fn instance_get_content_items(
 }
 
 #[tauri::command]
-pub async fn instance_refresh_content_updates(instance_id: &str) -> Result<()> {
-    Ok(theseus::instance::refresh_content_updates(instance_id).await?)
+pub async fn instance_refresh_content_updates(
+    instance_id: &str,
+    cache_behaviour: Option<CacheBehaviour>,
+) -> Result<()> {
+    Ok(
+        theseus::instance::refresh_content_updates(instance_id, cache_behaviour)
+            .await?,
+    )
 }
 
 #[tauri::command]

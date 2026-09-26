@@ -3,7 +3,10 @@ use crate::api::curseforge::{
         SourceProject, SourceProjectType, SourceVersion, SourceVersionFile,
         parse_cf_date,
     },
-    structs::{CFCategory, CFFingerprintData, CFSearchResponse},
+    structs::{
+        CFCategory, CFFile, CFFingerprintData, CFLatestFileIndex,
+        CFSearchResponse,
+    },
 };
 use crate::state::{EmbeddedContentMetadata, ProjectType};
 use crate::util::fetch::{FetchSemaphore, fetch_json};
@@ -51,6 +54,7 @@ pub enum CacheValueType {
     CurseforgeSearchResults,
     CurseforgeProject,
     CurseforgeProjectVersions,
+    CurseforgeProjectLatest,
     CurseforgeCategories,
     CurseforgeFile,
     CurseforgeFingerprints,
@@ -88,6 +92,7 @@ impl CacheValueType {
             CacheValueType::CurseforgeProjectVersions => {
                 "cf_project_versions_v3"
             }
+            CacheValueType::CurseforgeProjectLatest => "cf_project_latest_v1",
             CacheValueType::CurseforgeCategories => "cf_categories",
             CacheValueType::CurseforgeFile => "cf_file_v2",
             CacheValueType::CurseforgeFingerprints => "cf_fingerprints",
@@ -125,6 +130,7 @@ impl CacheValueType {
             "cf_project_versions_v3" => {
                 CacheValueType::CurseforgeProjectVersions
             }
+            "cf_project_latest_v1" => CacheValueType::CurseforgeProjectLatest,
             "cf_categories" => CacheValueType::CurseforgeCategories,
             "cf_file_v2" => CacheValueType::CurseforgeFile,
             "cf_fingerprints" => CacheValueType::CurseforgeFingerprints,
@@ -189,6 +195,7 @@ impl CacheValueType {
             | CacheValueType::CurseforgeSearchResults
             | CacheValueType::CurseforgeProject
             | CacheValueType::CurseforgeProjectVersions
+            | CacheValueType::CurseforgeProjectLatest
             | CacheValueType::CurseforgeCategories
             | CacheValueType::CurseforgeFile
             | CacheValueType::CurseforgeFingerprints => None,
@@ -222,6 +229,17 @@ pub struct CachedCFSearchResults {
 pub struct CachedCFProjectVersions {
     pub project_id: String,
     pub versions: Vec<SourceVersion>,
+}
+
+/// The latest files of a CurseForge project, as returned by a single
+/// `POST /mods` batch. Index entries are the per-(game version, loader,
+/// release type) authority, so they are cached alongside the resolved
+/// file metadata.
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct CachedCFProjectLatest {
+    pub project_id: String,
+    pub files: Vec<CFFile>,
+    pub latest_files_indexes: Vec<CFLatestFileIndex>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -279,6 +297,7 @@ pub enum CacheValue {
     CurseforgeSearchResults(CachedCFSearchResults),
     CurseforgeProject(SourceProject),
     CurseforgeProjectVersions(CachedCFProjectVersions),
+    CurseforgeProjectLatest(CachedCFProjectLatest),
     CurseforgeCategories(Vec<CFCategory>),
     CurseforgeFile(SourceVersionFile),
     CurseforgeFingerprints(CachedCFFingerprints),
@@ -804,6 +823,9 @@ impl CacheValue {
             CacheValue::CurseforgeProjectVersions(_) => {
                 CacheValueType::CurseforgeProjectVersions
             }
+            CacheValue::CurseforgeProjectLatest(_) => {
+                CacheValueType::CurseforgeProjectLatest
+            }
             CacheValue::CurseforgeCategories(_) => {
                 CacheValueType::CurseforgeCategories
             }
@@ -863,6 +885,9 @@ impl CacheValue {
             }
             CacheValue::CurseforgeProject(project) => project.id.clone(),
             CacheValue::CurseforgeProjectVersions(pv) => pv.project_id.clone(),
+            CacheValue::CurseforgeProjectLatest(latest) => {
+                latest.project_id.clone()
+            }
             CacheValue::CurseforgeCategories(_) => DEFAULT_ID.to_string(),
             CacheValue::CurseforgeFile(file) => file.id.clone(),
             CacheValue::CurseforgeFingerprints(fingerprints) => {
@@ -902,6 +927,7 @@ impl CacheValue {
             CacheValue::CurseforgeSearchResults(_)
             | CacheValue::CurseforgeProject(_)
             | CacheValue::CurseforgeProjectVersions(_)
+            | CacheValue::CurseforgeProjectLatest(_)
             | CacheValue::CurseforgeCategories(_)
             | CacheValue::CurseforgeFile(_)
             | CacheValue::CurseforgeFingerprints(_) => None,
@@ -952,6 +978,9 @@ impl CacheValue {
             }
             CacheValue::CurseforgeProjectVersions(pv) => {
                 serde_json::to_value(pv)
+            }
+            CacheValue::CurseforgeProjectLatest(latest) => {
+                serde_json::to_value(latest)
             }
             CacheValue::CurseforgeCategories(categories) => {
                 serde_json::to_value(categories)
@@ -1083,6 +1112,7 @@ impl_cache_methods!(
     (CurseforgeSearchResults, CachedCFSearchResults),
     (CurseforgeProject, SourceProject),
     (CurseforgeProjectVersions, CachedCFProjectVersions),
+    (CurseforgeProjectLatest, CachedCFProjectLatest),
     (CurseforgeFile, SourceVersionFile),
     (CurseforgeFingerprints, CachedCFFingerprints)
 );
@@ -2348,6 +2378,92 @@ impl CachedEntry {
                 .flatten()
                 .collect()
             }
+            CacheValueType::CurseforgeProjectLatest => {
+                let keys = keys
+                    .iter()
+                    .map(|key| key.key().to_string())
+                    .collect::<Vec<_>>();
+                let ids = keys
+                    .iter()
+                    .filter_map(|key| key.parse::<i64>().ok())
+                    .collect::<Vec<i64>>();
+
+                let projects = crate::api::curseforge::api::get_mods(
+                    &ids,
+                    fetch_semaphore,
+                    pool,
+                )
+                .await?;
+
+                // Index entries may reference files that are no longer
+                // among `latest_files` (per-release-type entries go
+                // stale), so resolve the missing ids in one batched call
+                // to compare real file dates during update checks.
+                let mut unresolved: Vec<i64> = Vec::new();
+                for project in &projects {
+                    for index in &project.latest_files_indexes {
+                        if !project
+                            .latest_files
+                            .iter()
+                            .any(|file| file.id == index.file_id)
+                        {
+                            unresolved.push(index.file_id);
+                        }
+                    }
+                }
+                unresolved.sort_unstable();
+                unresolved.dedup();
+
+                let mut resolved = std::collections::HashMap::new();
+                for chunk in unresolved.chunks(100) {
+                    for file in crate::api::curseforge::api::get_files(
+                        chunk,
+                        fetch_semaphore,
+                        pool,
+                    )
+                    .await?
+                    {
+                        resolved.insert(file.id, file);
+                    }
+                }
+
+                keys.into_iter()
+                    .map(|key| {
+                        match projects
+                            .iter()
+                            .find(|project| project.id.to_string() == key)
+                        {
+                            Some(project) => {
+                                let mut files: Vec<CFFile> =
+                                    project.latest_files.clone();
+                                for (id, file) in &resolved {
+                                    if !files.iter().any(|f| f.id == *id) {
+                                        files.push(file.clone());
+                                    }
+                                }
+                                (
+                                    CacheValue::CurseforgeProjectLatest(
+                                        CachedCFProjectLatest {
+                                            project_id: key,
+                                            files,
+                                            latest_files_indexes: project
+                                                .latest_files_indexes
+                                                .clone(),
+                                        },
+                                    )
+                                    .get_entry(),
+                                    true,
+                                )
+                            }
+                            None => (
+                                CacheValueType::CurseforgeProjectLatest
+                                    .get_empty_entry(key),
+                                true,
+                            ),
+                        }
+                    })
+                    .collect()
+            }
             CacheValueType::CurseforgeCategories => {
                 let categories = crate::api::curseforge::api::get_categories(
                     None,
@@ -2541,6 +2657,13 @@ impl CachedEntry {
                     data,
                     id,
                     "cf_project_versions_v3",
+                )?)
+            }
+            CacheValueType::CurseforgeProjectLatest => {
+                CacheValue::CurseforgeProjectLatest(parse(
+                    data,
+                    id,
+                    "cf_project_latest_v1",
                 )?)
             }
             CacheValueType::CurseforgeCategories => {

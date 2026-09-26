@@ -2071,22 +2071,31 @@ async fn get_curseforge_modpack_info(
         ))
     })?;
 
-    let cf_files = crate::api::curseforge::api::get_mod_files(
-        cf_project_id,
-        Some(game_version),
-        None,
-        &state.api_semaphore,
-        &state.pool,
-    )
-    .await
-    .unwrap_or_default();
-    let latest =
-        super::check_content_updates::curseforge_latest_compatible_file(
-            &cf_files,
-            game_version,
-            loader,
-            update_channel,
-        );
+    let cached_latest =
+        match super::check_content_updates::curseforge_loader_code(loader) {
+            Some(_) => CachedEntry::get_curseforge_project_latest(
+                &cf_project_id.to_string(),
+                cache_behaviour,
+                &state.pool,
+                &state.api_semaphore,
+            )
+            .await
+            .ok()
+            .flatten(),
+            None => None,
+        };
+    let latest = super::check_content_updates::curseforge_loader_code(loader)
+        .and_then(|loader_code| {
+            cached_latest.as_ref().and_then(|latest| {
+                super::check_content_updates::
+                    curseforge_latest_compatible_latest(
+                        latest,
+                        game_version,
+                        loader_code,
+                        update_channel,
+                    )
+            })
+        });
     let has_update = latest.map(|file| file.id != cf_file_id).unwrap_or(false);
     let update_version = latest.map(|file| {
         crate::api::curseforge::labrinth_map::cf_file_to_version(file, None)

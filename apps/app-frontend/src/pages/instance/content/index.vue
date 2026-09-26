@@ -174,6 +174,7 @@ import {
 	get_source_counterpart,
 	getInstanceIconUrl,
 	is_file_on_modrinth,
+	refresh_content_updates,
 	remove_project,
 	set_project_locked,
 	set_project_skipped_update_version,
@@ -1535,11 +1536,13 @@ async function handleVersionSelect(version: Labrinth.Versions.v2.Version) {
 	if (version.changelog != null) return
 	const requestId = activeUpdateRequestId.value
 	if (isCfProjectId(version.id)) {
-		const project = updatingProject.value
-		if (!project || !isCfProjectId(project.project.id)) return
+		// Modpack updates have no `updatingProject` set; the version's own
+		// project id is the authoritative fallback for fetching changelogs.
+		const projectId = updatingProject.value?.project.id ?? version.project_id
+		if (!isCfProjectId(projectId)) return
 		loadingChangelog.value = true
 		const changelog = await get_curseforge_file_changelog(
-			parseCfId(project.project.id),
+			parseCfId(projectId),
 			parseCfId(version.id),
 		).catch(() => null)
 		if (isActiveUpdateRequest(requestId)) {
@@ -1568,11 +1571,11 @@ async function handleVersionSelect(version: Labrinth.Versions.v2.Version) {
 async function handleVersionHover(version: Labrinth.Versions.v2.Version) {
 	if (version.changelog != null) return
 	if (isCfProjectId(version.id)) {
-		const project = updatingProject.value
-		if (!project || !isCfProjectId(project.project.id)) return
+		const projectId = updatingProject.value?.project.id ?? version.project_id
+		if (!isCfProjectId(projectId)) return
 		const requestId = activeUpdateRequestId.value
 		const changelog = await get_curseforge_file_changelog(
-			parseCfId(project.project.id),
+			parseCfId(projectId),
 			parseCfId(version.id),
 		).catch(() => null)
 		if (isActiveUpdateRequest(requestId) && changelog) {
@@ -1810,6 +1813,15 @@ async function handleContentFreeze(item: ContentItem, frozen: boolean) {
 
 async function initProjects(cacheBehaviour?: CacheBehaviour, staleTime = 0) {
 	if (!instance.value) return
+
+	// A manual refresh must also run the update check: update badges are read
+	// from stored check results, so listing alone would keep showing stale
+	// CurseForge update state.
+	if (cacheBehaviour === 'must_revalidate') {
+		await refresh_content_updates(instance.value.id, 'bypass').catch((error) => {
+			console.error('Failed to refresh content updates', error)
+		})
+	}
 
 	const contentData = await queryClient.fetchQuery({
 		...instanceContentQueryOptions(instance.value.id),
