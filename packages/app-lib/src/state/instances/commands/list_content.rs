@@ -112,6 +112,23 @@ pub(crate) async fn get_installed_project_ids_for_instance(
         .collect())
 }
 
+/// Metadata enrichment must never fail the content listing. Both APIs hand out
+/// error-budget/rate-limit refusals ("Too many API errors, try again in N
+/// minutes"), and propagating one of those turned the whole projects page into
+/// an error instead of simply showing the rows without that extra metadata.
+async fn cached_or_empty<T>(
+    fetch: impl std::future::Future<Output = crate::Result<Vec<T>>>,
+    what: &str,
+) -> Vec<T> {
+    match fetch.await {
+        Ok(values) => values,
+        Err(err) => {
+            tracing::warn!("Unable to fetch {what}: {err}; continuing without it");
+            Vec::new()
+        }
+    }
+}
+
 #[derive(sqlx::FromRow)]
 struct InstanceInstallCandidateRow {
     id: String,
@@ -822,13 +839,11 @@ async fn content_projects_for_scope_inner(
         .iter()
         .map(|file| file.sha1.as_str())
         .collect::<Vec<_>>();
-    let file_info = CachedEntry::get_file_many(
-        &hashes,
-        cache_behaviour,
-        &state.pool,
-        &state.api_semaphore,
+    let file_info = cached_or_empty(
+        CachedEntry::get_file_many(&hashes, cache_behaviour, &state.pool, &state.api_semaphore),
+        "Modrinth file metadata",
     )
-    .await?;
+    .await;
     let file_info_by_hash = file_info
         .into_iter()
         .map(|file| (file.hash.clone(), file))
@@ -875,13 +890,16 @@ async fn content_projects_for_scope_inner(
         .collect::<Vec<_>>();
     let update_key_refs =
         update_keys.iter().map(String::as_str).collect::<Vec<_>>();
-    let file_updates = CachedEntry::get_file_update_many(
-        &update_key_refs,
-        cache_behaviour,
-        &state.pool,
-        &state.api_semaphore,
+    let file_updates = cached_or_empty(
+        CachedEntry::get_file_update_many(
+            &update_key_refs,
+            cache_behaviour,
+            &state.pool,
+            &state.api_semaphore,
+        ),
+        "Modrinth version updates",
     )
-    .await?;
+    .await;
     let mut updates_by_hash: HashMap<String, Vec<String>> = HashMap::new();
     for update in file_updates {
         updates_by_hash
@@ -1015,13 +1033,16 @@ async fn get_installed_update_channels(
         return Ok(HashMap::new());
     }
     let version_id_refs = version_ids.iter().copied().collect::<Vec<_>>();
-    let versions = CachedEntry::get_version_many(
-        &version_id_refs,
-        cache_behaviour,
-        pool,
-        fetch_semaphore,
+    let versions = cached_or_empty(
+        CachedEntry::get_version_many(
+            &version_id_refs,
+            cache_behaviour,
+            pool,
+            fetch_semaphore,
+        ),
+        "Modrinth version metadata",
     )
-    .await?;
+    .await;
     let channels_by_version_id = versions
         .into_iter()
         .map(|version| {
@@ -1121,7 +1142,7 @@ async fn content_files_to_content_items(
         .collect::<Vec<_>>();
     let (cf_projects_by_id, cf_files_by_id) =
         if !project_keys.is_empty() || !file_keys.is_empty() {
-            let (cf_projects, cf_files) = tokio::try_join!(
+            let joined = tokio::try_join!(
                 async {
                     if project_keys.is_empty() {
                         Ok(Vec::new())
@@ -1148,7 +1169,16 @@ async fn content_files_to_content_items(
                         .await
                     }
                 }
-            )?;
+            );
+            let (cf_projects, cf_files) = match joined {
+                Ok(pair) => pair,
+                Err(err) => {
+                    tracing::warn!(
+                        "Unable to fetch CurseForge project/file metadata: {err}; continuing without it"
+                    );
+                    (Vec::new(), Vec::new())
+                }
+            };
             (
                 cf_projects
                     .into_iter()
@@ -1847,9 +1877,11 @@ async fn get_modpack_identifiers(
             .iter()
             .map(String::as_str)
             .collect::<Vec<_>>();
-        let files =
-            CachedEntry::get_file_many(&hash_refs, None, pool, fetch_semaphore)
-                .await?;
+        let files = cached_or_empty(
+            CachedEntry::get_file_many(&hash_refs, None, pool, fetch_semaphore),
+            "Modrinth modpack file metadata",
+        )
+        .await;
         let project_ids = files
             .iter()
             .map(|file| file.project_id.clone())
