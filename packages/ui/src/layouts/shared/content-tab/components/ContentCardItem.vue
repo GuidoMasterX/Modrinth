@@ -66,6 +66,10 @@ const messages = defineMessages({
 		id: 'content.card.source.external',
 		defaultMessage: 'External',
 	},
+	switchSource: {
+		id: 'content.card.source.switch',
+		defaultMessage: 'Switch to the other source',
+	},
 	synced: {
 		id: 'content.card.synced',
 		defaultMessage: 'Synced across instances',
@@ -150,6 +154,7 @@ const emit = defineEmits<{
 	delete: [event: MouseEvent]
 	update: []
 	switchVersion: []
+	switchSource: []
 }>()
 
 const instance = getCurrentInstance()
@@ -158,6 +163,10 @@ const hasUpdateListener = computed(() => typeof instance?.vnode.props?.onUpdate 
 const hasSwitchVersionListener = computed(
 	() => typeof instance?.vnode.props?.onSwitchVersion === 'function',
 )
+const hasSwitchSourceListener = computed(
+	() => typeof instance?.vnode.props?.onSwitchSource === 'function',
+)
+const canSwitchSource = computed(() => hasSwitchSourceListener.value && !props.external)
 
 const versionNumberRef = ref<HTMLElement | null>(null)
 const fileNameRef = ref<HTMLElement | null>(null)
@@ -449,16 +458,25 @@ const sourcePillMessage = computed(() =>
 		</div>
 
 		<div class="hidden w-32 shrink-0 items-center @[800px]:flex">
-			<span
-				class="inline-flex w-28 shrink-0 items-center justify-center gap-1.5 rounded-full px-2 py-1 text-sm font-semibold leading-none"
+			<component
+				:is="canSwitchSource ? 'button' : 'span'"
+				v-tooltip="canSwitchSource ? formatMessage(messages.switchSource) : false"
+				:type="canSwitchSource ? 'button' : undefined"
+				:class="[
+					'inline-flex w-28 shrink-0 items-center justify-center gap-1.5 rounded-full px-2 py-1 text-sm font-semibold leading-none',
+					{
+						'cursor-pointer transition-[filter] duration-200 hover:brightness-110': canSwitchSource,
+					},
+				]"
 				:style="{
 					backgroundColor: `color-mix(in srgb, ${sourcePillColor} 18%, transparent)`,
 					color: sourcePillColor,
 				}"
+				@click="canSwitchSource && emit('switchSource')"
 			>
 				<span class="size-2 rounded-full" :style="{ backgroundColor: sourcePillColor }" />
 				{{ formatMessage(sourcePillMessage) }}
-			</span>
+			</component>
 		</div>
 
 		<div

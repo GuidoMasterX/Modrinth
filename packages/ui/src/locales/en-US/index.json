@@ -398,6 +398,9 @@
   "content.card.source.modrinth": {
     "defaultMessage": "Modrinth"
   },
+  "content.card.source.switch": {
+    "defaultMessage": "Switch to the other source"
+  },
   "content.card.sync-update-pending": {
     "defaultMessage": "Some synced copies are waiting for changes. An instance may be running, have a frozen or incompatible version, or already contain its own copy."
   },
@@ -2368,6 +2371,12 @@
   },
   "instance.confirm-repair.server-label": {
     "defaultMessage": "server"
+  },
+  "instance.confirm-source-switch.body": {
+    "defaultMessage": "{project} will be re-downloaded from {source}. Only continue if this exact version is available there — its updates will then come from {source} instead."
+  },
+  "instance.confirm-source-switch.header": {
+    "defaultMessage": "Switch source?"
   },
   "instance.worlds.game_mode.adventure": {
     "defaultMessage": "Adventure mode"

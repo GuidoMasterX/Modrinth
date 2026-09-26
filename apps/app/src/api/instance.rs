@@ -96,6 +96,7 @@ pub fn init<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
             instance_install_curseforge_project_with_dependencies,
             instance_install_project_with_dependencies,
             instance_switch_project_version_with_dependencies,
+            instance_switch_project_source,
             instance_add_project_from_path,
             instance_is_file_on_modrinth,
             instance_toggle_disable_project,
@@ -1251,6 +1252,18 @@ pub async fn instance_switch_project_version_with_dependencies(
         instance_id,
         project_path,
         version_id,
+    )
+    .await?)
+}
+
+#[tauri::command]
+pub async fn instance_switch_project_source(
+    instance_id: &str,
+    project_path: &str,
+) -> Result<String> {
+    Ok(theseus::instance::switch_project_source(
+        instance_id,
+        project_path,
     )
     .await?)
 }

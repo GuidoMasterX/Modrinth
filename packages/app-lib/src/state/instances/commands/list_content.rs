@@ -1,4 +1,3 @@
-use super::apply_content_install::project_matches_identity;
 use super::sync_content_files::{
     project_type_for_file, sync_instance_content_files,
 };
@@ -174,138 +173,47 @@ pub(crate) async fn get_instance_install_candidates(
     .fetch_all(&state.pool)
     .await?;
 
-    let identity_keys_by_set = identity_keys_by_content_set(
-        &rows
-            .iter()
-            .map(|row| row.content_set_id.as_str())
-            .collect::<Vec<_>>(),
-        state,
-    )
-    .await?;
+    let mut candidates = Vec::with_capacity(rows.len());
+    for row in rows {
+        let loader = ModLoader::from_string(&row.loader);
+        let compatible = instance_matches_targets(
+            project_type,
+            &row.game_version,
+            loader.as_str(),
+            targets,
+        );
 
-    Ok(rows
-        .into_iter()
-        .map(|row| {
-            let loader = ModLoader::from_string(&row.loader);
-            let compatible = instance_matches_targets(
+        let installed = if row.installed != 0 {
+            true
+        } else {
+            let cross = super::source_link::installed_cross_source(
+                &row.id,
+                &row.content_set_id,
+                state,
+            )
+            .await;
+            super::source_link::project_already_installed(
                 project_type,
-                &row.game_version,
-                loader.as_str(),
-                targets,
-            );
+                (!project_id.is_empty()).then_some(project_id),
+                cf_project_id,
+                slug,
+                title,
+                &cross,
+            )
+        };
 
-            let identity_keys =
-                identity_keys_by_set
-                    .get(&row.content_set_id)
-                    .cloned()
-                    .unwrap_or_default();
-            let installed = row.installed != 0
-                || project_matches_identity(slug, title, &identity_keys);
-
-            InstanceInstallCandidate {
-                id: row.id,
-                name: row.name,
-                icon_path: row.icon_path,
-                game_version: row.game_version,
-                loader,
-                installed,
-                compatible,
-            }
-        })
-        .collect())
-}
-
-async fn identity_keys_by_content_set(
-    content_set_ids: &[&str],
-    state: &State,
-) -> crate::Result<std::collections::HashMap<String, HashSet<String>>> {
-    let mut keys_by_set = std::collections::HashMap::new();
-    if content_set_ids.is_empty() {
-        return Ok(keys_by_set);
+        candidates.push(InstanceInstallCandidate {
+            id: row.id,
+            name: row.name,
+            icon_path: row.icon_path,
+            game_version: row.game_version,
+            loader,
+            installed,
+            compatible,
+        });
     }
 
-    let mut all_cf_ids: Vec<String> = Vec::new();
-    let mut all_mr_ids: Vec<String> = Vec::new();
-    let mut ids_by_set: Vec<(String, Vec<String>, Vec<String>)> = Vec::new();
-    for content_set_id in content_set_ids {
-        let entries = sqlite::content_rows::get_content_entries(content_set_id, &state.pool).await?;
-        let cf_ids = entries
-            .iter()
-            .filter_map(|entry| entry.cf_project_id.map(|id| id.to_string()))
-            .collect::<Vec<_>>();
-        let mr_ids = entries
-            .iter()
-            .filter_map(|entry| entry.project_id.clone())
-            .collect::<Vec<_>>();
-        all_cf_ids.extend(cf_ids.iter().cloned());
-        all_mr_ids.extend(mr_ids.iter().cloned());
-        ids_by_set.push(((*content_set_id).to_string(), cf_ids, mr_ids));
-    }
-
-    if all_cf_ids.is_empty() && all_mr_ids.is_empty() {
-        return Ok(keys_by_set);
-    }
-
-    let mut keys_by_id: std::collections::HashMap<String, HashSet<String>> =
-        std::collections::HashMap::new();
-    if !all_cf_ids.is_empty() {
-        let id_refs = all_cf_ids.iter().map(String::as_str).collect::<Vec<_>>();
-        let projects = CachedEntry::get_curseforge_project_many(
-            &id_refs,
-            None,
-            &state.pool,
-            &state.api_semaphore,
-        )
-        .await?;
-        for (project, id) in projects.into_iter().zip(all_cf_ids.iter()) {
-            let mut keys = HashSet::new();
-            keys.extend(
-                project
-                    .slug
-                    .iter()
-                    .map(|slug| super::apply_content_install::normalized_identity_key_pub(slug)),
-            );
-            keys.insert(super::apply_content_install::normalized_identity_key_pub(
-                &project.title,
-            ));
-            keys_by_id.insert(id.clone(), keys);
-        }
-    }
-    if !all_mr_ids.is_empty() {
-        let id_refs = all_mr_ids.iter().map(String::as_str).collect::<Vec<_>>();
-        let projects = CachedEntry::get_project_many(
-            &id_refs,
-            None,
-            &state.pool,
-            &state.api_semaphore,
-        )
-        .await?;
-        for (project, id) in projects.into_iter().zip(all_mr_ids.iter()) {
-            let mut keys = HashSet::new();
-            keys.extend(
-                project
-                    .slug
-                    .iter()
-                    .map(|slug| super::apply_content_install::normalized_identity_key_pub(slug)),
-            );
-            keys.insert(super::apply_content_install::normalized_identity_key_pub(
-                &project.title,
-            ));
-            keys_by_id.insert(id.clone(), keys);
-        }
-    }
-
-    for (content_set_id, cf_ids, mr_ids) in ids_by_set {
-        let mut keys = HashSet::new();
-        for id in cf_ids.iter().chain(mr_ids.iter()) {
-            if let Some(id_keys) = keys_by_id.get(id) {
-                keys.extend(id_keys.iter().cloned());
-            }
-        }
-        keys_by_set.insert(content_set_id, keys);
-    }
-
-    Ok(keys_by_set)
+    Ok(candidates)
 }
 
 fn instance_matches_targets(

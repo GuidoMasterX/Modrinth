@@ -112,8 +112,8 @@ async fn check_content_updates_with_cache_behaviours(
         &files,
         &entries_by_file_id,
         &skips_by_entry_id,
-        &state.pool,
-        &state.api_semaphore,
+        state,
+        update_cache_behaviour,
     )
     .await?;
     let candidates = files
@@ -252,6 +252,52 @@ pub(crate) fn curseforge_latest_compatible_file<'a>(
         .max_by_key(|file| parse_cf_date(&file.file_date))
 }
 
+/// Same as [`curseforge_latest_compatible_file`], but for the cached
+/// [`crate::api::curseforge::normalize::SourceVersion`] representation so the
+/// CurseForge update check can go through the cache layer instead of issuing a
+/// live API request per project.
+pub(crate) fn curseforge_latest_compatible_cached_version<'a>(
+    versions: &'a [crate::api::curseforge::normalize::SourceVersion],
+    game_version: &str,
+    loader: &str,
+    update_channel: ReleaseChannel,
+) -> Option<&'a crate::api::curseforge::normalize::SourceVersion> {
+    let release_type = |version_type: &str| -> i32 {
+        match version_type.to_ascii_lowercase().as_str() {
+            "beta" => 2,
+            "alpha" => 3,
+            _ => 1,
+        }
+    };
+    let allowed_release_types = match update_channel {
+        ReleaseChannel::Release => 1..=1,
+        ReleaseChannel::Beta => 1..=2,
+        ReleaseChannel::Alpha => 1..=3,
+    };
+    versions
+        .iter()
+        .filter(|version| {
+            version
+                .game_versions
+                .iter()
+                .any(|candidate| candidate == game_version)
+        })
+        .filter(|version| {
+            let (_, game_version_loaders) =
+                crate::api::curseforge::normalize::split_file_game_data(
+                    &version.game_versions,
+                );
+            game_version_loaders
+                .iter()
+                .chain(version.loaders.iter())
+                .any(|candidate| candidate.eq_ignore_ascii_case(loader))
+        })
+        .filter(|version| {
+            allowed_release_types.contains(&release_type(&version.version_type))
+        })
+        .max_by_key(|version| version.date_published.clone().unwrap_or_default())
+}
+
 async fn check_curseforge_content_updates(
     update_channel: ReleaseChannel,
     game_version: &str,
@@ -259,10 +305,10 @@ async fn check_curseforge_content_updates(
     files: &[InstanceFile],
     entries_by_file_id: &HashMap<&str, &ContentEntry>,
     skips_by_entry_id: &HashMap<String, Option<String>>,
-    pool: &sqlx::SqlitePool,
-    api_semaphore: &crate::util::fetch::FetchSemaphore,
+    state: &State,
+    cache_behaviour: Option<CacheBehaviour>,
 ) -> crate::Result<Vec<ContentUpdate>> {
-    use crate::api::curseforge::normalize::Source;
+    use crate::api::curseforge::normalize::{Source, SourceVersion};
 
     let mut project_entries: HashMap<i64, Vec<(&InstanceFile, &ContentEntry)>> =
         HashMap::new();
@@ -279,54 +325,84 @@ async fn check_curseforge_content_updates(
         }
     }
 
-    let mut output = Vec::new();
-    for (cf_project_id, pairs) in project_entries {
-        let cf_files = match crate::api::curseforge::api::get_mod_files(
-            cf_project_id,
-            Some(game_version),
-            None,
-            api_semaphore,
-            pool,
+    if project_entries.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let cf_project_ids = project_entries
+        .keys()
+        .map(|id| id.to_string())
+        .collect::<Vec<_>>();
+    let cf_project_id_refs = cf_project_ids
+        .iter()
+        .map(String::as_str)
+        .collect::<Vec<_>>();
+    let versions_by_project =
+        match CachedEntry::get_curseforge_project_versions_many(
+            &cf_project_id_refs,
+            cache_behaviour,
+            &state.pool,
+            &state.api_semaphore,
         )
         .await
         {
-            Ok(files) => files,
+            Ok(cached) => cached
+                .into_iter()
+                .map(|entry| (entry.project_id.clone(), entry.versions))
+                .collect::<HashMap<String, Vec<SourceVersion>>>(),
             Err(err) => {
                 tracing::warn!(
-                    "Failed to check CurseForge updates for project {cf_project_id}: {err}"
+                    "Failed to fetch CurseForge project versions for update \
+                     checks: {err}"
                 );
-                continue;
+                HashMap::new()
             }
         };
-        let latest = curseforge_latest_compatible_file(
-            &cf_files,
+
+    let mut output = Vec::new();
+    for (cf_project_id, pairs) in project_entries {
+        let Some(versions) = versions_by_project.get(&cf_project_id.to_string())
+        else {
+            // The fetch failed for this project: leave any previously stored
+            // check alone rather than reporting a false "no update".
+            continue;
+        };
+        let latest = curseforge_latest_compatible_cached_version(
+            versions,
             game_version,
             loader,
             update_channel,
         );
-        let Some(latest) = latest else {
-            continue;
-        };
         for (file, entry) in pairs {
             let Some(cf_version_id) = entry.cf_version_id else {
                 continue;
             };
-            if latest.id == cf_version_id {
-                continue;
-            }
-            let update_version_id = format!("cf-{}", latest.id);
-            let suppressed = entry.updates_ignored
-                || skips_by_entry_id
-                    .get(entry.id.as_str())
-                    .and_then(|skipped| skipped.as_deref())
-                    == Some(update_version_id.as_str());
+            let update_version_id = latest.and_then(|latest| {
+                if latest.id.parse::<i64>().ok() == Some(cf_version_id) {
+                    None
+                } else {
+                    Some(format!("cf-{}", latest.id))
+                }
+            });
+            let suppressed = update_version_id.as_deref().is_some_and(
+                |update_version_id| {
+                    entry.updates_ignored
+                        || skips_by_entry_id
+                            .get(entry.id.as_str())
+                            .and_then(|skipped| skipped.as_deref())
+                            == Some(update_version_id)
+                },
+            );
             content_rows::upsert_content_update_check(
                 &entry.id,
                 update_channel,
-                Some(&update_version_id),
-                pool,
+                update_version_id.as_deref(),
+                &state.pool,
             )
             .await?;
+            let Some(update_version_id) = update_version_id else {
+                continue;
+            };
             if suppressed {
                 continue;
             }

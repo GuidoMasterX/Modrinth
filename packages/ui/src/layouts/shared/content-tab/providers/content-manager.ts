@@ -82,6 +82,9 @@ export interface ContentManagerContext {
 	// Switch version (optional)
 	switchVersion?: (item: ContentItem) => void
 
+	// Switch project to its counterpart on the other source (optional)
+	switchSource?: (item: ContentItem) => void
+
 	// Per-item overflow menu (optional)
 	getOverflowOptions?: (item: ContentItem) => ButtonMenuOption[]
 

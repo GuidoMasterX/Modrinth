@@ -824,6 +824,13 @@ function handleSwitchVersionById(id: string) {
 	}
 }
 
+function handleSwitchSourceById(id: string) {
+	const item = ctx.items.value.find((i) => getItemId(i) === id)
+	if (item && !item.locked) {
+		ctx.switchSource?.(item)
+	}
+}
+
 // Bulk updating
 const confirmBulkUpdateModal = ref<InstanceType<typeof ConfirmBulkUpdateModal>>()
 const pendingBulkUpdateItems = ref<ContentItem[]>([])
@@ -1251,6 +1258,7 @@ const confirmUnlinkModal = ref<InstanceType<typeof ConfirmUnlinkModal>>()
 							@delete="handleDeleteById"
 							@update="handleUpdateById"
 							@switch-version="handleSwitchVersionById"
+							@switch-source="handleSwitchSourceById"
 						>
 							<template #empty>
 								<span>{{ formatMessage(messages.noContentFound) }}</span>

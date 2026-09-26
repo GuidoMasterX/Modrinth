@@ -520,6 +520,16 @@ export async function switch_project_version_with_dependencies(
 	})
 }
 
+export async function switch_project_source(
+	instanceId: string,
+	projectPath: string,
+): Promise<string> {
+	return await invoke('plugin:instance|instance_switch_project_source', {
+		instanceId,
+		projectPath,
+	})
+}
+
 // Add a project to an instance from a path + project_type
 // Returns a path to the new project file
 export async function add_project_from_path(

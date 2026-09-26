@@ -315,6 +315,35 @@ pub async fn switch_project_version_with_dependencies(
 }
 
 #[tracing::instrument]
+pub async fn switch_project_source(
+    instance_id: &str,
+    project_path: &str,
+) -> crate::Result<String> {
+    let state = State::get().await?;
+    ensure_shared_instance_can_modify_project(
+        instance_id,
+        project_path,
+        &state,
+    )
+    .await?;
+    ensure_project_not_frozen(instance_id, project_path, &state).await?;
+    let metadata = super::get::get(instance_id).await?.ok_or_else(|| {
+        crate::ErrorKind::InputError("Unknown instance".to_string())
+    })?;
+    let path =
+        crate::state::instances::commands::switch_project_source(
+            instance_id,
+            project_path,
+            &state,
+        )
+        .await?;
+    super::synced_packs::reconcile_after_content_change(instance_id).await;
+    emit_instance(&metadata.instance.id, InstancePayloadType::Edited).await?;
+
+    Ok(path)
+}
+
+#[tracing::instrument]
 pub async fn add_project_from_path(
     instance_id: &str,
     path: &Path,

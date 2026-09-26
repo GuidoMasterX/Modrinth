@@ -10,6 +10,7 @@ export { default as ConfirmDisableModal } from './components/modals/ConfirmDisab
 export { default as ConfirmModpackUpdateModal } from './components/modals/ConfirmModpackUpdateModal.vue'
 export { default as ConfirmReinstallModal } from './components/modals/ConfirmReinstallModal.vue'
 export { default as ConfirmRepairModal } from './components/modals/ConfirmRepairModal.vue'
+export { default as ConfirmSourceSwitchModal } from './components/modals/ConfirmSourceSwitchModal.vue'
 export { default as ConfirmUnlinkModal } from './components/modals/ConfirmUnlinkModal.vue'
 export { default as ContentUpdaterModal } from './components/modals/content-updater-modal/index.vue'
 export { default as ContentDependencyWarningModal } from './components/modals/ContentDependencyWarningModal.vue'

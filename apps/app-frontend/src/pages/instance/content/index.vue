@@ -83,6 +83,14 @@
 					@version-select="handleVersionSelect"
 					@version-hover="handleVersionHover"
 				/>
+				<ConfirmSourceSwitchModal
+					ref="confirmSourceSwitchModalRef"
+					:project-name="sourceSwitchItem?.project?.title ?? sourceSwitchItem?.file_name ?? ''"
+					:target-source="
+						sourceSwitchItem?.package_source === 'curseforge' ? 'Modrinth' : 'CurseForge'
+					"
+					@switch="handleSourceSwitchConfirm"
+				/>
 			</template>
 		</ContentPageLayout>
 	</ReadyTransition>
@@ -105,6 +113,7 @@ import {
 	commonMessages,
 	ConfirmDisableModal,
 	ConfirmModpackUpdateModal,
+	ConfirmSourceSwitchModal,
 	ContentCardLayout as ContentPageLayout,
 	type ContentItem,
 	type ContentOwner,
@@ -164,6 +173,7 @@ import {
 	set_project_locked,
 	set_project_skipped_update_version,
 	set_project_updates_ignored,
+	switch_project_source,
 	switch_project_version_with_dependencies,
 	toggle_disable_project,
 	update_all,
@@ -421,6 +431,7 @@ const isPackLocked = computed(
 const shareModal = ref<InstanceType<typeof ShareModalWrapper> | null>()
 const exportModal = ref(null)
 const contentUpdaterModal = ref<InstanceType<typeof ContentUpdaterModal> | null>()
+const confirmSourceSwitchModalRef = ref<InstanceType<typeof ConfirmSourceSwitchModal> | null>()
 const managedContentModal = ref<InstanceType<typeof ManagedContentModal> | null>()
 const modpackUpdateConfirmModal = ref<InstanceType<typeof ConfirmModpackUpdateModal> | null>()
 const sharedDisableConfirmModal = ref<InstanceType<typeof ConfirmDisableModal> | null>()
@@ -1139,6 +1150,39 @@ async function switchProjectVersion(mod: ContentItem, version: Labrinth.Versions
 	}
 }
 
+const sourceSwitchItem = ref<ContentItem | null>(null)
+
+function handleSwitchSource(item: ContentItem) {
+	if (!item.file_path || item.locked) return
+	sourceSwitchItem.value = item
+	confirmSourceSwitchModalRef.value?.show()
+}
+
+async function handleSourceSwitchConfirm() {
+	const item = sourceSwitchItem.value
+	if (!item?.file_path) return
+	sourceSwitchItem.value = null
+
+	const operation = beginContentOperation(item)
+	if (!operation) return
+
+	try {
+		await switch_project_source(instance.value.id, item.file_path)
+		trackEvent('InstanceProjectSourceSwitch', {
+			loader: instance.value.loader,
+			game_version: instance.value.game_version,
+			id: item.project?.id,
+			name: item.project?.title ?? item.file_name,
+			project_type: item.project_type,
+		})
+	} catch (err) {
+		handleError(err as Error)
+	} finally {
+		await refreshContentState('must_revalidate')
+		finishContentOperation(item, operation)
+	}
+}
+
 async function handleUpdate(id: string) {
 	const item = projects.value.find((p) => getContentItemId(p) === id)
 	if (!item || item.locked || !canUpdateProject(item) || !item.project?.id || !item.version?.id)
@@ -1837,6 +1881,7 @@ provideContentManager({
 	unlinkModpack: unpairInstance,
 	openManagedContentSettings: openSettings,
 	switchVersion: handleSwitchVersion,
+	switchSource: handleSwitchSource,
 	getOverflowOptions,
 	shareItems: handleShareItems,
 	getItemId: getContentItemId,

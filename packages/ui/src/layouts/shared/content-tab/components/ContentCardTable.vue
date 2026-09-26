@@ -61,6 +61,7 @@ const emit = defineEmits<{
 	delete: [id: string, event: MouseEvent]
 	update: [id: string]
 	switchVersion: [id: string]
+	switchSource: [id: string]
 	sort: [column: ContentCardTableSortColumn, direction: ContentCardTableSortDirection]
 }>()
 
@@ -70,6 +71,9 @@ const hasDeleteListener = computed(() => typeof instance?.vnode.props?.onDelete 
 const hasUpdateListener = computed(() => typeof instance?.vnode.props?.onUpdate === 'function')
 const hasSwitchVersionListener = computed(
 	() => typeof instance?.vnode.props?.onSwitchVersion === 'function',
+)
+const hasSwitchSourceListener = computed(
+	() => typeof instance?.vnode.props?.onSwitchSource === 'function',
 )
 const hasEnabledListener = computed(
 	() => typeof instance?.vnode.props?.['onUpdate:enabled'] === 'function',
@@ -335,9 +339,14 @@ function handleSort(column: ContentCardTableSortColumn) {
 					@update:enabled="(val) => emit('update:enabled', item.id, val)"
 					@delete="(e: MouseEvent) => emit('delete', item.id, e)"
 					@update="emit('update', item.id)"
-					v-on="
-						hasSwitchVersionListener ? { switchVersion: () => emit('switchVersion', item.id) } : {}
-					"
+					v-on="{
+						...(hasSwitchVersionListener
+							? { switchVersion: () => emit('switchVersion', item.id) }
+							: {}),
+						...(hasSwitchSourceListener
+							? { switchSource: () => emit('switchSource', item.id) }
+							: {}),
+					}"
 				>
 					<template #title-badges>
 						<slot name="itemTitleBadges" :item="item" :index="visibleRange.start + idx" />
@@ -406,6 +415,7 @@ function handleSort(column: ContentCardTableSortColumn) {
 				@delete="(e: MouseEvent) => emit('delete', item.id, e)"
 				@update="emit('update', item.id)"
 				@switch-version="emit('switchVersion', item.id)"
+				@switch-source="emit('switchSource', item.id)"
 			>
 				<template #title-badges>
 					<slot name="itemTitleBadges" :item="item" :index="index" />

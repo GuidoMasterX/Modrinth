@@ -285,6 +285,7 @@ fn main() {
                         "instance_install_curseforge_project_with_dependencies",
                         "instance_install_project_with_dependencies",
                         "instance_switch_project_version_with_dependencies",
+                        "instance_switch_project_source",
                         "instance_add_project_from_path",
                         "instance_is_file_on_modrinth",
                         "instance_toggle_disable_project",

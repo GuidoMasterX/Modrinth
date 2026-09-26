@@ -42,6 +42,9 @@ pub(crate) use self::launch_context::*;
 mod apply_content_install;
 pub(crate) use self::apply_content_install::*;
 
+mod source_link;
+pub(crate) use self::source_link::*;
+
 mod check_content_updates;
 pub(crate) use self::check_content_updates::refresh_content_updates;
 

@@ -129,95 +129,6 @@ pub(crate) fn normalized_identity_key_pub(value: &str) -> String {
 	normalized_identity_key(value)
 }
 
-pub(crate) fn project_matches_identity(
-	slug: Option<&str>,
-	title: &str,
-	identity_keys: &HashSet<String>,
-) -> bool {
-	if identity_keys.is_empty() {
-		return false;
-	}
-	let title_key = normalized_identity_key(title);
-	if !title_key.is_empty() && identity_keys.contains(&title_key) {
-		return true;
-	}
-	slug.map(normalized_identity_key).is_some_and(|slug_key| {
-		!slug_key.is_empty() && identity_keys.contains(&slug_key)
-	})
-}
-
-async fn installed_cf_identity_keys(
-	content_set_id: &str,
-	state: &State,
-) -> crate::Result<HashSet<String>> {
-	let entries =
-		content_rows::get_content_entries(content_set_id, &state.pool).await?;
-	let cf_ids = entries
-		.iter()
-		.filter_map(|entry| entry.cf_project_id.map(|id| id.to_string()))
-		.collect::<Vec<_>>();
-	if cf_ids.is_empty() {
-		return Ok(HashSet::new());
-	}
-	let id_refs = cf_ids.iter().map(String::as_str).collect::<Vec<_>>();
-	let projects = CachedEntry::get_curseforge_project_many(
-		&id_refs,
-		None,
-		&state.pool,
-		&state.api_semaphore,
-	)
-	.await?;
-	Ok(projects
-		.into_iter()
-		.flat_map(|project| {
-			project
-				.slug
-				.iter()
-				.map(|slug| normalized_identity_key(slug))
-				.chain(std::iter::once(normalized_identity_key(
-					&project.title,
-				)))
-				.collect::<HashSet<_>>()
-		})
-		.collect())
-}
-
-async fn installed_mr_identity_keys(
-	content_set_id: &str,
-	state: &State,
-) -> crate::Result<HashSet<String>> {
-	let entries =
-		content_rows::get_content_entries(content_set_id, &state.pool).await?;
-	let mr_ids = entries
-		.iter()
-		.filter_map(|entry| entry.project_id.clone())
-		.collect::<Vec<_>>();
-	if mr_ids.is_empty() {
-		return Ok(HashSet::new());
-	}
-	let id_refs = mr_ids.iter().map(String::as_str).collect::<Vec<_>>();
-	let projects = CachedEntry::get_project_many(
-		&id_refs,
-		None,
-		&state.pool,
-		&state.api_semaphore,
-	)
-	.await?;
-	Ok(projects
-		.into_iter()
-		.flat_map(|project| {
-			project
-				.slug
-				.iter()
-				.map(|slug| normalized_identity_key(slug))
-				.chain(std::iter::once(normalized_identity_key(
-					&project.title,
-				)))
-				.collect::<HashSet<_>>()
-		})
-		.collect())
-}
-
 fn version_to_resolver(
     version: Version,
 ) -> modrinth_content_management::Version {
@@ -323,38 +234,53 @@ pub(crate) async fn resolve_install_plan(
 	.map_err(resolver_error)?;
 
 	if !plan.dependencies.is_empty() {
-		let cf_identity =
-			installed_cf_identity_keys(&content_set.id, state).await?;
-		if !cf_identity.is_empty() {
+		let installed = super::source_link::installed_cross_source(
+			instance_id,
+			&content_set.id,
+			state,
+		)
+		.await;
+		if !installed.is_empty() {
+			let dependency_ids = plan
+				.dependencies
+				.iter()
+				.map(|dependency| dependency.project_id.clone())
+				.collect::<Vec<_>>();
+			let dependency_id_refs =
+				dependency_ids.iter().map(String::as_str).collect::<Vec<_>>();
+			let dependency_projects = CachedEntry::get_project_many(
+				&dependency_id_refs,
+				Some(CacheBehaviour::MustRevalidate),
+				&state.pool,
+				&state.api_semaphore,
+			)
+			.await
+			.unwrap_or_default()
+			.into_iter()
+			.map(|project| (project.id.clone(), project))
+			.collect::<std::collections::HashMap<_, _>>();
+
 			let mut dependencies = Vec::new();
 			for dependency in plan.dependencies {
-				let skip = match CachedEntry::get_project(
-					&dependency.project_id,
-					Some(CacheBehaviour::MustRevalidate),
-					&state.pool,
-					&state.api_semaphore,
-				)
-				.await
-				{
-					Ok(Some(project)) => project_matches_identity(
-						project.slug.as_deref(),
-						&project.title,
-						&cf_identity,
-					),
-					Ok(None) => false,
-					Err(error) => {
-						tracing::warn!(
-							"Unable to check Modrinth dependency {} \
-							 against CurseForge installs: {error}",
-							dependency.project_id
-						);
-						false
-					}
-				};
+				let skip = dependency_projects
+					.get(&dependency.project_id)
+					.is_some_and(|project| {
+						let project_type =
+							ProjectType::from_name(&project.project_type)
+								.unwrap_or(ProjectType::Mod);
+						super::source_link::project_already_installed(
+							project_type,
+							Some(&dependency.project_id),
+							None,
+							project.slug.as_deref(),
+							&project.title,
+							&installed,
+						)
+					});
 				if skip {
 					tracing::info!(
 						"Skipping Modrinth dependency {}: already \
-						 installed from CurseForge",
+						 installed from the other source",
 						dependency.project_id
 					);
 					plan.skipped.push(SkippedContent {
@@ -887,14 +813,12 @@ pub(crate) async fn resolve_and_install_curseforge_project(
     let game_version = content_set.game_version.clone();
     let loader_str = content_set.loader.as_str().to_string();
     let update_channel = scope.instance.update_channel;
-    let installed_cf_project_ids: HashSet<i64> =
-        content_rows::get_content_entries(&scope.content_set_id, &state.pool)
-            .await?
-            .into_iter()
-            .filter_map(|entry| entry.cf_project_id)
-            .collect();
-    let installed_mr_identity =
-        installed_mr_identity_keys(&scope.content_set_id, state).await?;
+    let cross_source = super::source_link::installed_cross_source(
+        instance_id,
+        &scope.content_set_id,
+        state,
+    )
+    .await;
 
     let mut installed = Vec::new();
     let root_file_id = match cf_file_id {
@@ -953,7 +877,7 @@ pub(crate) async fn resolve_and_install_curseforge_project(
         if depth > CF_DEPENDENCY_MAX_DEPTH || !visited.insert(dep_id) {
             continue;
         }
-        if installed_cf_project_ids.contains(&dep_id) {
+        if cross_source.cf_project_ids.contains(&dep_id) {
             continue;
         }
 
@@ -973,18 +897,36 @@ pub(crate) async fn resolve_and_install_curseforge_project(
             }
             Err(_) => None,
         };
-        if let Some(project) = &dep_project
-            && project_matches_identity(
+        if let Some(project) = &dep_project {
+            let dep_project_type =
+                match crate::api::curseforge::normalize::SourceProjectType::from_cf_class(
+                    project.class_id,
+                ) {
+                    crate::api::curseforge::normalize::SourceProjectType::ResourcePack => {
+                        ProjectType::ResourcePack
+                    }
+                    crate::api::curseforge::normalize::SourceProjectType::ShaderPack => {
+                        ProjectType::ShaderPack
+                    }
+                    crate::api::curseforge::normalize::SourceProjectType::DataPack => {
+                        ProjectType::DataPack
+                    }
+                    _ => ProjectType::Mod,
+                };
+            if super::source_link::project_already_installed(
+                dep_project_type,
+                None,
+                Some(dep_id),
                 project.slug.as_deref(),
                 &project.name,
-                &installed_mr_identity,
-            )
-        {
-            tracing::info!(
-                "Skipping CurseForge dependency {dep_id}: already installed \
-                 from Modrinth"
-            );
-            continue;
+                &cross_source,
+            ) {
+                tracing::info!(
+                    "Skipping CurseForge dependency {dep_id}: already installed \
+                     from the other source"
+                );
+                continue;
+            }
         }
 
         let file_id = match dep_file_id {
