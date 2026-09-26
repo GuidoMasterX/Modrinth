@@ -44,13 +44,11 @@ pub(crate) async fn refresh_content_updates(
     instance_id: &str,
     state: &State,
 ) -> crate::Result<()> {
-    check_content_updates_with_cache_behaviours(
-        instance_id,
-        None,
-        Some(CacheBehaviour::Bypass),
-        state,
-    )
-    .await?;
+    // No `Bypass` here: forcing a live update lookup for every installed file
+    // on each manual refresh burns the API's request budget, and a throttled
+    // response then fails the whole check. Stale rows revalidate in the
+    // background instead, which never surfaces an error.
+    check_content_updates_with_cache_behaviours(instance_id, None, None, state).await?;
 
     Ok(())
 }
@@ -118,7 +116,11 @@ async fn check_content_updates_with_cache_behaviours(
         state,
         None,
     )
-    .await?;
+    .await
+    .unwrap_or_else(|err| {
+        tracing::warn!("CurseForge update check failed: {err}");
+        Vec::new()
+    });
     let candidates = files
         .into_iter()
         .filter_map(|file| {
@@ -174,13 +176,26 @@ async fn check_content_updates_with_cache_behaviours(
         .iter()
         .map(|key| key.as_str())
         .collect::<Vec<_>>();
-    let updates = CachedEntry::get_file_update_many(
+    // A rate-limited Modrinth response must not fail the entire check: the
+    // CurseForge results above are already resolved, and losing them because an
+    // unrelated source throttled us is what made CF updates appear broken.
+    let updates = match CachedEntry::get_file_update_many(
         &update_key_refs,
         update_cache_behaviour,
         &state.pool,
         &state.api_semaphore,
     )
-    .await?;
+    .await
+    {
+        Ok(updates) => updates,
+        Err(err) => {
+            tracing::warn!(
+                "Unable to fetch Modrinth version updates: {err}; continuing \
+                 without them this cycle"
+            );
+            Vec::new()
+        }
+    };
     let mut updates_by_hash: HashMap<String, Vec<String>> = HashMap::new();
     for update in updates {
         updates_by_hash
