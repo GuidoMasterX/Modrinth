@@ -322,9 +322,13 @@ pub async fn get_mod_files(
         .await?;
 
         let page_len = res.data.len();
+        let total_count = res.pagination.total_count as usize;
         all_files.extend(res.data);
 
-        if page_len < CF_MAX_PAGE_SIZE as usize || all_files.len() >= 1000 {
+        if page_len < CF_MAX_PAGE_SIZE as usize
+            || all_files.len() >= 1000
+            || (total_count > 0 && all_files.len() >= total_count)
+        {
             break;
         }
         index += CF_MAX_PAGE_SIZE;

@@ -1613,51 +1613,113 @@ async fn upsert_entry_for_file(
     Ok(())
 }
 
-/// Files discovered on disk that exactly match a CurseForge fingerprint become
-/// tracked content entries. Without this, manually installed CurseForge files
-/// (a common way to run a CurseForge-managed pack) appear in the listing but
-/// never receive update checks, because check results are keyed by entry.
-pub(crate) async fn track_curseforge_files(
+/// Files discovered on disk that match a known project become tracked content
+/// entries. Modrinth hash metadata wins over a CurseForge fingerprint match;
+/// the fingerprint is only used for files the Modrinth lookup does not know
+/// (`modrinth_lookup_ok` must be true then, otherwise a throttled lookup would
+/// mislabel Modrinth files as CurseForge-exclusive).
+pub(crate) async fn track_matched_files(
     instance_id: &str,
     files: &[InstanceFile],
     entries_by_file_id: &std::collections::HashMap<
         &str,
         &crate::state::instances::ContentEntry,
     >,
+    file_info_by_hash: &std::collections::HashMap<
+        String,
+        crate::state::CachedFile,
+    >,
     cf_metadata_by_hash: &std::collections::HashMap<
         String,
         crate::state::FileMetadata,
     >,
+    modrinth_lookup_ok: bool,
     state: &State,
 ) -> crate::Result<usize> {
-    let untracked = files
+    let matched = files
         .iter()
+        .filter(|file| !file.missing)
         .filter(|file| !entries_by_file_id.contains_key(file.id.as_str()))
         .filter_map(|file| {
-            let metadata = cf_metadata_by_hash.get(&file.sha1)?;
-            let cf_project_id = metadata.cf_project_id?;
-            let cf_version_id = metadata.cf_version_id?;
             let project_type =
                 super::sync_content_files::project_type_for_file(file)?;
-            Some((file, project_type, cf_project_id, cf_version_id))
+            if let Some(metadata) = file_info_by_hash.get(&file.sha1) {
+                if !metadata.project_id.is_empty()
+                    && !metadata.version_id.is_empty()
+                {
+                    return Some((
+                        file,
+                        project_type,
+                        Some((
+                            metadata.project_id.clone(),
+                            metadata.version_id.clone(),
+                        )),
+                        None,
+                    ));
+                }
+            }
+            if !modrinth_lookup_ok {
+                return None;
+            }
+            let cf = cf_metadata_by_hash.get(&file.sha1)?;
+            let cf_project_id = cf.cf_project_id?;
+            let cf_version_id = cf.cf_version_id?;
+            Some((
+                file,
+                project_type,
+                None,
+                Some((cf_project_id, cf_version_id)),
+            ))
         })
         .collect::<Vec<_>>();
-    if untracked.is_empty() {
+    if matched.is_empty() {
         return Ok(0);
     }
 
     let _content_lock = state.lock_instance_content(instance_id).await;
     let scope = resolve_content_scope(instance_id, None, state).await?;
+
+    // Re-read under the lock so a concurrent listing or check cannot flip the
+    // source of a file that was tracked while this pass was computing matches.
+    let already_tracked = content_rows::get_content_entries(
+        &scope.content_set_id,
+        &state.pool,
+    )
+    .await?
+    .into_iter()
+    .filter_map(|entry| entry.file_id)
+    .collect::<HashSet<_>>();
+    let matched = matched
+        .into_iter()
+        .filter(|(file, ..)| !already_tracked.contains(&file.id))
+        .collect::<Vec<_>>();
+    if matched.is_empty() {
+        return Ok(0);
+    }
+
     let mut tx = state.pool.begin().await?;
-    for (file, project_type, cf_project_id, cf_version_id) in &untracked {
+    for (file, project_type, modrinth, curseforge) in &matched {
+        let (project_id, version_id, origin) = match (modrinth, curseforge) {
+            (Some((project_id, version_id)), _) => (
+                Some(project_id.as_str()),
+                Some(version_id.as_str()),
+                EntryOrigin::default(),
+            ),
+            (None, Some((cf_project_id, cf_version_id))) => (
+                None,
+                None,
+                EntryOrigin::curseforge(*cf_project_id, Some(*cf_version_id)),
+            ),
+            (None, None) => continue,
+        };
         upsert_entry_for_file(
             &scope,
             file,
             *project_type,
-            None,
-            None,
+            project_id,
+            version_id,
             ContentSourceKind::Local,
-            EntryOrigin::curseforge(*cf_project_id, Some(*cf_version_id)),
+            origin,
             &mut tx,
         )
         .await?;
@@ -1665,5 +1727,5 @@ pub(crate) async fn track_curseforge_files(
     tx.commit().await?;
     super::mark_shared_instance_stale(&scope.instance.id, &state.pool).await?;
 
-    Ok(untracked.len())
+    Ok(matched.len())
 }

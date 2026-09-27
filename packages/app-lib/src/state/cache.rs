@@ -57,6 +57,7 @@ pub enum CacheValueType {
     CurseforgeProjectLatest,
     CurseforgeCategories,
     CurseforgeFile,
+    CurseforgeFileChangelog,
     CurseforgeFingerprints,
 }
 
@@ -95,6 +96,9 @@ impl CacheValueType {
             CacheValueType::CurseforgeProjectLatest => "cf_project_latest_v1",
             CacheValueType::CurseforgeCategories => "cf_categories",
             CacheValueType::CurseforgeFile => "cf_file_v2",
+            CacheValueType::CurseforgeFileChangelog => {
+                "cf_file_changelog_v1"
+            }
             CacheValueType::CurseforgeFingerprints => "cf_fingerprints",
         }
     }
@@ -133,6 +137,7 @@ impl CacheValueType {
             "cf_project_latest_v1" => CacheValueType::CurseforgeProjectLatest,
             "cf_categories" => CacheValueType::CurseforgeCategories,
             "cf_file_v2" => CacheValueType::CurseforgeFile,
+            "cf_file_changelog_v1" => CacheValueType::CurseforgeFileChangelog,
             "cf_fingerprints" => CacheValueType::CurseforgeFingerprints,
             _ => CacheValueType::Project,
         }
@@ -143,6 +148,9 @@ impl CacheValueType {
         match self {
             CacheValueType::File => 30 * 24 * 60 * 60, // 30 days
             CacheValueType::FileHash => 30 * 24 * 60 * 60, // 30 days
+            CacheValueType::CurseforgeFileChangelog => {
+                30 * 24 * 60 * 60 // changelogs are immutable per file id
+            }
             // ModpackFiles never expire - version_id is immutable so hashes never change
             // TODO: There has to be a way to exclude this from the "Purge cache" stuff?
             CacheValueType::ModpackFiles
@@ -198,6 +206,7 @@ impl CacheValueType {
             | CacheValueType::CurseforgeProjectLatest
             | CacheValueType::CurseforgeCategories
             | CacheValueType::CurseforgeFile
+            | CacheValueType::CurseforgeFileChangelog
             | CacheValueType::CurseforgeFingerprints => None,
         }
     }
@@ -240,6 +249,13 @@ pub struct CachedCFProjectLatest {
     pub project_id: String,
     pub files: Vec<CFFile>,
     pub latest_files_indexes: Vec<CFLatestFileIndex>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct CachedCFChangelog {
+    pub mod_id: i64,
+    pub file_id: i64,
+    pub changelog: String,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -300,6 +316,7 @@ pub enum CacheValue {
     CurseforgeProjectLatest(CachedCFProjectLatest),
     CurseforgeCategories(Vec<CFCategory>),
     CurseforgeFile(SourceVersionFile),
+    CurseforgeFileChangelog(CachedCFChangelog),
     CurseforgeFingerprints(CachedCFFingerprints),
 }
 
@@ -830,6 +847,9 @@ impl CacheValue {
                 CacheValueType::CurseforgeCategories
             }
             CacheValue::CurseforgeFile(_) => CacheValueType::CurseforgeFile,
+            CacheValue::CurseforgeFileChangelog(_) => {
+                CacheValueType::CurseforgeFileChangelog
+            }
             CacheValue::CurseforgeFingerprints(_) => {
                 CacheValueType::CurseforgeFingerprints
             }
@@ -890,6 +910,9 @@ impl CacheValue {
             }
             CacheValue::CurseforgeCategories(_) => DEFAULT_ID.to_string(),
             CacheValue::CurseforgeFile(file) => file.id.clone(),
+            CacheValue::CurseforgeFileChangelog(changelog) => {
+                format!("{}-{}", changelog.mod_id, changelog.file_id)
+            }
             CacheValue::CurseforgeFingerprints(fingerprints) => {
                 fingerprints.fingerprints_key.clone()
             }
@@ -930,6 +953,7 @@ impl CacheValue {
             | CacheValue::CurseforgeProjectLatest(_)
             | CacheValue::CurseforgeCategories(_)
             | CacheValue::CurseforgeFile(_)
+            | CacheValue::CurseforgeFileChangelog(_)
             | CacheValue::CurseforgeFingerprints(_) => None,
         }
     }
@@ -986,6 +1010,9 @@ impl CacheValue {
                 serde_json::to_value(categories)
             }
             CacheValue::CurseforgeFile(file) => serde_json::to_value(file),
+            CacheValue::CurseforgeFileChangelog(changelog) => {
+                serde_json::to_value(changelog)
+            }
             CacheValue::CurseforgeFingerprints(fingerprints) => {
                 serde_json::to_value(fingerprints)
             }
@@ -1114,6 +1141,7 @@ impl_cache_methods!(
     (CurseforgeProjectVersions, CachedCFProjectVersions),
     (CurseforgeProjectLatest, CachedCFProjectLatest),
     (CurseforgeFile, SourceVersionFile),
+    (CurseforgeFileChangelog, CachedCFChangelog),
     (CurseforgeFingerprints, CachedCFFingerprints)
 );
 
@@ -2517,6 +2545,58 @@ impl CachedEntry {
                     })
                     .collect::<crate::Result<Vec<_>>>()?
             }
+            CacheValueType::CurseforgeFileChangelog => {
+                let keys = keys
+                    .iter()
+                    .map(|key| key.key().to_string())
+                    .collect::<Vec<_>>();
+
+                futures::future::try_join_all(keys.into_iter().map(
+                    |key| async move {
+                        let mut parts = key.split('-');
+                        let mod_id =
+                            parts.next().and_then(|id| id.parse::<i64>().ok());
+                        let file_id =
+                            parts.next().and_then(|id| id.parse::<i64>().ok());
+                        let (Some(mod_id), Some(file_id)) = (mod_id, file_id)
+                        else {
+                            return Ok(None);
+                        };
+                        let changelog = match crate::api::curseforge::api::get_file_changelog(
+                            mod_id,
+                            file_id,
+                            fetch_semaphore,
+                            pool,
+                        )
+                        .await
+                        {
+                            Ok(changelog) => changelog,
+                            Err(err) => {
+                                tracing::warn!(
+                                    "Unable to fetch CurseForge changelog for \
+                                     {mod_id}/{file_id}: {err}"
+                                );
+                                return Ok(None);
+                            }
+                        };
+                        Ok::<_, crate::Error>(Some((
+                            CacheValue::CurseforgeFileChangelog(
+                                CachedCFChangelog {
+                                    mod_id,
+                                    file_id,
+                                    changelog,
+                                },
+                            )
+                            .get_entry(),
+                            true,
+                        )))
+                    },
+                ))
+                .await?
+                .into_iter()
+                .flatten()
+                .collect()
+            }
             CacheValueType::CurseforgeFingerprints => {
                 let keys = keys
                     .iter()
@@ -2675,6 +2755,13 @@ impl CachedEntry {
             }
             CacheValueType::CurseforgeFile => {
                 CacheValue::CurseforgeFile(parse(data, id, "cf_file_v2")?)
+            }
+            CacheValueType::CurseforgeFileChangelog => {
+                CacheValue::CurseforgeFileChangelog(parse(
+                    data,
+                    id,
+                    "cf_file_changelog_v1",
+                )?)
             }
             CacheValueType::CurseforgeFingerprints => {
                 CacheValue::CurseforgeFingerprints(parse(

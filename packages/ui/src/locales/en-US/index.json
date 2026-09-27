@@ -3644,8 +3644,11 @@
   "project.about.links.wiki": {
     "defaultMessage": "Visit wiki"
   },
+  "project.about.modpacks.showMore": {
+    "defaultMessage": "Show more"
+  },
   "project.about.modpacks.title": {
-    "defaultMessage": "Included in modpacks"
+    "defaultMessage": "Modpacks"
   },
   "project.about.repository.fork": {
     "defaultMessage": "fork"

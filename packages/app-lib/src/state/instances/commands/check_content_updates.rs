@@ -105,7 +105,7 @@ async fn check_content_updates_with_cache_behaviours(
         .collect::<Vec<_>>();
     // Modrinth enrichment must degrade, never abort: a throttled metadata
     // lookup should still leave the CurseForge results below intact.
-    let file_info = match CachedEntry::get_file_many(
+    let (file_info, modrinth_lookup_ok) = match CachedEntry::get_file_many(
         &hashes,
         cache_behaviour,
         &state.pool,
@@ -113,13 +113,13 @@ async fn check_content_updates_with_cache_behaviours(
     )
     .await
     {
-        Ok(file_info) => file_info,
+        Ok(file_info) => (file_info, true),
         Err(err) => {
             tracing::warn!(
                 "Unable to fetch Modrinth file metadata: {err}; continuing \
                  without it"
             );
-            Vec::new()
+            (Vec::new(), false)
         }
     };
     let file_info_by_hash = file_info
@@ -127,10 +127,13 @@ async fn check_content_updates_with_cache_behaviours(
         .map(|file| (file.hash.clone(), file))
         .collect::<HashMap<_, _>>();
     // Files that exist on disk without a tracked entry never receive update
-    // checks. CurseForge fingerprints identify them exactly, so adopt them as
-    // tracked entries before checking (the listing already displays them as
-    // CurseForge projects).
-    if !file_info_by_hash.is_empty() {
+    // checks. Adopt the ones that match a known project first: a Modrinth
+    // hash win is tracked as Modrinth, a CurseForge fingerprint only when the
+    // Modrinth lookup succeeded (otherwise a throttled lookup would mislabel
+    // Modrinth files as CurseForge-exclusive).
+    if instance.install_stage
+        == crate::state::InstanceInstallStage::Installed
+    {
         let cf_metadata_by_hash =
             match super::list_content::detect_curseforge_metadata(
                 state,
@@ -150,38 +153,38 @@ async fn check_content_updates_with_cache_behaviours(
                     HashMap::new()
                 }
             };
-        if !cf_metadata_by_hash.is_empty() {
-            match super::apply_content_install::track_curseforge_files(
-                &instance.id,
-                &files,
-                &entries_by_file_id,
-                &cf_metadata_by_hash,
-                state,
-            )
-            .await
-            {
-                Ok(tracked) if tracked > 0 => {
-                    entries = content_rows::get_content_entries(
-                        &content_set.id,
-                        &state.pool,
-                    )
-                    .await?;
-                    entries_by_file_id = entries
-                        .iter()
-                        .filter_map(|entry| {
-                            entry
-                                .file_id
-                                .as_deref()
-                                .map(|file_id| (file_id, entry))
-                        })
-                        .collect();
-                }
-                Ok(_) => {}
-                Err(err) => {
-                    tracing::warn!(
-                        "Unable to track matched CurseForge files: {err}"
-                    );
-                }
+        match super::apply_content_install::track_matched_files(
+            &instance.id,
+            &files,
+            &entries_by_file_id,
+            &file_info_by_hash,
+            &cf_metadata_by_hash,
+            modrinth_lookup_ok,
+            state,
+        )
+        .await
+        {
+            Ok(tracked) if tracked > 0 => {
+                entries = content_rows::get_content_entries(
+                    &content_set.id,
+                    &state.pool,
+                )
+                .await?;
+                entries_by_file_id = entries
+                    .iter()
+                    .filter_map(|entry| {
+                        entry
+                            .file_id
+                            .as_deref()
+                            .map(|file_id| (file_id, entry))
+                    })
+                    .collect();
+            }
+            Ok(_) => {}
+            Err(err) => {
+                tracing::warn!(
+                    "Unable to track matched content files: {err}"
+                );
             }
         }
     }

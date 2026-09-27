@@ -20,12 +20,7 @@
 				:status-online="serverStatusOnline"
 				class="project-sidebar-section"
 			/>
-			<ProjectSidebarLinks
-				link-target="_blank"
-				:project="data"
-				:project-v3="projectV3"
-				class="project-sidebar-section"
-			/>
+			<ProjectSidebarTags :project="data" class="project-sidebar-section" />
 			<ProjectSidebarDependencies
 				v-if="!isServerProject"
 				:dependencies="sidebarDependencies"
@@ -36,8 +31,13 @@
 				:project-id="data.id"
 				class="project-sidebar-section"
 			/>
+			<ProjectSidebarLinks
+				link-target="_blank"
+				:project="data"
+				:project-v3="projectV3"
+				class="project-sidebar-section"
+			/>
 			<ProjectSidebarRepository :source-url="data.source_url" class="project-sidebar-section" />
-			<ProjectSidebarTags :project="data" class="project-sidebar-section" />
 			<ProjectSidebarCreators
 				:organization="organization"
 				:members="members"
@@ -491,7 +491,8 @@ watch([data, versions], async () => {
 		resolved.set(project.id, project)
 	}
 	for (const project of cfProjects ?? []) {
-		resolved.set(`${CF_ID_PREFIX}${project.id}`, project)
+		// CurseForge labrinth-shaped projects already carry the `cf-` prefix.
+		resolved.set(project.id, project)
 	}
 	sidebarDependencies.value = deps.map((dep) => {
 		const project = resolved.get(dep.project_id)

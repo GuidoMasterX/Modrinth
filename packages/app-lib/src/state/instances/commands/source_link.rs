@@ -77,8 +77,10 @@ fn counterpart_source(
 	}
 	// Untracked files (imported or dropped into the instance) still have a
 	// source when either side recognizes them.
+	// Modrinth wins when both sides recognize the file, matching the listing's
+	// default source; the user can still switch to CurseForge explicitly.
 	match (counterparts.mr.is_some(), counterparts.cf.is_some()) {
-		(true, false) => Some(InstalledSource::Modrinth),
+		(true, _) => Some(InstalledSource::Modrinth),
 		(false, true) => Some(InstalledSource::CurseForge),
 		_ => Some(InstalledSource::External),
 	}
@@ -333,7 +335,7 @@ pub(crate) async fn resolve_file_counterparts(
 	if !sha1.is_empty() {
 		match CachedEntry::get_file_many(
 			&[sha1],
-			Some(CacheBehaviour::MustRevalidate),
+			Some(CacheBehaviour::StaleWhileRevalidateSkipOffline),
 			&state.pool,
 			&state.api_semaphore,
 		)
@@ -360,7 +362,7 @@ pub(crate) async fn resolve_file_counterparts(
 			let fingerprint = crate::util::murmur2::murmur2(&bytes) as i64;
 			match CachedEntry::get_curseforge_fingerprints(
 				&fingerprint.to_string(),
-				Some(CacheBehaviour::MustRevalidate),
+				Some(CacheBehaviour::StaleWhileRevalidateSkipOffline),
 				&state.pool,
 				&state.api_semaphore,
 			)
@@ -394,14 +396,15 @@ pub(crate) async fn switch_project_source(
 ) -> crate::Result<String> {
 	let (_scope, file, entry, counterparts) =
 		resolve_counterpart_parts(instance_id, project_path, state).await?;
-	let entry = entry.ok_or_else(|| {
-		crate::ErrorKind::InputError(
-			"This project is not managed by the launcher".to_string(),
-		)
-	})?;
 
-	let switching_to_curseforge =
-		entry.project_id.as_deref().is_some_and(|id| !id.is_empty());
+	// Direction follows the entry's tracked source when there is one; an
+	// untracked file is displayed as Modrinth, so it switches to CurseForge.
+	let switching_to_curseforge = match entry.as_ref() {
+		Some(entry) => {
+			entry.source != crate::api::curseforge::normalize::Source::CurseForge
+		}
+		None => true,
+	};
 	let was_disabled = !file.enabled || project_path.ends_with(".disabled");
 
 	let mr_link = counterparts.mr.as_ref();
@@ -448,13 +451,22 @@ pub(crate) async fn switch_project_source(
 	}
 
 	if let (Some((mr_project_id, _)), Some((cf_project_id, _))) = (mr_link, cf_link) {
-		record_source_link(
-			mr_project_id,
-			cf_project_id,
-			entry.project_type.get_name(),
-			state,
-		)
-		.await;
+		let project_type_name = entry
+			.as_ref()
+			.map(|entry| entry.project_type.get_name().to_string())
+			.or_else(|| {
+				super::sync_content_files::project_type_for_file(&file)
+					.map(|project_type| project_type.get_name().to_string())
+			});
+		if let Some(project_type_name) = project_type_name {
+			record_source_link(
+				mr_project_id,
+				cf_project_id,
+				&project_type_name,
+				state,
+			)
+			.await;
+		}
 	}
 
 	Ok(new_path)

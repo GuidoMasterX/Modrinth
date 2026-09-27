@@ -891,18 +891,25 @@ async fn content_projects_for_scope_inner(
         cache_behaviour,
     )
     .await?;
-    // Files that exactly match a CurseForge fingerprint become tracked
-    // entries here, so a later check can report their updates.
-    if let Err(err) = super::apply_content_install::track_curseforge_files(
-        &resolved.instance.id,
-        &files,
-        &entries_by_file_id,
-        &cf_metadata_by_hash,
-        state,
-    )
-    .await
+    // Files that match a known project become tracked entries here, so a
+    // later check can report their updates. Modrinth wins by default; the
+    // CurseForge fingerprint is only used when the Modrinth lookup succeeded.
+    if resolved.instance.install_stage
+        == crate::state::InstanceInstallStage::Installed
     {
-        tracing::warn!("Unable to track matched CurseForge files: {err}");
+        if let Err(err) = super::apply_content_install::track_matched_files(
+            &resolved.instance.id,
+            &files,
+            &entries_by_file_id,
+            &file_info_by_hash,
+            &cf_metadata_by_hash,
+            file_info_live,
+            state,
+        )
+        .await
+        {
+            tracing::warn!("Unable to track matched content files: {err}");
+        }
     }
     let installed_channels = if packs_only {
         HashMap::new()
