@@ -1182,10 +1182,18 @@ pub async fn instance_update_all(
 pub async fn instance_update_project(
     instance_id: &str,
     project_path: &str,
+    current_version_id: Option<String>,
+    update_version_id: Option<String>,
 ) -> Result<String> {
     Ok(
-        theseus::instance::update_project(instance_id, project_path, None)
-            .await?,
+        theseus::instance::update_project(
+            instance_id,
+            project_path,
+            current_version_id.as_deref(),
+            update_version_id.as_deref(),
+            None,
+        )
+        .await?,
     )
 }
 

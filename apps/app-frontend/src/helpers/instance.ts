@@ -429,8 +429,18 @@ export async function update_all(instanceId: string): Promise<Record<string, str
 }
 
 // Updates a specified project
-export async function update_project(instanceId: string, projectPath: string): Promise<string> {
-	return await invoke('plugin:instance|instance_update_project', { instanceId, projectPath })
+export async function update_project(
+	instanceId: string,
+	projectPath: string,
+	currentVersionId?: string,
+	updateVersionId?: string,
+): Promise<string> {
+	return await invoke('plugin:instance|instance_update_project', {
+		instanceId,
+		projectPath,
+		currentVersionId,
+		updateVersionId,
+	})
 }
 
 // Add a project to an instance from a version

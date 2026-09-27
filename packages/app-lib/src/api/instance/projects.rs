@@ -94,6 +94,8 @@ pub async fn update_all_projects(
 pub async fn update_project(
     instance_id: &str,
     project_path: &str,
+    current_version_id: Option<&str>,
+    update_version_id: Option<&str>,
     skip_send_event: Option<bool>,
 ) -> crate::Result<String> {
     let state = State::get().await?;
@@ -107,6 +109,7 @@ pub async fn update_project(
     let path = crate::state::instances::commands::update_project(
         instance_id,
         project_path,
+        current_version_id.zip(update_version_id),
         &state,
     )
     .await?;

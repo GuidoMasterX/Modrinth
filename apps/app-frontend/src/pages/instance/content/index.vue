@@ -1087,7 +1087,7 @@ async function updateProject(mod: ContentItem) {
 	try {
 		const updateVersionId = mod.update_version_id!
 		if (isCfProjectId(mod.project?.id)) {
-			await update_project(instance.value.id, mod.file_path)
+			await update_project(instance.value.id, mod.file_path, mod.version?.id, updateVersionId)
 		} else {
 			await switch_project_version_with_dependencies(
 				instance.value.id,

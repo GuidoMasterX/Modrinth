@@ -104,13 +104,14 @@ pub async fn get_curseforge_description(
         return Ok(None);
     };
     let state = crate::State::get().await?;
-    Ok(crate::api::curseforge::api::get_mod_description(
-        mod_id,
-        &state.api_semaphore,
+    let cached = CachedEntry::get_curseforge_description(
+        &mod_id.to_string(),
+        Some(CacheBehaviour::StaleWhileRevalidateSkipOffline),
         &state.pool,
+        &state.api_semaphore,
     )
-    .await
-    .ok())
+    .await?;
+    Ok(cached.map(|description| description.description))
 }
 
 #[tracing::instrument]

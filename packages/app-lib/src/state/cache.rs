@@ -58,6 +58,7 @@ pub enum CacheValueType {
     CurseforgeCategories,
     CurseforgeFile,
     CurseforgeFileChangelog,
+    CurseforgeDescription,
     CurseforgeFingerprints,
 }
 
@@ -99,6 +100,7 @@ impl CacheValueType {
             CacheValueType::CurseforgeFileChangelog => {
                 "cf_file_changelog_v1"
             }
+            CacheValueType::CurseforgeDescription => "cf_description_v1",
             CacheValueType::CurseforgeFingerprints => "cf_fingerprints",
         }
     }
@@ -138,6 +140,7 @@ impl CacheValueType {
             "cf_categories" => CacheValueType::CurseforgeCategories,
             "cf_file_v2" => CacheValueType::CurseforgeFile,
             "cf_file_changelog_v1" => CacheValueType::CurseforgeFileChangelog,
+            "cf_description_v1" => CacheValueType::CurseforgeDescription,
             "cf_fingerprints" => CacheValueType::CurseforgeFingerprints,
             _ => CacheValueType::Project,
         }
@@ -207,6 +210,7 @@ impl CacheValueType {
             | CacheValueType::CurseforgeCategories
             | CacheValueType::CurseforgeFile
             | CacheValueType::CurseforgeFileChangelog
+            | CacheValueType::CurseforgeDescription
             | CacheValueType::CurseforgeFingerprints => None,
         }
     }
@@ -256,6 +260,12 @@ pub struct CachedCFChangelog {
     pub mod_id: i64,
     pub file_id: i64,
     pub changelog: String,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct CachedCFDescription {
+    pub mod_id: i64,
+    pub description: String,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -317,6 +327,7 @@ pub enum CacheValue {
     CurseforgeCategories(Vec<CFCategory>),
     CurseforgeFile(SourceVersionFile),
     CurseforgeFileChangelog(CachedCFChangelog),
+    CurseforgeDescription(CachedCFDescription),
     CurseforgeFingerprints(CachedCFFingerprints),
 }
 
@@ -850,6 +861,9 @@ impl CacheValue {
             CacheValue::CurseforgeFileChangelog(_) => {
                 CacheValueType::CurseforgeFileChangelog
             }
+            CacheValue::CurseforgeDescription(_) => {
+                CacheValueType::CurseforgeDescription
+            }
             CacheValue::CurseforgeFingerprints(_) => {
                 CacheValueType::CurseforgeFingerprints
             }
@@ -913,6 +927,9 @@ impl CacheValue {
             CacheValue::CurseforgeFileChangelog(changelog) => {
                 format!("{}-{}", changelog.mod_id, changelog.file_id)
             }
+            CacheValue::CurseforgeDescription(description) => {
+                description.mod_id.to_string()
+            }
             CacheValue::CurseforgeFingerprints(fingerprints) => {
                 fingerprints.fingerprints_key.clone()
             }
@@ -954,6 +971,7 @@ impl CacheValue {
             | CacheValue::CurseforgeCategories(_)
             | CacheValue::CurseforgeFile(_)
             | CacheValue::CurseforgeFileChangelog(_)
+            | CacheValue::CurseforgeDescription(_)
             | CacheValue::CurseforgeFingerprints(_) => None,
         }
     }
@@ -1012,6 +1030,9 @@ impl CacheValue {
             CacheValue::CurseforgeFile(file) => serde_json::to_value(file),
             CacheValue::CurseforgeFileChangelog(changelog) => {
                 serde_json::to_value(changelog)
+            }
+            CacheValue::CurseforgeDescription(description) => {
+                serde_json::to_value(description)
             }
             CacheValue::CurseforgeFingerprints(fingerprints) => {
                 serde_json::to_value(fingerprints)
@@ -1142,6 +1163,7 @@ impl_cache_methods!(
     (CurseforgeProjectLatest, CachedCFProjectLatest),
     (CurseforgeFile, SourceVersionFile),
     (CurseforgeFileChangelog, CachedCFChangelog),
+    (CurseforgeDescription, CachedCFDescription),
     (CurseforgeFingerprints, CachedCFFingerprints)
 );
 
@@ -2597,6 +2619,50 @@ impl CachedEntry {
                 .flatten()
                 .collect()
             }
+            CacheValueType::CurseforgeDescription => {
+                let keys = keys
+                    .iter()
+                    .map(|key| key.key().to_string())
+                    .collect::<Vec<_>>();
+
+                futures::future::try_join_all(keys.into_iter().map(
+                    |key| async move {
+                        let Some(mod_id) = key.parse::<i64>().ok() else {
+                            return Ok(None);
+                        };
+                        let description = match crate::api::curseforge::api::get_mod_description(
+                            mod_id,
+                            fetch_semaphore,
+                            pool,
+                        )
+                        .await
+                        {
+                            Ok(description) => description,
+                            Err(err) => {
+                                tracing::warn!(
+                                    "Unable to fetch CurseForge description \
+                                     for {mod_id}: {err}"
+                                );
+                                return Ok(None);
+                            }
+                        };
+                        Ok::<_, crate::Error>(Some((
+                            CacheValue::CurseforgeDescription(
+                                CachedCFDescription {
+                                    mod_id,
+                                    description,
+                                },
+                            )
+                            .get_entry(),
+                            true,
+                        )))
+                    },
+                ))
+                .await?
+                .into_iter()
+                .flatten()
+                .collect()
+            }
             CacheValueType::CurseforgeFingerprints => {
                 let keys = keys
                     .iter()
@@ -2761,6 +2827,13 @@ impl CachedEntry {
                     data,
                     id,
                     "cf_file_changelog_v1",
+                )?)
+            }
+            CacheValueType::CurseforgeDescription => {
+                CacheValue::CurseforgeDescription(parse(
+                    data,
+                    id,
+                    "cf_description_v1",
                 )?)
             }
             CacheValueType::CurseforgeFingerprints => {

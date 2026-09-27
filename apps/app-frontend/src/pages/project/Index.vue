@@ -955,6 +955,9 @@ async function fetchCfProjectData(requestedId) {
 	}
 
 	data.value = project
+	// The compatibility/details panels only need to know whether any versions
+	// exist; the full list is fetched separately by the versions tab.
+	data.value.versions = cfVersions.map((version) => version.id)
 	projectV3.value = null
 	projectBreadcrumbLabel.value = project.title
 	const cfMembers = project.cf_members ?? []

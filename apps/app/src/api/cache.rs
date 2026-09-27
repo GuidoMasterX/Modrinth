@@ -158,20 +158,7 @@ pub async fn get_curseforge_project(
     else {
         return Ok(None);
     };
-    let mut project = curseforge_project_json(&source);
-
-    if let Some(versions) =
-        theseus::cache::get_curseforge_project_versions(id, None).await?
-    {
-        project["versions"] = serde_json::Value::Array(
-            versions
-                .iter()
-                .map(|version| {
-                    serde_json::Value::String(format!("cf-{}", version.id))
-                })
-                .collect(),
-        );
-    }
+    let project = curseforge_project_json(&source);
 
     Ok(Some(project))
 }

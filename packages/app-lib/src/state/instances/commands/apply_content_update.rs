@@ -74,22 +74,35 @@ struct ResolvedDependency {
 pub(crate) async fn update_project(
     instance_id: &str,
     project_path: &str,
+    known_update: Option<(&str, &str)>,
     state: &State,
 ) -> crate::Result<String> {
-    let updates = check_content_updates(
-        instance_id,
-        Some(CacheBehaviour::MustRevalidate),
-        state,
-    )
-    .await?;
-    let update = updates
-        .into_iter()
-        .find(|update| update.relative_path == project_path)
-        .ok_or_else(|| {
-            crate::ErrorKind::InputError(
-                "This project cannot be updated!".to_string(),
+    let update = match known_update {
+        // The caller already knows the installed and target version (the
+        // content tab passes them from its update row), so the whole-instance
+        // re-check can be skipped.
+        Some((current_version_id, update_version_id)) => ContentUpdate {
+            relative_path: project_path.to_string(),
+            current_version_id: current_version_id.to_string(),
+            update_version_id: update_version_id.to_string(),
+        },
+        None => {
+            let updates = check_content_updates(
+                instance_id,
+                Some(CacheBehaviour::MustRevalidate),
+                state,
             )
-        })?;
+            .await?;
+            updates
+                .into_iter()
+                .find(|update| update.relative_path == project_path)
+                .ok_or_else(|| {
+                    crate::ErrorKind::InputError(
+                        "This project cannot be updated!".to_string(),
+                    )
+                })?
+        }
+    };
 
     apply_content_update(instance_id, project_path, &update, state).await
 }
