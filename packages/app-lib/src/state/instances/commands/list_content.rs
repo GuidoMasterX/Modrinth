@@ -891,6 +891,19 @@ async fn content_projects_for_scope_inner(
         cache_behaviour,
     )
     .await?;
+    // Files that exactly match a CurseForge fingerprint become tracked
+    // entries here, so a later check can report their updates.
+    if let Err(err) = super::apply_content_install::track_curseforge_files(
+        &resolved.instance.id,
+        &files,
+        &entries_by_file_id,
+        &cf_metadata_by_hash,
+        state,
+    )
+    .await
+    {
+        tracing::warn!("Unable to track matched CurseForge files: {err}");
+    }
     let installed_channels = if packs_only {
         HashMap::new()
     } else {
@@ -1667,7 +1680,7 @@ fn file_metadata_from_entry_or_cache(
     modrinth.or_else(|| cf.cloned())
 }
 
-async fn detect_curseforge_metadata(
+pub(crate) async fn detect_curseforge_metadata(
     state: &State,
     instance: &Instance,
     files: &[InstanceFile],

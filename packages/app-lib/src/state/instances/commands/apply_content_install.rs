@@ -1612,3 +1612,58 @@ async fn upsert_entry_for_file(
 
     Ok(())
 }
+
+/// Files discovered on disk that exactly match a CurseForge fingerprint become
+/// tracked content entries. Without this, manually installed CurseForge files
+/// (a common way to run a CurseForge-managed pack) appear in the listing but
+/// never receive update checks, because check results are keyed by entry.
+pub(crate) async fn track_curseforge_files(
+    instance_id: &str,
+    files: &[InstanceFile],
+    entries_by_file_id: &std::collections::HashMap<
+        &str,
+        &crate::state::instances::ContentEntry,
+    >,
+    cf_metadata_by_hash: &std::collections::HashMap<
+        String,
+        crate::state::FileMetadata,
+    >,
+    state: &State,
+) -> crate::Result<usize> {
+    let untracked = files
+        .iter()
+        .filter(|file| !entries_by_file_id.contains_key(file.id.as_str()))
+        .filter_map(|file| {
+            let metadata = cf_metadata_by_hash.get(&file.sha1)?;
+            let cf_project_id = metadata.cf_project_id?;
+            let cf_version_id = metadata.cf_version_id?;
+            let project_type =
+                super::sync_content_files::project_type_for_file(file)?;
+            Some((file, project_type, cf_project_id, cf_version_id))
+        })
+        .collect::<Vec<_>>();
+    if untracked.is_empty() {
+        return Ok(0);
+    }
+
+    let _content_lock = state.lock_instance_content(instance_id).await;
+    let scope = resolve_content_scope(instance_id, None, state).await?;
+    let mut tx = state.pool.begin().await?;
+    for (file, project_type, cf_project_id, cf_version_id) in &untracked {
+        upsert_entry_for_file(
+            &scope,
+            file,
+            *project_type,
+            None,
+            None,
+            ContentSourceKind::Local,
+            EntryOrigin::curseforge(*cf_project_id, Some(*cf_version_id)),
+            &mut tx,
+        )
+        .await?;
+    }
+    tx.commit().await?;
+    super::mark_shared_instance_stale(&scope.instance.id, &state.pool).await?;
+
+    Ok(untracked.len())
+}

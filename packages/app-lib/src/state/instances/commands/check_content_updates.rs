@@ -84,9 +84,9 @@ async fn check_content_updates_with_cache_behaviours(
                     instance.id
                 ))
             })?;
-    let entries =
+    let mut entries =
         content_rows::get_content_entries(&content_set.id, &state.pool).await?;
-    let entries_by_file_id = entries
+    let mut entries_by_file_id = entries
         .iter()
         .filter_map(|entry| {
             entry.file_id.as_deref().map(|file_id| (file_id, entry))
@@ -126,6 +126,65 @@ async fn check_content_updates_with_cache_behaviours(
         .into_iter()
         .map(|file| (file.hash.clone(), file))
         .collect::<HashMap<_, _>>();
+    // Files that exist on disk without a tracked entry never receive update
+    // checks. CurseForge fingerprints identify them exactly, so adopt them as
+    // tracked entries before checking (the listing already displays them as
+    // CurseForge projects).
+    if !file_info_by_hash.is_empty() {
+        let cf_metadata_by_hash =
+            match super::list_content::detect_curseforge_metadata(
+                state,
+                &instance,
+                &files,
+                &entries_by_file_id,
+                &file_info_by_hash,
+                cache_behaviour,
+            )
+            .await
+            {
+                Ok(metadata) => metadata,
+                Err(err) => {
+                    tracing::warn!(
+                        "Unable to match untracked CurseForge files: {err}"
+                    );
+                    HashMap::new()
+                }
+            };
+        if !cf_metadata_by_hash.is_empty() {
+            match super::apply_content_install::track_curseforge_files(
+                &instance.id,
+                &files,
+                &entries_by_file_id,
+                &cf_metadata_by_hash,
+                state,
+            )
+            .await
+            {
+                Ok(tracked) if tracked > 0 => {
+                    entries = content_rows::get_content_entries(
+                        &content_set.id,
+                        &state.pool,
+                    )
+                    .await?;
+                    entries_by_file_id = entries
+                        .iter()
+                        .filter_map(|entry| {
+                            entry
+                                .file_id
+                                .as_deref()
+                                .map(|file_id| (file_id, entry))
+                        })
+                        .collect();
+                }
+                Ok(_) => {}
+                Err(err) => {
+                    tracing::warn!(
+                        "Unable to track matched CurseForge files: {err}"
+                    );
+                }
+            }
+        }
+    }
     // CurseForge's update check costs one batched request for the whole
     // instance, so it can honor the caller's cache behaviour directly.
     let curseforge_updates = check_curseforge_content_updates(
