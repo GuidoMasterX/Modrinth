@@ -1145,22 +1145,18 @@ export namespace Labrinth {
 				| 'description-too-short'
 				| 'long-headers'
 				| 'missing-alt-text'
-				| 'project-description-banned-link'
+				| 'project-description-matches-summary'
 				| 'project-description-non-english'
 				| 'project-description-non-standard-text'
 				| 'project-description-profanity'
 				| 'project-description-slur'
 				| 'project-description-spam'
 				| 'add-custom-license-details'
-				| 'invalid-license-url'
 				| 'select-license'
 				| 'add-links'
 				| 'add-links-server'
-				| 'banned-link-usage'
+				| 'link-validation'
 				| 'gpl-license-source-required'
-				| 'identical-links'
-				| 'misused-discord-link'
-				| 'verify-external-links'
 				| 'review-permissions'
 				| 'add-java-address'
 				| 'all-languages'
@@ -1387,7 +1383,7 @@ export namespace Labrinth {
 
 			export type TelemetryConsent = 'opt_in' | 'opt_out' | 'always_active'
 
-			export type AiUsage = 'code' | 'assets' | 'text' | 'functionality'
+			export type AiUsage = 'code' | 'assets' | 'text'
 
 			export type DisclosureLockStatus = 'unlocked' | 'cannot_disable' | 'fully_locked'
 
@@ -1401,6 +1397,10 @@ export namespace Labrinth {
 				| {
 						type: 'ai_content'
 						uses: AiUsage[]
+						note?: string | null
+				  }
+				| {
+						type: 'ai_functionality'
 						note?: string | null
 				  }
 				| {
@@ -1806,6 +1806,7 @@ export namespace Labrinth {
 
 			export type BehaviorPreferences = {
 				minimize_app: boolean
+				refocus_on_game_close: boolean
 				hide_right_sidebar: boolean
 				show_jump_in: boolean
 				compact_instance_cards: boolean
@@ -1879,6 +1880,7 @@ export namespace Labrinth {
 				id: string
 				username: string
 				avatar_url?: string
+				raw_avatar_url?: string
 				bio?: string
 				created: string
 				role: Role
@@ -2534,6 +2536,7 @@ export namespace Labrinth {
 			export type GetRuleAffectedDetailsRequest = {
 				limit?: number
 				page?: number
+				processing_only?: boolean
 			}
 
 			export type GetRuleAffectedDetailsResponse = {

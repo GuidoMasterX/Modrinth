@@ -3,16 +3,16 @@ use crate::state::instances::{
     adapters::sqlite::{content_rows, instance_rows},
 };
 use crate::state::{
-    CacheBehaviour, CachedEntry, ProjectType, ReleaseChannel, State,
+    CacheBehaviour, CachedEntry, CachedFileUpdate, ProjectType, ReleaseChannel,
+    State,
 };
 use std::collections::HashMap;
 
-use super::sync_content_files::{
-    project_type_for_file, sync_instance_content_files,
-};
+use super::sync_content_files::{project_type_for_file, sync_content_files};
 
 #[derive(Clone, Debug)]
 pub(crate) struct ContentUpdate {
+    pub project_id: String,
     pub relative_path: String,
     pub current_version_id: String,
     pub update_version_id: String,
@@ -31,6 +31,7 @@ pub(crate) async fn check_content_updates(
     cache_behaviour: Option<CacheBehaviour>,
     state: &State,
 ) -> crate::Result<Vec<ContentUpdate>> {
+    sync_content_files(instance_id, state).await?;
     check_content_updates_with_cache_behaviours(
         instance_id,
         cache_behaviour,
@@ -46,15 +47,15 @@ pub(crate) async fn refresh_content_updates(
     cache_behaviour: Option<CacheBehaviour>,
     state: &State,
 ) -> crate::Result<()> {
-    // A failed Modrinth lookup must stay detectable: with
-    // stale-while-revalidate its error is swallowed and the missing keys look
-    // like "no update", which is what cleared every Modrinth badge on refresh.
-    // Failures are non-destructive now, so both sources revalidate when asked.
-    // CurseForge costs one batched request for the whole instance.
+    // Modrinth's per-file update lookup stays stale-while-revalidate: forcing
+    // a live lookup for every installed file burns its request budget, and a
+    // throttled response would fail the whole check. The CurseForge side is
+    // cheap (one batched request for the entire instance), so it honors the
+    // caller's behaviour and revalidates on demand.
     check_content_updates_with_cache_behaviours(
         instance_id,
         None,
-        Some(cache_behaviour.unwrap_or(CacheBehaviour::MustRevalidate)),
+        None,
         Some(cache_behaviour.unwrap_or(CacheBehaviour::MustRevalidate)),
         state,
     )
@@ -98,13 +99,12 @@ async fn check_content_updates_with_cache_behaviours(
             &state.pool,
         )
         .await?;
-    let files = sync_instance_content_files(&instance, state).await?;
+    let files =
+        content_rows::get_instance_files(&instance.id, &state.pool).await?;
     let hashes = files
         .iter()
         .map(|file| file.sha1.as_str())
         .collect::<Vec<_>>();
-    // Modrinth enrichment must degrade, never abort: a throttled metadata
-    // lookup should still leave the CurseForge results below intact.
     let (file_info, modrinth_lookup_ok) = match CachedEntry::get_file_many(
         &hashes,
         cache_behaviour,
@@ -214,16 +214,10 @@ async fn check_content_updates_with_cache_behaviours(
                 .get(file.id.as_str())
                 .copied()
                 .cloned();
-            // A tracked entry has exactly one source of truth: CurseForge
-            // entries are resolved by `check_curseforge_content_updates`, so
-            // never let a Modrinth hash hit (many CurseForge files are
-            // mirrored on Modrinth) overwrite that row here.
-            if entry
-                .as_ref()
-                .is_some_and(|entry| {
-                    entry.source == crate::api::curseforge::normalize::Source::CurseForge
-                })
-            {
+            if entry.as_ref().is_some_and(|entry| {
+                entry.source
+                    == crate::api::curseforge::normalize::Source::CurseForge
+            }) {
                 return None;
             }
             Some(UpdateCandidate {
@@ -235,23 +229,12 @@ async fn check_content_updates_with_cache_behaviours(
         })
         .collect::<Vec<_>>();
 
-    if candidates.is_empty() && curseforge_updates.is_empty() {
+    if candidates.is_empty() {
         return Ok(Vec::new());
     }
 
     let installed_channels =
-        match installed_update_channels(&candidates, cache_behaviour, state)
-            .await
-        {
-            Ok(channels) => channels,
-            Err(err) => {
-                tracing::warn!(
-                    "Unable to fetch installed update channels: {err}; using \
-                     instance defaults"
-                );
-                HashMap::new()
-            }
-        };
+        installed_update_channels(&candidates, cache_behaviour, state).await?;
     let update_keys = candidates
         .iter()
         .map(|candidate| {
@@ -271,114 +254,157 @@ async fn check_content_updates_with_cache_behaviours(
         .iter()
         .map(|key| key.as_str())
         .collect::<Vec<_>>();
-    // A failed Modrinth lookup means "unknown", not "no update": leave every
-    // stored row and badge untouched instead of clearing them. Only a
-    // successful response may write the (possibly empty) update result.
-    let updates = match CachedEntry::get_file_update_many(
+    let updates = CachedEntry::get_file_update_many(
         &update_key_refs,
         update_cache_behaviour,
         &state.pool,
         &state.api_semaphore,
     )
-    .await
-    {
-        Ok(updates) => Some(updates),
-        Err(err) => {
-            tracing::warn!(
-                "Unable to fetch Modrinth version updates: {err}; leaving \
-                 stored update state alone this cycle"
-            );
-            None
-        }
-    };
+    .await?;
+    let mut updates_by_hash =
+        resolve_update_versions(updates, update_cache_behaviour, state).await?;
 
     let mut output = Vec::new();
-    if let Some(updates) = updates {
-        let mut updates_by_hash: HashMap<String, Vec<String>> = HashMap::new();
-        for update in updates {
-            updates_by_hash
-                .entry(update.hash)
-                .or_default()
-                .push(update.update_version_id);
-        }
-
-        for candidate in candidates {
-            let update_version_id = updates_by_hash
-                .remove(&candidate.file.sha1)
-                .unwrap_or_default()
-                .into_iter()
-                .find(|update_version_id| {
-                    update_version_id != &candidate.current_version_id
-                });
-
-            if let Some(entry) = &candidate.entry {
-                content_rows::upsert_content_update_check(
-                    &entry.id,
-                    instance.update_channel,
-                    update_version_id.as_deref(),
-                    &state.pool,
-                )
-                .await?;
-            }
-
-            if let Some(update_version_id) = update_version_id {
-                let suppressed = candidate
+    for candidate in candidates {
+        let update_version_id = updates_by_hash
+            .remove(&candidate.file.sha1)
+            .unwrap_or_default()
+            .into_iter()
+            .find(|version| {
+                let metadata = &file_info_by_hash[&candidate.file.sha1];
+                let project_id = candidate
                     .entry
                     .as_ref()
-                    .is_some_and(|entry| {
-                        entry.updates_ignored
-                            || skips_by_entry_id
-                                .get(entry.id.as_str())
-                                .and_then(|skipped| skipped.as_deref())
-                                == Some(update_version_id.as_str())
-                    });
-                if suppressed {
-                    continue;
-                }
-                output.push(ContentUpdate {
-                    relative_path: candidate.file.relative_path,
-                    current_version_id: candidate.current_version_id,
-                    update_version_id,
-                });
-            }
+                    .and_then(|entry| entry.project_id.as_deref())
+                    .unwrap_or(&metadata.project_id);
+                version.id != candidate.current_version_id
+                    && metadata.project_id == project_id
+                    && version.project_id == project_id
+            })
+            .map(|version| version.id);
+
+        if let Some(entry) = &candidate.entry {
+            content_rows::upsert_content_update_check(
+                &entry.id,
+                instance.update_channel,
+                update_version_id.as_deref(),
+                &state.pool,
+            )
+            .await?;
+        }
+
+        if let Some(update_version_id) = update_version_id {
+            output.push(ContentUpdate {
+                project_id: file_info_by_hash[&candidate.file.sha1]
+                    .project_id
+                    .clone(),
+                relative_path: candidate.file.relative_path,
+                current_version_id: candidate.current_version_id,
+                update_version_id,
+            });
         }
     }
+
     output.extend(curseforge_updates);
 
     Ok(output)
 }
 
-pub(crate) fn curseforge_latest_compatible_file<'a>(
-    files: &'a [crate::api::curseforge::structs::CFFile],
+async fn installed_update_channels(
+    candidates: &[UpdateCandidate],
+    cache_behaviour: Option<CacheBehaviour>,
+    state: &State,
+) -> crate::Result<HashMap<String, ReleaseChannel>> {
+    let version_ids = candidates
+        .iter()
+        .map(|candidate| candidate.current_version_id.as_str())
+        .collect::<Vec<_>>();
+    let versions = CachedEntry::get_version_many(
+        &version_ids,
+        cache_behaviour,
+        &state.pool,
+        &state.api_semaphore,
+    )
+    .await?;
+    let channels_by_version_id = versions
+        .into_iter()
+        .map(|version| {
+            (
+                version.id,
+                ReleaseChannel::from_version_type(&version.version_type),
+            )
+        })
+        .collect::<HashMap<_, _>>();
+
+    Ok(candidates
+        .iter()
+        .filter_map(|candidate| {
+            channels_by_version_id
+                .get(&candidate.current_version_id)
+                .copied()
+                .map(|channel| (candidate.file.sha1.clone(), channel))
+        })
+        .collect())
+}
+
+fn effective_update_channel(
+    preferred: ReleaseChannel,
+    installed: Option<ReleaseChannel>,
+) -> ReleaseChannel {
+    installed.map_or(preferred, |channel| preferred.least_stable(channel))
+}
+
+fn update_cache_key(
+    file: &InstanceFile,
+    project_type: ProjectType,
+    channel: ReleaseChannel,
     game_version: &str,
     loader: &str,
-    update_channel: ReleaseChannel,
-) -> Option<&'a crate::api::curseforge::structs::CFFile> {
-    use crate::api::curseforge::normalize::parse_cf_date;
-    let allowed_release_types = match update_channel {
-        ReleaseChannel::Release => 1..=1,
-        ReleaseChannel::Beta => 1..=2,
-        ReleaseChannel::Alpha => 1..=3,
-    };
-    files
+) -> String {
+    format!(
+        "{}-{}-{}-{}",
+        file.sha1,
+        if project_type == ProjectType::Mod {
+            loader.to_string()
+        } else {
+            project_type.get_loaders().join("+")
+        },
+        channel.key(),
+        game_version
+    )
+}
+
+pub(super) async fn resolve_update_versions(
+    updates: Vec<CachedFileUpdate>,
+    cache_behaviour: Option<CacheBehaviour>,
+    state: &State,
+) -> crate::Result<HashMap<String, Vec<crate::state::Version>>> {
+    if updates.is_empty() {
+        return Ok(HashMap::new());
+    }
+    let version_ids = updates
         .iter()
-        .filter(|file| {
-            file.game_versions
-                .iter()
-                .any(|version| version == game_version)
-        })
-        .filter(|file| {
-            let (_, game_version_loaders) =
-                crate::api::curseforge::normalize::split_file_game_data(
-                    &file.game_versions,
-                );
-            game_version_loaders
-                .iter()
-                .chain(file.loaders.iter())
-                .any(|candidate| candidate.eq_ignore_ascii_case(loader))
-        })
-        .filter(|file| allowed_release_types.contains(&file.release_type))
-        .max_by_key(|file| parse_cf_date(&file.file_date))
+        .map(|update| update.update_version_id.as_str())
+        .collect::<Vec<_>>();
+    let versions = CachedEntry::get_version_many(
+        &version_ids,
+        cache_behaviour,
+        &state.pool,
+        &state.api_semaphore,
+    )
+    .await?;
+    let versions_by_id = versions
+        .into_iter()
+        .map(|version| (version.id.clone(), version))
+        .collect::<HashMap<_, _>>();
+    let mut output: HashMap<String, Vec<crate::state::Version>> =
+        HashMap::new();
+    for update in updates {
+        if let Some(version) = versions_by_id.get(&update.update_version_id) {
+            output.entry(update.hash).or_default().push(version.clone());
+        }
+    }
+    Ok(output)
 }
 
 pub(crate) fn curseforge_loader_code(loader: &str) -> Option<i64> {
@@ -538,6 +564,7 @@ async fn check_curseforge_content_updates(
                 continue;
             }
             output.push(ContentUpdate {
+                project_id: format!("cf-{cf_project_id}"),
                 relative_path: file.relative_path.clone(),
                 current_version_id: format!("cf-{cf_version_id}"),
                 update_version_id,
@@ -548,66 +575,35 @@ async fn check_curseforge_content_updates(
     Ok(output)
 }
 
-async fn installed_update_channels(
-    candidates: &[UpdateCandidate],
-    cache_behaviour: Option<CacheBehaviour>,
-    state: &State,
-) -> crate::Result<HashMap<String, ReleaseChannel>> {
-    let version_ids = candidates
-        .iter()
-        .map(|candidate| candidate.current_version_id.as_str())
-        .collect::<Vec<_>>();
-    let versions = CachedEntry::get_version_many(
-        &version_ids,
-        cache_behaviour,
-        &state.pool,
-        &state.api_semaphore,
-    )
-    .await?;
-    let channels_by_version_id = versions
-        .into_iter()
-        .map(|version| {
-            (
-                version.id,
-                ReleaseChannel::from_version_type(&version.version_type),
-            )
-        })
-        .collect::<HashMap<_, _>>();
-
-    Ok(candidates
-        .iter()
-        .filter_map(|candidate| {
-            channels_by_version_id
-                .get(&candidate.current_version_id)
-                .copied()
-                .map(|channel| (candidate.file.sha1.clone(), channel))
-        })
-        .collect())
-}
-
-fn effective_update_channel(
-    preferred: ReleaseChannel,
-    installed: Option<ReleaseChannel>,
-) -> ReleaseChannel {
-    installed.map_or(preferred, |channel| preferred.least_stable(channel))
-}
-
-fn update_cache_key(
-    file: &InstanceFile,
-    project_type: ProjectType,
-    channel: ReleaseChannel,
+pub(crate) fn curseforge_latest_compatible_file<'a>(
+    files: &'a [crate::api::curseforge::structs::CFFile],
     game_version: &str,
     loader: &str,
-) -> String {
-    format!(
-        "{}-{}-{}-{}",
-        file.sha1,
-        if project_type == ProjectType::Mod {
-            loader.to_string()
-        } else {
-            project_type.get_loaders().join("+")
-        },
-        channel.key(),
-        game_version
-    )
+    update_channel: ReleaseChannel,
+) -> Option<&'a crate::api::curseforge::structs::CFFile> {
+    use crate::api::curseforge::normalize::parse_cf_date;
+    let allowed_release_types = match update_channel {
+        ReleaseChannel::Release => 1..=1,
+        ReleaseChannel::Beta => 1..=2,
+        ReleaseChannel::Alpha => 1..=3,
+    };
+    files
+        .iter()
+        .filter(|file| {
+            file.game_versions
+                .iter()
+                .any(|candidate| candidate == game_version)
+        })
+        .filter(|file| {
+            let (_, game_version_loaders) =
+                crate::api::curseforge::normalize::split_file_game_data(
+                    &file.game_versions,
+                );
+            game_version_loaders
+                .iter()
+                .chain(file.loaders.iter())
+                .any(|candidate| candidate.eq_ignore_ascii_case(loader))
+        })
+        .filter(|file| allowed_release_types.contains(&file.release_type))
+        .max_by_key(|file| parse_cf_date(&file.file_date))
 }

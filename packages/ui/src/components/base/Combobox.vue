@@ -60,7 +60,7 @@
 			:class="[
 				'min-w-full w-full !justify-between overflow-hidden text-left',
 				props.triggerClass,
-				{ 'z-[9999]': isOpen },
+				{ 'z-[100005]': isOpen },
 			]"
 			:aria-expanded="isOpen"
 			:aria-haspopup="listbox ? 'listbox' : 'menu'"
@@ -95,12 +95,12 @@
 			</div>
 		</ButtonFrame>
 
-		<Teleport v-if="isClient" to="#teleports">
-			<Transition name="floating-expand">
+		<Teleport v-if="isClient" to="body">
+			<Transition name="floating-expand" :css="animateDropdown">
 				<div
 					v-if="shouldRenderDropdown"
 					ref="dropdownRef"
-					class="fixed z-[9999] flex flex-col overflow-hidden rounded-[14px] bg-surface-4 border border-solid border-surface-5"
+					class="fixed z-[100005] flex flex-col overflow-hidden rounded-[14px] bg-surface-4 border border-solid border-surface-5"
 					:class="[
 						props.dropdownClass,
 						openDirection === 'up' ? 'shadow-[0_-25px_50px_-12px_rgb(0,0,0,0.25)]' : 'shadow-2xl',
@@ -211,6 +211,7 @@ import {
 	watch,
 } from 'vue'
 
+import { dismissTooltip } from '../../providers/tooltip'
 import ButtonFrame from './buttons/ButtonFrame.vue'
 import type {
 	ButtonElementHandle,
@@ -290,6 +291,7 @@ const props = withDefaults(
 		triggerSize?: ButtonSize
 		triggerInteraction?: ButtonInteraction
 		dropdownClass?: string
+		animateDropdown?: boolean
 		/** Additional selectors to ignore when detecting outside clicks */
 		outsideClickIgnore?: string[]
 		/** Width for the teleported dropdown; defaults to the trigger/input width */
@@ -336,6 +338,7 @@ const props = withDefaults(
 		triggerType: 'base',
 		triggerSize: 'md',
 		triggerInteraction: 'surface',
+		animateDropdown: true,
 		outsideClickIgnore: () => [],
 	},
 )
@@ -735,6 +738,7 @@ async function openDropdown() {
 	if (props.disabled || isOpen.value || !hasMinimumSearchLength.value || !hasDropdownContent.value)
 		return
 
+	dismissTooltip()
 	previewOpenDirection()
 	isOpen.value = true
 	emit('open')
@@ -747,7 +751,7 @@ async function openDropdown() {
 	scheduleDropdownPositionUpdate()
 }
 
-function closeDropdown() {
+function closeDropdown(restoreFocus = true) {
 	if (!isOpen.value) return
 
 	stopPositionTracking()
@@ -757,9 +761,9 @@ function closeDropdown() {
 	focusedIndex.value = -1
 	emit('close')
 
-	if (!props.searchable) {
+	if (!props.searchable && restoreFocus) {
 		nextTick(() => {
-			effectiveTriggerEl.value?.focus()
+			effectiveTriggerEl.value?.focus({ preventScroll: true })
 		})
 	}
 }
@@ -1026,7 +1030,7 @@ function stopPositionTracking() {
 onClickOutside(
 	dropdownRef,
 	() => {
-		closeDropdown()
+		closeDropdown(false)
 	},
 	{ ignore: outsideClickIgnoreTargets },
 )

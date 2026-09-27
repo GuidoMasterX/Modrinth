@@ -740,6 +740,12 @@
   "content.page-layout.failed-to-load": {
     "defaultMessage": "Failed to load content"
   },
+  "content.page-layout.failed-to-load-changelog": {
+    "defaultMessage": "Failed to load changelog"
+  },
+  "content.page-layout.failed-to-load-updates": {
+    "defaultMessage": "Failed to load available updates"
+  },
   "content.page-layout.filter.add": {
     "defaultMessage": "Filter"
   },
@@ -841,9 +847,6 @@
   },
   "content.selection-bar.selected-count-simple": {
     "defaultMessage": "{count, number} selected"
-  },
-  "content.table.source": {
-    "defaultMessage": "Source"
   },
   "creation-flow.button.create-instance": {
     "defaultMessage": "Create instance"
@@ -1426,6 +1429,12 @@
   },
   "external-project-license-status.yes": {
     "defaultMessage": "Yes"
+  },
+  "file-button.file-too-large.description": {
+    "defaultMessage": "File {filename} is too big. The maximum file size is {maxSize}."
+  },
+  "file-button.file-too-large.title": {
+    "defaultMessage": "File too large"
   },
   "files.conflict-modal.header": {
     "defaultMessage": "Extract summary"
@@ -3701,6 +3710,9 @@
   "project.disclosure.advertising.title": {
     "defaultMessage": "Contains advertising"
   },
+  "project.disclosure.ai-functionality.title": {
+    "defaultMessage": "Generative AI functionality"
+  },
   "project.disclosure.ai-generated-content.title": {
     "defaultMessage": "Contains AI-generated {types}"
   },
@@ -3712,9 +3724,6 @@
   },
   "project.disclosure.ai-generated-content.use.content": {
     "defaultMessage": "content"
-  },
-  "project.disclosure.ai-generated-content.use.functionality": {
-    "defaultMessage": "functionality"
   },
   "project.disclosure.ai-generated-content.use.text": {
     "defaultMessage": "text"
@@ -4115,9 +4124,6 @@
   "project.settings.disclosures.ai.types-code": {
     "defaultMessage": "Code"
   },
-  "project.settings.disclosures.ai.types-functionality": {
-    "defaultMessage": "Functionality"
-  },
   "project.settings.disclosures.ai.types-text": {
     "defaultMessage": "Text"
   },
@@ -4465,6 +4471,9 @@
   },
   "search.filter_type.advanced.disclosure.ai_content.usage": {
     "defaultMessage": "AI {usage}"
+  },
+  "search.filter_type.advanced.disclosure.ai_functionality": {
+    "defaultMessage": "Generative AI functionality"
   },
   "search.filter_type.advanced.disclosure.archived": {
     "defaultMessage": "Archived"
@@ -6877,6 +6886,78 @@
   },
   "unknown-file-warning-modal.unrecognized-files": {
     "defaultMessage": "Unrecognized files"
+  },
+  "update-all-modal.changelog-for": {
+    "defaultMessage": "Changelog for {project}"
+  },
+  "update-all-modal.changelog-loaded": {
+    "defaultMessage": "Changelog loaded."
+  },
+  "update-all-modal.close-changelog": {
+    "defaultMessage": "Close changelog"
+  },
+  "update-all-modal.current-version": {
+    "defaultMessage": "Current version"
+  },
+  "update-all-modal.empty": {
+    "defaultMessage": "No updates available."
+  },
+  "update-all-modal.header": {
+    "defaultMessage": "Update projects"
+  },
+  "update-all-modal.loading": {
+    "defaultMessage": "Loading updates…"
+  },
+  "update-all-modal.loading-changelog": {
+    "defaultMessage": "Loading changelog…"
+  },
+  "update-all-modal.new-version": {
+    "defaultMessage": "New version"
+  },
+  "update-all-modal.no-changelog": {
+    "defaultMessage": "No changelog provided for this version."
+  },
+  "update-all-modal.no-compatible-updates": {
+    "defaultMessage": "No compatible updates available."
+  },
+  "update-all-modal.no-version": {
+    "defaultMessage": "No compatible updates"
+  },
+  "update-all-modal.project": {
+    "defaultMessage": "Project"
+  },
+  "update-all-modal.project-list": {
+    "defaultMessage": "Project updates"
+  },
+  "update-all-modal.results": {
+    "defaultMessage": "{count, plural, one {# project ready to update} other {# projects ready to update}}"
+  },
+  "update-all-modal.select-all": {
+    "defaultMessage": "Select all projects"
+  },
+  "update-all-modal.select-project": {
+    "defaultMessage": "Select {project} for update"
+  },
+  "update-all-modal.select-version": {
+    "defaultMessage": "New version for {project}"
+  },
+  "update-all-modal.update": {
+    "defaultMessage": "Update {count, plural, one {# project} other {# projects}}"
+  },
+  "update-all-modal.versions": {
+    "defaultMessage": "Current version / New version"
+  },
+  "update-all-modal.view": {
+    "defaultMessage": "View"
+  },
+  "update-all-modal.view-changelog": {
+    "defaultMessage": "View changelog for {project}"
+  },
+  "update-all-modal.warning": {
+    "defaultMessage": "We can’t guarantee updates are safe for your worlds. Review the changelogs and consider a backup."
+  },
+  "update-all-modal.warning-server": {
+    "defaultMessage": "We can’t guarantee updates will be safe for your server. Review the changelogs and consider a backup."
   },
   "user.profile.badge.alpha.about.1": {
     "defaultMessage": "This user has been around since Modrinth Alpha, which ended in November 2020."

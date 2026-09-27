@@ -1,3 +1,8 @@
+use crate::install::{
+    ContentUpdateSelection, InstallErrorContext, InstallPhaseDetails,
+    InstallPhaseId, InstallProgress, InstallProgressReporter,
+    InstallProgressSecondary,
+};
 use crate::state::instances::{
     ContentEntry, ContentSet, ContentSourceKind, InstanceFile,
     adapters::sqlite::{content_rows, instance_rows},
@@ -7,17 +12,18 @@ use crate::state::{
     State, Version,
 };
 use crate::util::fetch::DownloadReason;
-use bytes::Bytes;
-use futures::stream::{FuturesUnordered, StreamExt};
+use futures::stream::{self, StreamExt};
 use std::cmp::Reverse;
 use std::collections::{HashMap, HashSet};
+use std::future::Future;
+use std::pin::Pin;
+use std::sync::Arc;
+use tokio::sync::Mutex;
 
 use super::apply_content_install::{
-    DownloadedProjectVersion, EntryOrigin, add_downloaded_project_version,
-    add_project_bytes, add_project_from_curseforge_file,
-    add_project_from_version, download_curseforge_file_bytes,
-    download_project_version, remove_project, rename_project_companion_file,
-    toggle_disable_project,
+    DownloadedProjectVersion, add_downloaded_project_version,
+    add_downloaded_project_version_with_enabled, download_project_version,
+    download_project_version_with_progress, rename_project_companion_file,
 };
 use super::check_content_updates::{ContentUpdate, check_content_updates};
 
@@ -29,10 +35,12 @@ struct BulkUpdatePlan {
 
 #[derive(Clone, Debug)]
 struct PlannedProjectUpdate {
+    project_id: String,
     relative_path: String,
     current_version_id: String,
     update_version_id: String,
-    /// `(cf_project_id, cf_file_id, project_type)` for CurseForge updates.
+    file_size: u64,
+    /// (cf_project_id, cf_file_id, project_type) for CurseForge updates.
     cf: Option<(i64, i64, ProjectType)>,
 }
 
@@ -40,12 +48,22 @@ struct PlannedProjectUpdate {
 struct PlannedDependencyInstall {
     version_id: String,
     parent_version_id: String,
+    file_size: u64,
 }
 
 #[derive(Clone, Debug)]
 enum PlannedDownload {
     ProjectUpdate(PlannedProjectUpdate),
     DependencyAddition(PlannedDependencyInstall),
+}
+
+impl PlannedDownload {
+    fn file_size(&self) -> u64 {
+        match self {
+            Self::ProjectUpdate(update) => update.file_size,
+            Self::DependencyAddition(dependency) => dependency.file_size,
+        }
+    }
 }
 
 enum DownloadedBulkProject {
@@ -69,6 +87,7 @@ struct ResolvedDependency {
     project_id: String,
     version_id: String,
     parent_version_id: String,
+    file_size: u64,
 }
 
 pub(crate) async fn update_project(
@@ -82,6 +101,7 @@ pub(crate) async fn update_project(
         // content tab passes them from its update row), so the whole-instance
         // re-check can be skipped.
         Some((current_version_id, update_version_id)) => ContentUpdate {
+            project_id: String::new(),
             relative_path: project_path.to_string(),
             current_version_id: current_version_id.to_string(),
             update_version_id: update_version_id.to_string(),
@@ -113,7 +133,7 @@ async fn apply_content_update(
     update: &ContentUpdate,
     state: &State,
 ) -> crate::Result<String> {
-    let mut new_path = if let Some(cf_file_id) = update
+    if let Some(cf_file_id) = update
         .update_version_id
         .strip_prefix("cf-")
         .and_then(|id| id.parse::<i64>().ok())
@@ -124,31 +144,54 @@ async fn apply_content_update(
             state,
         )
         .await?;
-        add_project_from_curseforge_file(
-            instance_id,
-            cf_project_id,
-            cf_file_id,
-            DownloadReason::Update,
-            state,
-        )
-        .await?
-    } else {
-        add_project_from_version(
-            instance_id,
-            &update.update_version_id,
-            DownloadReason::Update,
-            Some(update.current_version_id.clone()),
-            ContentSourceKind::Local,
-            state,
-        )
-        .await?
-    };
-
-    if project_path.ends_with(".disabled") {
-        new_path =
-            toggle_disable_project(instance_id, &new_path, Some(false), state)
-                .await?;
+        let new_path =
+            super::apply_content_install::add_project_from_curseforge_file(
+                instance_id,
+                cf_project_id,
+                cf_file_id,
+                DownloadReason::Update,
+                state,
+            )
+            .await?;
+        if new_path != project_path {
+            rename_project_companion_file(
+                instance_id,
+                project_path,
+                &new_path,
+                state,
+            )
+            .await?;
+        }
+        return Ok(new_path);
     }
+
+    let enabled = content_rows::get_instance_file_by_relative_path(
+        instance_id,
+        project_path,
+        &state.pool,
+    )
+    .await?
+    .is_none_or(|file| file.enabled);
+    let downloaded = download_project_version(
+        instance_id,
+        &update.update_version_id,
+        DownloadReason::Update,
+        Some(update.current_version_id.clone()),
+        state,
+    )
+    .await?;
+
+    validate_update_project(&downloaded, &update.project_id)?;
+
+    let new_path = add_downloaded_project_version_with_enabled(
+        instance_id,
+        downloaded,
+        ContentSourceKind::Local,
+        Some(enabled),
+        Some(project_path),
+        state,
+    )
+    .await?;
 
     if new_path != project_path {
         rename_project_companion_file(
@@ -158,81 +201,90 @@ async fn apply_content_update(
             state,
         )
         .await?;
-        remove_project(instance_id, project_path, state).await?;
     }
 
     Ok(new_path)
 }
 
-pub(crate) async fn update_all_projects(
+pub(crate) async fn update_selected_projects(
     instance_id: &str,
+    updates: &[ContentUpdateSelection],
+    reporter: InstallProgressReporter,
     state: &State,
-) -> crate::Result<HashMap<String, String>> {
-    emit_bulk_update_progress(
-        instance_id,
-        crate::event::InstanceBulkUpdateProgressStage::ResolvingVersions,
-        0,
-        0,
-    )
-    .await?;
-    let plan = plan_bulk_update(instance_id, state).await?;
+) -> crate::Result<()> {
+    reporter
+        .update(
+            InstallPhaseId::ResolvingPack,
+            None,
+            InstallPhaseDetails::Empty,
+        )
+        .await?;
+    let plan = plan_bulk_update(instance_id, updates, state).await?;
+    apply_bulk_update(instance_id, plan, reporter, state).await
+}
+
+async fn apply_bulk_update(
+    instance_id: &str,
+    plan: BulkUpdatePlan,
+    reporter: InstallProgressReporter,
+    state: &State,
+) -> crate::Result<()> {
     let download_total =
         plan.project_updates.len() + plan.dependency_additions.len();
     let downloads =
-        download_planned_projects(instance_id, &plan, download_total, state)
-            .await?;
+        download_planned_projects(instance_id, &plan, &reporter, state).await?;
 
-    let mut changed = HashMap::new();
-    emit_bulk_update_progress(
-        instance_id,
-        crate::event::InstanceBulkUpdateProgressStage::Finishing,
-        download_total,
-        download_total,
-    )
-    .await?;
-    for download in downloads {
+    reporter
+        .update(InstallPhaseId::Finalizing, None, InstallPhaseDetails::Empty)
+        .await?;
+    for (index, download) in downloads.into_iter().enumerate() {
+        reporter
+            .update(
+                InstallPhaseId::Finalizing,
+                Some(InstallProgress {
+                    current: index as u64,
+                    total: download_total as u64,
+                    secondary: None,
+                }),
+                InstallPhaseDetails::Empty,
+            )
+            .await?;
         match download {
             DownloadedBulkProject::ProjectUpdate(update, downloaded) => {
-                let mut new_path =
-                    if let Some((cf_project_id, cf_file_id, project_type)) =
-                        update.cf
+                let enabled = content_rows::get_instance_file_by_relative_path(
+                    instance_id,
+                    &update.relative_path,
+                    &state.pool,
+                )
+                .await?
+                .is_none_or(|file| file.enabled);
+                let new_path = add_downloaded_project_version_with_enabled(
+                    instance_id,
+                    downloaded,
+                    ContentSourceKind::Local,
+                    Some(enabled),
+                    Some(&update.relative_path),
+                    state,
+                )
+                .await?;
+                if let Some((cf_project_id, cf_file_id, _project_type)) =
+                    update.cf
+                {
+                    if let Err(err) =
+                        super::apply_content_install::retag_entry_curseforge(
+                            instance_id,
+                            &new_path,
+                            cf_project_id,
+                            cf_file_id,
+                            state,
+                        )
+                        .await
                     {
-                        add_project_bytes(
-                            instance_id,
-                            &downloaded.file_name,
-                            Bytes::from(
-                                tokio::fs::read(downloaded.file.path()).await?,
-                            ),
-                            Some(&downloaded.file.sha1),
-                            Some(project_type),
-                            ContentSourceKind::Local,
-                            None,
-                            None,
-                            EntryOrigin::curseforge(
-                                cf_project_id,
-                                Some(cf_file_id),
-                            ),
-                            state,
-                        )
-                        .await?
-                    } else {
-                        add_downloaded_project_version(
-                            instance_id,
-                            downloaded,
-                            ContentSourceKind::Local,
-                            state,
-                        )
-                        .await?
-                    };
-
-                if update.relative_path.ends_with(".disabled") {
-                    new_path = toggle_disable_project(
-                        instance_id,
-                        &new_path,
-                        Some(false),
-                        state,
-                    )
-                    .await?;
+                        tracing::warn!(
+                            "Unable to record CurseForge origin for \
+                             {new_path}: {err}"
+                        );
+                    }
                 }
 
                 if new_path != update.relative_path {
@@ -243,11 +295,7 @@ pub(crate) async fn update_all_projects(
                         state,
                     )
                     .await?;
-                    remove_project(instance_id, &update.relative_path, state)
-                        .await?;
                 }
-
-                changed.insert(update.relative_path, new_path);
             }
             DownloadedBulkProject::DependencyAddition(downloaded) => {
                 add_downloaded_project_version(
@@ -261,24 +309,48 @@ pub(crate) async fn update_all_projects(
         }
     }
 
-    Ok(changed)
+    reporter.clear_context().await?;
+    reporter.persist().await?;
+    Ok(())
+}
+
+const BULK_DOWNLOAD_CONCURRENCY: usize = 4;
+
+struct BulkDownloadProgress {
+    bytes: Vec<u64>,
+    completed: u64,
+    total_bytes: u64,
+}
+
+impl BulkDownloadProgress {
+    async fn report(
+        &self,
+        reporter: &InstallProgressReporter,
+    ) -> crate::Result<()> {
+        reporter
+            .update(
+                InstallPhaseId::DownloadingContent,
+                Some(InstallProgress {
+                    current: self.completed,
+                    total: self.bytes.len() as u64,
+                    secondary: Some(InstallProgressSecondary {
+                        current: self.bytes.iter().sum(),
+                        total: self.total_bytes,
+                    }),
+                }),
+                InstallPhaseDetails::Empty,
+            )
+            .await
+    }
 }
 
 async fn download_planned_projects(
     instance_id: &str,
     plan: &BulkUpdatePlan,
-    total: usize,
+    reporter: &InstallProgressReporter,
     state: &State,
 ) -> crate::Result<Vec<DownloadedBulkProject>> {
-    emit_bulk_update_progress(
-        instance_id,
-        crate::event::InstanceBulkUpdateProgressStage::Downloading,
-        0,
-        total,
-    )
-    .await?;
-
-    let mut downloads = plan
+    let planned = plan
         .project_updates
         .iter()
         .cloned()
@@ -289,107 +361,135 @@ async fn download_planned_projects(
                 .cloned()
                 .map(PlannedDownload::DependencyAddition),
         )
-        .map(|download| async move {
-            match download {
-                PlannedDownload::ProjectUpdate(update) => {
-                    let downloaded = if let Some((
-                        cf_project_id,
-                        cf_file_id,
-                        project_type,
-                    )) = update.cf
-                    {
-                        let (file, bytes) = download_curseforge_file_bytes(
-                            instance_id,
-                            cf_file_id,
-                            DownloadReason::Update,
-                            state,
-                        )
-                        .await?;
-                        let sha1 = file
-                            .hashes
-                            .iter()
-                            .find(|hash| hash.algo == 1)
-                            .map(|hash| hash.value.clone());
-                        DownloadedProjectVersion {
-                            file_name: file.file_name,
-                            file: crate::util::fetch::DownloadedFile::from_bytes(
-                                bytes, sha1,
-                            )
-                            .await?,
-                            project_type,
-                            project_id: cf_project_id.to_string(),
-                            version_id: update.update_version_id.clone(),
-                        }
-                    } else {
-                        download_project_version(
-                            instance_id,
-                            &update.update_version_id,
-                            DownloadReason::Update,
-                            Some(update.current_version_id.clone()),
-                            state,
-                        )
-                        .await?
-                    };
-
-                    Ok::<_, crate::Error>(DownloadedBulkProject::ProjectUpdate(
-                        update, downloaded,
-                    ))
-                }
-                PlannedDownload::DependencyAddition(dependency) => {
-                    let downloaded = download_project_version(
-                        instance_id,
+        .collect::<Vec<_>>();
+    let progress = Arc::new(Mutex::new(BulkDownloadProgress {
+        bytes: vec![0; planned.len()],
+        completed: 0,
+        total_bytes: planned.iter().map(PlannedDownload::file_size).sum(),
+    }));
+    progress.lock().await.report(reporter).await?;
+    let mut downloads = stream::iter(planned.into_iter().enumerate())
+        .map(|(index, download)| {
+            let progress = progress.clone();
+            let reporter = reporter.clone();
+            async move {
+                let size = download.file_size();
+                let (version_id, reason, dependent_on) = match &download {
+                    PlannedDownload::ProjectUpdate(update) => (
+                        &update.update_version_id,
+                        DownloadReason::Update,
+                        update.current_version_id.clone(),
+                    ),
+                    PlannedDownload::DependencyAddition(dependency) => (
                         &dependency.version_id,
                         DownloadReason::Dependency,
-                        Some(dependency.parent_version_id.clone()),
-                        state,
-                    )
-                    .await?;
-
-                    Ok::<_, crate::Error>(
-                        DownloadedBulkProject::DependencyAddition(downloaded),
-                    )
-                }
+                        dependency.parent_version_id.clone(),
+                    ),
+                };
+                let context =
+                    InstallErrorContext::new("download content update")
+                        .version_id(version_id.clone())
+                        .build();
+                let progress_callback = progress.clone();
+                let reporter_callback = reporter.clone();
+                let mut on_progress = move |current: u64,
+                                            _total: u64|
+                      -> Pin<
+                    Box<dyn Future<Output = crate::Result<()>> + Send>,
+                > {
+                    let progress = progress_callback.clone();
+                    let reporter = reporter_callback.clone();
+                    Box::pin(async move {
+                        let mut progress = progress.lock().await;
+                        progress.bytes[index] =
+                            progress.bytes[index].max(current.min(size));
+                        progress.report(&reporter).await
+                    })
+                };
+                let cf_update = match &download {
+                    PlannedDownload::ProjectUpdate(update) => update.cf,
+                    PlannedDownload::DependencyAddition(_) => None,
+                };
+                let result =
+                    if let Some((cf_project_id, cf_file_id, project_type)) =
+                        cf_update
+                    {
+                        match super::apply_content_install::
+                            download_curseforge_file_bytes(
+                                instance_id,
+                                cf_file_id,
+                                DownloadReason::Update,
+                                state,
+                            )
+                            .await
+                        {
+                            Ok((file, bytes)) => {
+                                let sha1 = file
+                                    .hashes
+                                    .iter()
+                                    .find(|hash| hash.algo == 1)
+                                    .map(|hash| hash.value.clone());
+                                crate::util::fetch::DownloadedFile::from_bytes(
+                                    bytes, sha1,
+                                )
+                                .await
+                                .map(|stored| DownloadedProjectVersion {
+                                    file_name: file.file_name.clone(),
+                                    file: stored,
+                                    project_type,
+                                    project_id: format!("cf-{cf_project_id}"),
+                                    version_id: version_id.clone(),
+                                })
+                            }
+                            Err(err) => Err(err),
+                        }
+                    } else {
+                        download_project_version_with_progress(
+                            instance_id,
+                            version_id,
+                            reason,
+                            Some(dependent_on),
+                            state,
+                            Some(&mut on_progress),
+                        )
+                        .await
+                    };
+                let downloaded =
+                    reporter.preserve_failure_context(context, result).await?;
+                let downloaded = match download {
+                    PlannedDownload::ProjectUpdate(update) => {
+                        if update.cf.is_none() {
+                            validate_update_project(
+                                &downloaded,
+                                &update.project_id,
+                            )?;
+                        }
+                        DownloadedBulkProject::ProjectUpdate(update, downloaded)
+                    }
+                    PlannedDownload::DependencyAddition(_) => {
+                        DownloadedBulkProject::DependencyAddition(downloaded)
+                    }
+                };
+                let mut progress = progress.lock().await;
+                progress.bytes[index] = size;
+                progress.completed += 1;
+                progress.report(&reporter).await?;
+                Ok::<_, crate::Error>(downloaded)
             }
         })
-        .collect::<FuturesUnordered<_>>();
-    let mut completed = 0;
-    let mut output = Vec::with_capacity(total);
-
+        .buffer_unordered(BULK_DOWNLOAD_CONCURRENCY);
+    let mut output = Vec::with_capacity(
+        plan.project_updates.len() + plan.dependency_additions.len(),
+    );
     while let Some(download) = downloads.next().await {
-        let download = download?;
-        completed += 1;
-        emit_bulk_update_progress(
-            instance_id,
-            crate::event::InstanceBulkUpdateProgressStage::Downloading,
-            completed,
-            total,
-        )
-        .await?;
-        output.push(download);
+        output.push(download?);
     }
-
     Ok(output)
-}
-
-async fn emit_bulk_update_progress(
-    instance_id: &str,
-    stage: crate::event::InstanceBulkUpdateProgressStage,
-    current: usize,
-    total: usize,
-) -> crate::Result<()> {
-    crate::event::emit::emit_instance_bulk_update_progress(
-        crate::event::InstanceBulkUpdateProgressPayload {
-            instance_id: instance_id.to_string(),
-            stage,
-            current,
-            total,
-        },
-    )
-    .await
 }
 
 async fn plan_bulk_update(
     instance_id: &str,
+    selections: &[ContentUpdateSelection],
     state: &State,
 ) -> crate::Result<BulkUpdatePlan> {
     let shared_instance_member =
@@ -400,29 +500,6 @@ async fn plan_bulk_update(
         state,
     )
     .await?;
-    if updateable_paths.is_empty() {
-        return Ok(BulkUpdatePlan {
-            project_updates: Vec::new(),
-            dependency_additions: Vec::new(),
-        });
-    }
-
-    let updates = check_content_updates(
-        instance_id,
-        Some(CacheBehaviour::MustRevalidate),
-        state,
-    )
-    .await?
-    .into_iter()
-    .filter(|update| updateable_paths.contains(&update.relative_path))
-    .collect::<Vec<_>>();
-    if updates.is_empty() {
-        return Ok(BulkUpdatePlan {
-            project_updates: Vec::new(),
-            dependency_additions: Vec::new(),
-        });
-    }
-
     let content_set =
         content_rows::get_applied_content_set(instance_id, &state.pool)
             .await?
@@ -447,16 +524,50 @@ async fn plan_bulk_update(
     } else {
         updateable_paths
     };
-    let updates = updates
-        .into_iter()
-        .filter(|update| updateable_paths.contains(&update.relative_path))
-        .collect::<Vec<_>>();
+
+    let mut paths = HashSet::new();
+    let mut updates = Vec::with_capacity(selections.len());
+    for selection in selections {
+        if !updateable_paths.contains(&selection.project_path)
+            || !paths.insert(&selection.project_path)
+        {
+            return Err(crate::state::content_store::input(
+                "Selected content cannot be updated",
+            ));
+        }
+        let project = installed
+            .iter()
+            .find(|project| project.relative_path == selection.project_path)
+            .ok_or_else(|| {
+                crate::state::content_store::input(
+                    "Selected content is no longer installed",
+                )
+            })?;
+        let project_id = project.project_id.clone().ok_or_else(|| {
+            crate::state::content_store::input(
+                "Selected content has no Modrinth project",
+            )
+        })?;
+        let current_version_id =
+            project.version_id.clone().ok_or_else(|| {
+                crate::state::content_store::input(
+                    "Selected content has no Modrinth version",
+                )
+            })?;
+        updates.push(ContentUpdate {
+            project_id,
+            relative_path: selection.project_path.clone(),
+            current_version_id,
+            update_version_id: selection.version_id.clone(),
+        });
+    }
     if updates.is_empty() {
         return Ok(BulkUpdatePlan {
             project_updates: Vec::new(),
             dependency_additions: Vec::new(),
         });
     }
+
     let installed_by_project = installed
         .iter()
         .filter_map(|project| {
@@ -471,16 +582,13 @@ async fn plan_bulk_update(
         .map(|update| {
             (
                 update.relative_path.clone(),
-                (
-                    update.current_version_id.clone(),
-                    update.update_version_id.clone(),
-                ),
+                update.update_version_id.clone(),
             )
         })
         .collect::<HashMap<_, _>>();
     let version_ids = installed
         .iter()
-        .filter(|project| updateable_paths.contains(&project.relative_path))
+        .filter(|project| updates_by_path.contains_key(&project.relative_path))
         .filter_map(|project| project.version_id.clone())
         .chain(
             updates
@@ -502,14 +610,27 @@ async fn plan_bulk_update(
         .into_iter()
         .map(|version| (version.id.clone(), version))
         .collect::<HashMap<_, _>>();
+    for update in &updates {
+        let version = versions_by_id
+            .get(&update.update_version_id)
+            .ok_or_else(|| {
+                crate::state::content_store::input(
+                    "Update version no longer exists",
+                )
+            })?;
+        if version.project_id != update.project_id {
+            return Err(crate::state::content_store::input(
+                "Cannot update content to a different Modrinth project",
+            ));
+        }
+    }
     let planned_versions = installed
         .iter()
         .filter(|project| project.enabled)
-        .filter(|project| updateable_paths.contains(&project.relative_path))
+        .filter(|project| updates_by_path.contains_key(&project.relative_path))
         .filter_map(|project| {
             let target_version_id = updates_by_path
                 .get(&project.relative_path)
-                .map(|(_, update_version_id)| update_version_id)
                 .or(project.version_id.as_ref())?;
 
             versions_by_id.get(target_version_id).cloned()
@@ -525,6 +646,7 @@ async fn plan_bulk_update(
         .map(|dependency| PlannedDependencyInstall {
             version_id: dependency.version_id.clone(),
             parent_version_id: dependency.parent_version_id.clone(),
+            file_size: dependency.file_size,
         })
         .collect::<Vec<_>>();
     let installed_by_path = installed
@@ -533,46 +655,53 @@ async fn plan_bulk_update(
         .collect::<HashMap<_, _>>();
     let project_updates = updates
         .into_iter()
-        .filter_map(|update| {
+        .map(|update| {
             let cf_file_id = update
                 .update_version_id
                 .strip_prefix("cf-")
                 .and_then(|id| id.parse::<i64>().ok());
             let cf = match cf_file_id {
-                Some(cf_file_id) => {
-                    let cf = installed_by_path
-                        .get(&update.relative_path)
-                        .and_then(|project| {
-                            project.cf_project_id.map(|cf_project_id| {
-                                (
-                                    cf_project_id,
-                                    cf_file_id,
-                                    project.project_type,
-                                )
-                            })
-                        });
-                    if cf.is_none() {
-                        tracing::warn!(
-                            "Skipping CurseForge update for {}: unable to \
-                             resolve CurseForge project metadata",
-                            update.relative_path
-                        );
-                    }
-                    cf
-                }
+                Some(cf_file_id) => installed_by_path
+                    .get(&update.relative_path)
+                    .and_then(|project| {
+                        project.cf_project_id.map(|cf_project_id| {
+                            (cf_project_id, cf_file_id, project.project_type)
+                        })
+                    }),
                 None => None,
             };
             if cf.is_none() && cf_file_id.is_some() {
-                return None;
+                tracing::warn!(
+                    "Skipping CurseForge update for {}: unable to resolve \
+                     CurseForge project metadata",
+                    update.relative_path
+                );
+                return Ok(None);
             }
-
-            Some(PlannedProjectUpdate {
+            let file_size = if cf.is_some() {
+                0
+            } else {
+                let version = versions_by_id
+                    .get(&update.update_version_id)
+                    .ok_or_else(|| {
+                        crate::state::content_store::input(
+                            "Update version no longer exists",
+                        )
+                    })?;
+                selected_file_size(version)?
+            };
+            Ok(Some(PlannedProjectUpdate {
+                project_id: update.project_id,
                 relative_path: update.relative_path,
                 current_version_id: update.current_version_id,
                 update_version_id: update.update_version_id,
+                file_size,
                 cf,
-            })
+            }))
         })
+        .collect::<crate::Result<Vec<Option<_>>>>()?
+        .into_iter()
+        .flatten()
         .collect::<Vec<_>>();
 
     Ok(BulkUpdatePlan {
@@ -711,12 +840,14 @@ async fn dependency_closure(
                 .project_id
                 .clone()
                 .unwrap_or_else(|| dependency_version.project_id.clone());
+            let file_size = selected_file_size(&dependency_version)?;
 
             output.entry(project_id.clone()).or_insert_with(|| {
                 ResolvedDependency {
                     project_id,
                     version_id: dependency_version.id.clone(),
                     parent_version_id: version.id.clone(),
+                    file_size,
                 }
             });
             stack.push(dependency_version);
@@ -832,33 +963,57 @@ fn is_dependency_version_compatible(
             || version.loaders.iter().any(|loader| loader == "datapack"))
 }
 
+fn selected_file_size(version: &Version) -> crate::Result<u64> {
+    version
+        .files
+        .iter()
+        .find(|file| file.primary)
+        .or_else(|| version.files.first())
+        .map(|file| u64::from(file.size))
+        .ok_or_else(|| {
+            crate::state::content_store::input("Update version has no files")
+        })
+}
+
+fn validate_update_project(
+    downloaded: &DownloadedProjectVersion,
+    project_id: &str,
+) -> crate::Result<()> {
+    if downloaded.project_id != project_id {
+        return Err(crate::ErrorKind::InputError(
+            "Cannot update content to a different Modrinth project".to_string(),
+        )
+        .into());
+    }
+    Ok(())
+}
+
 async fn curseforge_project_for_file(
     instance_id: &str,
     current_cf_file_id: &str,
     state: &State,
 ) -> crate::Result<i64> {
-    let current_file_id: i64 = current_cf_file_id.parse().map_err(|_| {
-        crate::Error::from(crate::ErrorKind::InputError(
-            "Invalid CurseForge version id".to_string(),
-        ))
+    let cf_file_id = current_cf_file_id.parse::<i64>().map_err(|_| {
+        crate::state::content_store::input("Invalid CurseForge file id")
     })?;
-    let content_set =
-        content_rows::get_applied_content_set(instance_id, &state.pool)
-            .await?
-            .ok_or_else(|| {
-                crate::Error::from(crate::ErrorKind::InputError(
-                    "Instance has no applied content set".to_string(),
-                ))
-            })?;
+    let scope = super::apply_content_install::resolve_content_scope(
+        instance_id,
+        None,
+        state,
+    )
+    .await?;
     let entries =
-        content_rows::get_content_entries(&content_set.id, &state.pool).await?;
+        content_rows::get_content_entries(&scope.content_set_id, &state.pool)
+            .await?;
     entries
-        .iter()
-        .find(|entry| entry.cf_version_id == Some(current_file_id))
+        .into_iter()
+        .find(|entry| entry.cf_version_id == Some(cf_file_id))
         .and_then(|entry| entry.cf_project_id)
         .ok_or_else(|| {
-            crate::Error::from(crate::ErrorKind::InputError(
-                "Unable to resolve CurseForge project for update".to_string(),
-            ))
+            crate::ErrorKind::InputError(
+                "Unable to resolve the CurseForge project for this file"
+                    .to_string(),
+            )
+            .into()
         })
 }

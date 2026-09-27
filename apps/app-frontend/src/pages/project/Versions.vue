@@ -42,7 +42,6 @@
 							: `https://modrinth.com/${project.project_type}/${project.slug}/version/${version.id}`
 					"
 					target="_blank"
-					:aria-label="formatMessage(commonMessages.openInBrowserButton)"
 					class="!w-9 !px-0 !rounded-full"
 				>
 					<ExternalIcon />

@@ -108,7 +108,7 @@ pub(super) async fn read_instance_changes_into_shared_settings(
     if !updates.is_empty() {
         let (canonical_revision, _) =
             load_game_options_sync_state(&state.pool, CATALOG_REVISION).await?;
-        let mut tx = state.pool.begin().await?;
+        let mut tx = state.pool.begin_with("BEGIN IMMEDIATE").await?;
         for (option_id, candidate, revision) in updates {
             let next_revision = revision.saturating_add(1) as i64;
             let current_revision = revision as i64;
@@ -180,7 +180,20 @@ pub(super) async fn discover_custom_settings(
     let entries = document.effective_entries();
     let now = Utc::now().timestamp();
     let mut discovered = false;
-    let mut tx = state.pool.begin().await?;
+    let locale_snapshot =
+        if super::locales::has_localizable_mod_settings(document)
+            && document.effective_entries().keys().any(|key| {
+                let id = setting_by_file_key(key)
+                    .map(|s| s.id.to_owned())
+                    .unwrap_or_else(|| custom_setting_id(key));
+                !existing.contains_key(&id)
+            })
+        {
+            super::locales::capture_observation(metadata, state).await
+        } else {
+            None
+        };
+    let mut tx = state.pool.begin_with("BEGIN IMMEDIATE").await?;
     let game_version = metadata.applied_content_set.game_version.as_str();
 
     for definition in all_supported_settings() {
@@ -358,6 +371,16 @@ pub(super) async fn discover_custom_settings(
         .execute(&mut *tx)
         .await?;
     }
+    super::locales::record_observations(
+        &mut tx,
+        metadata,
+        document,
+        locale_snapshot.as_deref(),
+    )
+    .await;
     tx.commit().await?;
+    if discovered {
+        super::locales::queue_game_locale_index();
+    }
     Ok(discovered)
 }

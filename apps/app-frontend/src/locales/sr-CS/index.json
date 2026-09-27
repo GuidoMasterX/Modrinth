@@ -50,9 +50,6 @@
   "app.action-bar.install.summary.download-failed": {
     "message": "Preuzimanje nije završeno"
   },
-  "app.action-bar.install.summary.instance-not-found": {
-    "message": "Instanca nije pronađena"
-  },
   "app.action-bar.install.summary.invalid-file-path": {
     "message": "Put do datoteke nije ispravan"
   },
@@ -91,9 +88,6 @@
   },
   "app.action-bar.install.updating-shared-content": {
     "message": "Ažuriranje deljenog sadržaja"
-  },
-  "app.action-bar.installs": {
-    "message": "Instalacije"
   },
   "app.action-bar.make-primary-instance": {
     "message": "Učini primarnom instancom"
@@ -309,15 +303,6 @@
   },
   "app.instance.modpack-already-installed.instance": {
     "message": "Instanca"
-  },
-  "app.instance.mods.bulk-update.downloading-projects": {
-    "message": "Instaliranje {current, number}/{total, number} projekata..."
-  },
-  "app.instance.mods.bulk-update.finishing": {
-    "message": "Ažuriranje se završava..."
-  },
-  "app.instance.mods.bulk-update.resolving-versions": {
-    "message": "Rešavanje verzija..."
   },
   "app.instance.mods.content-type-project": {
     "message": "projekat"

@@ -206,6 +206,9 @@
   "button.download": {
     "defaultMessage": "Descargar"
   },
+  "button.download-files": {
+    "defaultMessage": "Descargar archivos"
+  },
   "button.downloading": {
     "defaultMessage": "Descargando"
   },
@@ -365,6 +368,15 @@
   "collections.label.private": {
     "defaultMessage": "Privado"
   },
+  "console.actions.collapse": {
+    "defaultMessage": "Contraer"
+  },
+  "console.actions.expand": {
+    "defaultMessage": "Expandir"
+  },
+  "console.actions.share": {
+    "defaultMessage": "Compartir"
+  },
   "content-type.content.lowercase": {
     "defaultMessage": "contenido"
   },
@@ -376,6 +388,12 @@
   },
   "content.card.select-project": {
     "defaultMessage": "Seleccionar {project}"
+  },
+  "content.card.sync-update-pending": {
+    "defaultMessage": "Algunas copias sincronizadas están esperando cambios. Una instancia puede estar ejecutándose, tener una versión congelada o incompatible, o ya contener su propia copia."
+  },
+  "content.card.synced": {
+    "defaultMessage": "Sincronizado entre instancias"
   },
   "content.card.uploaded": {
     "defaultMessage": "Subido"
@@ -1379,6 +1397,12 @@
   "external-project-license-status.yes": {
     "defaultMessage": "Sí"
   },
+  "file-button.file-too-large.description": {
+    "defaultMessage": "El archivo {filename} es demasiado grande. El tamaño máximo del archivo es {maxSize}."
+  },
+  "file-button.file-too-large.title": {
+    "defaultMessage": "Archivo demasiado grande"
+  },
   "files.conflict-modal.header": {
     "defaultMessage": "Resumen de la extracción"
   },
@@ -2121,7 +2145,7 @@
     "defaultMessage": "Borrador"
   },
   "image-viewer.editor.tool.highlight": {
-    "defaultMessage": "Resaltar"
+    "defaultMessage": "Marcador"
   },
   "image-viewer.editor.tool.pen": {
     "defaultMessage": "Bolígrafo"
@@ -2387,6 +2411,9 @@
   "instances.content-install.show-unavailable": {
     "defaultMessage": "Mostrar no disponible"
   },
+  "instances.managed-content-modal.disabled": {
+    "defaultMessage": "Desactivado"
+  },
   "instances.managed-content-modal.download-file": {
     "defaultMessage": "Descargar archivo"
   },
@@ -2395,6 +2422,9 @@
   },
   "instances.managed-content-modal.empty-title": {
     "defaultMessage": "No se encontró contenido"
+  },
+  "instances.managed-content-modal.enabled": {
+    "defaultMessage": "Activado"
   },
   "instances.managed-content-modal.external-content": {
     "defaultMessage": "Externo"
@@ -2416,6 +2446,9 @@
   },
   "instances.managed-content-modal.search-placeholder": {
     "defaultMessage": "Buscar en {count, number} {count, plural, one {proyecto} other {proyectos}}"
+  },
+  "instances.managed-content-modal.warnings": {
+    "defaultMessage": "Advertencias"
   },
   "instances.updater-modal.badge.current": {
     "defaultMessage": "Actual"
@@ -3593,6 +3626,9 @@
   "project.disclosure.advertising.title": {
     "defaultMessage": "Contiene publicidad"
   },
+  "project.disclosure.ai-functionality.title": {
+    "defaultMessage": "Funcionalidad de IA generativa"
+  },
   "project.disclosure.ai-generated-content.title": {
     "defaultMessage": "Contiene {types} generada por IA"
   },
@@ -3604,9 +3640,6 @@
   },
   "project.disclosure.ai-generated-content.use.content": {
     "defaultMessage": "contenido"
-  },
-  "project.disclosure.ai-generated-content.use.functionality": {
-    "defaultMessage": "funciones"
   },
   "project.disclosure.ai-generated-content.use.text": {
     "defaultMessage": "texto"
@@ -4001,9 +4034,6 @@
   "project.settings.disclosures.ai.types-code": {
     "defaultMessage": "Código"
   },
-  "project.settings.disclosures.ai.types-functionality": {
-    "defaultMessage": "Funciones"
-  },
   "project.settings.disclosures.ai.types-text": {
     "defaultMessage": "Texto"
   },
@@ -4351,6 +4381,9 @@
   },
   "search.filter_type.advanced.disclosure.ai_content.usage": {
     "defaultMessage": "IA: {usage}"
+  },
+  "search.filter_type.advanced.disclosure.ai_functionality": {
+    "defaultMessage": "Funcionalidad de IA generativa"
   },
   "search.filter_type.advanced.disclosure.archived": {
     "defaultMessage": "Archivado"
@@ -5158,6 +5191,18 @@
   },
   "servers.busy.installing": {
     "defaultMessage": "El servidor se está instalando"
+  },
+  "servers.download.failed.description": {
+    "defaultMessage": "Ocurrió un error mientras se trató de descargar los archivos del mundo."
+  },
+  "servers.download.failed.title": {
+    "defaultMessage": "Error al descargar"
+  },
+  "servers.download.unavailable.description": {
+    "defaultMessage": "Los archivos de este mundo no pueden ser descargados actualmente."
+  },
+  "servers.download.unavailable.title": {
+    "defaultMessage": "Descarga no disponible"
   },
   "servers.files.zip-created": {
     "defaultMessage": "ZIP creado"

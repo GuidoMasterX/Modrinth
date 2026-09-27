@@ -206,6 +206,9 @@
   "button.download": {
     "defaultMessage": "Downloaden"
   },
+  "button.download-files": {
+    "defaultMessage": "Download bestanden"
+  },
   "button.downloading": {
     "defaultMessage": "Downloaden"
   },
@@ -365,6 +368,15 @@
   "collections.label.private": {
     "defaultMessage": "Privé"
   },
+  "console.actions.collapse": {
+    "defaultMessage": "Klap in"
+  },
+  "console.actions.expand": {
+    "defaultMessage": "Vouw uit"
+  },
+  "console.actions.share": {
+    "defaultMessage": "Deel"
+  },
   "content-type.content.lowercase": {
     "defaultMessage": "inhoud"
   },
@@ -376,6 +388,12 @@
   },
   "content.card.select-project": {
     "defaultMessage": "Selecteer {project}"
+  },
+  "content.card.sync-update-pending": {
+    "defaultMessage": "Sommige gesynchroniseerde kopieën wachten op wijzigingen. Het kan zijn dat een instantie aan het draaien is, een bevroren of onverenigde versie hebben, of al een eigen kopie bevat."
+  },
+  "content.card.synced": {
+    "defaultMessage": "Gesynchroniseerd tussen instanties"
   },
   "content.card.uploaded": {
     "defaultMessage": "Geüpload"
@@ -1378,6 +1396,12 @@
   },
   "external-project-license-status.yes": {
     "defaultMessage": "Ja"
+  },
+  "file-button.file-too-large.description": {
+    "defaultMessage": "Bestand {filename} is te groot. De maximale bestand grootte is: {maxSize}."
+  },
+  "file-button.file-too-large.title": {
+    "defaultMessage": "Bestand te groot"
   },
   "files.conflict-modal.header": {
     "defaultMessage": "Samenvatting van uitpakken"
@@ -2384,6 +2408,9 @@
   "instances.content-install.show-unavailable": {
     "defaultMessage": "Laat niet beschikbaar zien"
   },
+  "instances.managed-content-modal.disabled": {
+    "defaultMessage": "Uit"
+  },
   "instances.managed-content-modal.download-file": {
     "defaultMessage": "Het downloaden is mislukt"
   },
@@ -2392,6 +2419,9 @@
   },
   "instances.managed-content-modal.empty-title": {
     "defaultMessage": "Geen inhoud gevonden"
+  },
+  "instances.managed-content-modal.enabled": {
+    "defaultMessage": "Aan"
   },
   "instances.managed-content-modal.external-content": {
     "defaultMessage": "Extern"
@@ -2413,6 +2443,9 @@
   },
   "instances.managed-content-modal.search-placeholder": {
     "defaultMessage": "Zoek naar {count, number} {count, plural, one {project} other {projecten}}"
+  },
+  "instances.managed-content-modal.warnings": {
+    "defaultMessage": "Waarschuwingen"
   },
   "instances.updater-modal.badge.current": {
     "defaultMessage": "Huidige"
@@ -3584,6 +3617,9 @@
   "project.disclosure.advertising.title": {
     "defaultMessage": "Bevat advertenties"
   },
+  "project.disclosure.ai-functionality.title": {
+    "defaultMessage": "Generatieve AI-functionaliteit"
+  },
   "project.disclosure.ai-generated-content.title": {
     "defaultMessage": "Bevat door AI gegenereerde {types}"
   },
@@ -3595,9 +3631,6 @@
   },
   "project.disclosure.ai-generated-content.use.content": {
     "defaultMessage": "inhoud"
-  },
-  "project.disclosure.ai-generated-content.use.functionality": {
-    "defaultMessage": "functionaliteit"
   },
   "project.disclosure.ai-generated-content.use.text": {
     "defaultMessage": "tekst"
@@ -3992,9 +4025,6 @@
   "project.settings.disclosures.ai.types-code": {
     "defaultMessage": "Code"
   },
-  "project.settings.disclosures.ai.types-functionality": {
-    "defaultMessage": "Functionaliteit"
-  },
   "project.settings.disclosures.ai.types-text": {
     "defaultMessage": "Tekst"
   },
@@ -4342,6 +4372,9 @@
   },
   "search.filter_type.advanced.disclosure.ai_content.usage": {
     "defaultMessage": "AI {usage}"
+  },
+  "search.filter_type.advanced.disclosure.ai_functionality": {
+    "defaultMessage": "Generatieve AI-functionaliteit"
   },
   "search.filter_type.advanced.disclosure.archived": {
     "defaultMessage": "Gearchiveerd"
@@ -5149,6 +5182,18 @@
   },
   "servers.busy.installing": {
     "defaultMessage": "De server wordt geïnstalleerd"
+  },
+  "servers.download.failed.description": {
+    "defaultMessage": "Er is een fout opgetreden tijdens het downloaden van de wereldbestanden."
+  },
+  "servers.download.failed.title": {
+    "defaultMessage": "Download mislukt"
+  },
+  "servers.download.unavailable.description": {
+    "defaultMessage": "De files van deze wereld kunnen momenteel niet gedownload worden."
+  },
+  "servers.download.unavailable.title": {
+    "defaultMessage": "Download niet beschikbaar."
   },
   "servers.files.zip-created": {
     "defaultMessage": "ZIP aangemaakt"

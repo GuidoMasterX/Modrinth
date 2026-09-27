@@ -560,23 +560,11 @@
   "app-marketing.download.windows": {
     "message": "Windows"
   },
-  "app-marketing.features.follow.description": {
-    "message": "Spara innehåll du gillar och få uppdateringar med ett klick."
-  },
-  "app-marketing.features.follow.title": {
-    "message": "Följ projekt"
-  },
-  "app-marketing.features.importing.description": {
-    "message": "Importera alla dina favoritprofiler från ditt tidigare startprogram och kom igång med Modrinth App på ett ögonblick!"
-  },
   "app-marketing.features.importing.gdlauncher-alt": {
     "message": "GDLauncher"
   },
   "app-marketing.features.importing.multimc-alt": {
     "message": "MultiMC"
-  },
-  "app-marketing.features.importing.title": {
-    "message": "Profilimportering"
   },
   "app-marketing.features.mod-management.actions": {
     "message": "Åtgärder"
@@ -602,14 +590,8 @@
   "app-marketing.features.mod-management.version": {
     "message": "Version"
   },
-  "app-marketing.features.offline.description": {
-    "message": "Spela dina moddar oavsett om du har en internetuppkoppling eller inte."
-  },
-  "app-marketing.features.offline.title": {
-    "message": "Offlineläge"
-  },
   "app-marketing.features.open-source.description": {
-    "message": "Modrinths startprogram har helt öppen källkod. Du kan se källkoden på vår <github-link>GitHub</github-link>!"
+    "message": "Modrinth App är helt och hållet öppen källkod. Du kan läsa källkoden på våran <github-link>GitHub</github-link>!"
   },
   "app-marketing.features.open-source.title": {
     "message": "Öppen källkod"
@@ -620,9 +602,6 @@
   "app-marketing.features.performance.cpu-percent": {
     "message": "% CPU"
   },
-  "app-marketing.features.performance.description": {
-    "message": "Modrinth App presterar bättre än många av de ledande modhanterarna och använder bara 150 MB RAM!"
-  },
   "app-marketing.features.performance.discord": {
     "message": "Discord"
   },
@@ -631,15 +610,6 @@
   },
   "app-marketing.features.performance.google-chrome": {
     "message": "Google Chrome"
-  },
-  "app-marketing.features.performance.infinite-mb": {
-    "message": "∞ MB"
-  },
-  "app-marketing.features.performance.infinite-times-infinite-mb": {
-    "message": "∞ × ∞ MB"
-  },
-  "app-marketing.features.performance.less-than-150mb": {
-    "message": "< 150 MB"
   },
   "app-marketing.features.performance.modrinth-app": {
     "message": "Modrinth App"
@@ -664,6 +634,12 @@
   },
   "app-marketing.features.play.title": {
     "message": "Spela dina favoritmoddar"
+  },
+  "app-marketing.features.settings-sync.description": {
+    "message": "Använd samma inställningar, resurspaket och mer mellan alla dina instanser."
+  },
+  "app-marketing.features.settings-sync.title": {
+    "message": "Synkronisera dina inställningar"
   },
   "app-marketing.features.sharing.description": {
     "message": "Skapa, dela och spela modpaket från alla tusentals moddar och modpaket som finns här på Modrinth."
@@ -812,11 +788,17 @@
   "auth.reauthenticate.last-signed-in-with": {
     "message": "Det loggades senast in med {method, select, password {ett lösenord} passkey {en passkey} github {GitHub} discord {Discord} google {Google} microsoft {Microsoft} gitlab {GitLab} steam {Steam} paypal {PayPal} other {{method}} }."
   },
+  "auth.reauthenticate.page-title": {
+    "message": "Logga in igen"
+  },
   "auth.reauthenticate.sign-in-another-way": {
     "message": "Logga in på ett annat sätt"
   },
   "auth.reauthenticate.sign-in-with-provider": {
     "message": "Logga in med {provider}"
+  },
+  "auth.reauthenticate.title": {
+    "message": "{name} måste logga in igen."
   },
   "auth.reset-password.method-choice.action": {
     "message": "Skicka återställningsmejl"
@@ -889,6 +871,9 @@
   },
   "auth.sign-in.launcher.complete.title": {
     "message": "Du är inloggad"
+  },
+  "auth.sign-in.launcher.opening.title": {
+    "message": "Öppnar Modrinth App..."
   },
   "auth.sign-in.no-account": {
     "message": "Har du inget konto?"
@@ -2091,7 +2076,7 @@
     "message": "Du kan ha skrivit fel på samlingens URL."
   },
   "error.collection.404.list_item.2": {
-    "message": "Samlingen kanske är privat."
+    "message": "Samlingen kan vara privat."
   },
   "error.collection.404.list_item.3": {
     "message": "Samlingen kan ha tagits ner av Modrinths modereringsteam eftersom att den bryter mot våra <tou-link>användarvillkor</tou-link>."
@@ -2840,6 +2825,9 @@
   "modal.shared-instance.open-in-app.benefit.join": {
     "message": "Spela samma innehåll som dina vänner"
   },
+  "modal.shared-instance.open-in-app.benefit.update": {
+    "message": "Håll delat innehåll uppdaterat när det ändras"
+  },
   "modal.shared-instance.open-in-app.get-app": {
     "message": "Skaffa Modrinth App"
   },
@@ -3136,6 +3124,9 @@
   },
   "project-member-header.success-join": {
     "message": "Du har gått med i projektteamet"
+  },
+  "project-moderation-nags.project-submitted-for-review": {
+    "message": "Ditt projekt har skickats in för granskning!"
   },
   "project-moderation-nags.publishing-checklist": {
     "message": "Publicerings-checklista"
@@ -3512,32 +3503,17 @@
   "project.settings.delete-project.title": {
     "message": "Radera projekt"
   },
-  "project.settings.disclosures.advertising.description.1": {
-    "message": "Du måste aktivera detta om ditt projekt innehåller annonser, sponsorer eller kampanjer för andra verk."
-  },
-  "project.settings.disclosures.advertising.description.2": {
-    "message": "Om marknadsföringen inte har något direkt monetärt värde <emphasis>och</emphasis> det är för något som en normal person skulle anse vara <italic>relevant</italic> och <italic>icke påträngande</italic> (såsom en länk till din Modrinth-profil i hörnet av inställningarna för ditt modd), så skulle vi inte anse det som reklam."
-  },
   "project.settings.disclosures.advertising.note-placeholder": {
     "message": "t.ex. Lägger automatiskt till Modrinth SMP-servern till din serverlista."
   },
   "project.settings.disclosures.advertising.title": {
     "message": "Innehåller marknadsföring"
   },
-  "project.settings.disclosures.ai.content-rules": {
-    "message": "Vänligen läs avsnitt 6 i <rules>Modrinths innehållsregler</rules> för mer information."
-  },
-  "project.settings.disclosures.ai.description": {
-    "message": "Du måste aktivera detta om projektet innehåller en betydande mängd AI-genererad kod, om det finns tillgångar som till stor del är AI-genererade, om projektets funktionalitet bygger på användning av generativ AI, eller om någon del av projektets sida som beskrivningen eller publiceringen bygger på generativ AI."
-  },
   "project.settings.disclosures.ai.note-placeholder": {
     "message": "t.ex. De kinesiska och arabiska översättningarna är AI-genererade."
   },
   "project.settings.disclosures.ai.title": {
     "message": "Innehåller AI-genererat innehåll"
-  },
-  "project.settings.disclosures.ai.types-description": {
-    "message": "Vad är det som generativ AI används för?"
   },
   "project.settings.disclosures.archived.description.1": {
     "message": "Märk ditt projekt som arkiverat för att upplysa användare om att du inte längre arbetar på det."
@@ -3586,9 +3562,6 @@
   },
   "project.settings.disclosures.lock-status.fully-locked.warning": {
     "message": "Vänligen <contact-support-link>kontakta support</contact-support-link> ifall den här upplysningen behöver ändras eller tas bort."
-  },
-  "project.settings.disclosures.paid-features.description": {
-    "message": "Du måste aktivera detta om ditt projekt innehåller funktioner som kan erhållas genom att spendera verkliga pengar."
   },
   "project.settings.disclosures.paid-features.title": {
     "message": "Innehåller betalda funktioner"
@@ -3796,6 +3769,9 @@
   },
   "project.settings.tags.title": {
     "message": "Taggar"
+  },
+  "project.slug-suggestions.label": {
+    "message": "Förslag:"
   },
   "project.versions.copy-id-option": {
     "message": "Kopiera ID"
@@ -4438,9 +4414,6 @@
   },
   "settings.account.two-factor.error.incorrect-code": {
     "message": "Koden du angav är inkorrekt!"
-  },
-  "settings.account.two-factor.field.code.description": {
-    "message": "Vänligen ange din tvåfaktorskod för att fortsätta."
   },
   "settings.account.two-factor.field.code.label": {
     "message": "Ange tvåfaktorskod"

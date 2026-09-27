@@ -203,6 +203,9 @@
   "button.download": {
     "defaultMessage": "Letöltés"
   },
+  "button.download-files": {
+    "defaultMessage": "Fájlok letöltése"
+  },
   "button.downloading": {
     "defaultMessage": "Letöltés folyamatban"
   },
@@ -362,6 +365,15 @@
   "collections.label.private": {
     "defaultMessage": "Privát"
   },
+  "console.actions.collapse": {
+    "defaultMessage": "Összecsukás"
+  },
+  "console.actions.expand": {
+    "defaultMessage": "Teljes képernyő"
+  },
+  "console.actions.share": {
+    "defaultMessage": "Megosztás"
+  },
   "content-type.content.lowercase": {
     "defaultMessage": "tartalom"
   },
@@ -373,6 +385,12 @@
   },
   "content.card.select-project": {
     "defaultMessage": "{project} kiválasztása"
+  },
+  "content.card.sync-update-pending": {
+    "defaultMessage": "Néhány szinkronizált példány módosításra vár. Előfordulhat, hogy egy példány éppen fut, lefagyott vagy nem kompatibilis verziót használ, illetve már tartalmazza a saját példányát."
+  },
+  "content.card.synced": {
+    "defaultMessage": "Példányok között szinkronizálva"
   },
   "content.card.uploaded": {
     "defaultMessage": "Feltöltve"
@@ -480,7 +498,7 @@
     "defaultMessage": "Hozzáadva: (függőség)"
   },
   "content.diff-modal.diff-type.removed": {
-    "defaultMessage": "Letiltva"
+    "defaultMessage": "Letiltva:"
   },
   "content.diff-modal.diff-type.removed-disabled": {
     "defaultMessage": "Eltávolítva (kikapcsolva)"
@@ -495,7 +513,7 @@
     "defaultMessage": "Hozzáadva"
   },
   "content.diff-modal.external-diff-type.removed": {
-    "defaultMessage": "Eltávolítva"
+    "defaultMessage": "Eltávolítva:"
   },
   "content.diff-modal.external-diff-type.updated": {
     "defaultMessage": "Frissítve"
@@ -1357,6 +1375,12 @@
   },
   "external-project-license-status.yes": {
     "defaultMessage": "Igen"
+  },
+  "file-button.file-too-large.description": {
+    "defaultMessage": "A(z) {filename} túl nagy. A fájl maximum mérete csak {maxSize} lehet."
+  },
+  "file-button.file-too-large.title": {
+    "defaultMessage": "A fájl túl nagy"
   },
   "files.conflict-modal.header": {
     "defaultMessage": "Kicsomagolás összegzése"
@@ -2366,6 +2390,9 @@
   "instances.content-install.show-unavailable": {
     "defaultMessage": "Nem elérhetők megjelenítése"
   },
+  "instances.managed-content-modal.disabled": {
+    "defaultMessage": "Letiltva"
+  },
   "instances.managed-content-modal.download-file": {
     "defaultMessage": "Fájl letöltése"
   },
@@ -2374,6 +2401,9 @@
   },
   "instances.managed-content-modal.empty-title": {
     "defaultMessage": "Nem található tartalom"
+  },
+  "instances.managed-content-modal.enabled": {
+    "defaultMessage": "Engedélyezve"
   },
   "instances.managed-content-modal.external-content": {
     "defaultMessage": "Külső"
@@ -2395,6 +2425,9 @@
   },
   "instances.managed-content-modal.search-placeholder": {
     "defaultMessage": "Keresés: {count, number} {count, plural, one {projekt} other {projekt}}"
+  },
+  "instances.managed-content-modal.warnings": {
+    "defaultMessage": "Figyelmeztetések"
   },
   "instances.updater-modal.badge.current": {
     "defaultMessage": "Jelenlegi"
@@ -3572,6 +3605,9 @@
   "project.disclosure.advertising.title": {
     "defaultMessage": "Hirdetéseket tartalmaz"
   },
+  "project.disclosure.ai-functionality.title": {
+    "defaultMessage": "Generatív MI van használatban"
+  },
   "project.disclosure.ai-generated-content.title": {
     "defaultMessage": "MI által generált {types} tartalmaz"
   },
@@ -3583,9 +3619,6 @@
   },
   "project.disclosure.ai-generated-content.use.content": {
     "defaultMessage": "tartalmat"
-  },
-  "project.disclosure.ai-generated-content.use.functionality": {
-    "defaultMessage": "funkciókat"
   },
   "project.disclosure.ai-generated-content.use.text": {
     "defaultMessage": "szöveget"
@@ -3980,9 +4013,6 @@
   "project.settings.disclosures.ai.types-code": {
     "defaultMessage": "Kód"
   },
-  "project.settings.disclosures.ai.types-functionality": {
-    "defaultMessage": "Funkciók"
-  },
   "project.settings.disclosures.ai.types-text": {
     "defaultMessage": "Szöveg"
   },
@@ -4330,6 +4360,9 @@
   },
   "search.filter_type.advanced.disclosure.ai_content.usage": {
     "defaultMessage": "MI {usage}"
+  },
+  "search.filter_type.advanced.disclosure.ai_functionality": {
+    "defaultMessage": "Generatív MI van használatban"
   },
   "search.filter_type.advanced.disclosure.archived": {
     "defaultMessage": "Archivált"
@@ -5138,6 +5171,18 @@
   "servers.busy.installing": {
     "defaultMessage": "A szerver települ"
   },
+  "servers.download.failed.description": {
+    "defaultMessage": "Hiba történt a világ fájljainak letöltéseinek közben."
+  },
+  "servers.download.failed.title": {
+    "defaultMessage": "A letöltés sikertelen volt"
+  },
+  "servers.download.unavailable.description": {
+    "defaultMessage": "Most nem tudjuk a világ fájljait letölteni."
+  },
+  "servers.download.unavailable.title": {
+    "defaultMessage": "Nem elérhető a letöltés"
+  },
   "servers.files.zip-created": {
     "defaultMessage": "ZIP archívum létrehozva"
   },
@@ -5760,7 +5805,7 @@
     "defaultMessage": "Adatcsomagok oldala"
   },
   "settings.display.project-list-layouts.description": {
-    "defaultMessage": "Válaszd ki a preferált elrendezést mindegyik laphoz ami a projekteket listába rendezi."
+    "defaultMessage": "Válaszd ki a kívánt elrendezést mindegyik laphoz ami a projekteket listába rendezi."
   },
   "settings.display.project-list-layouts.mod": {
     "defaultMessage": "Modok oldala"
@@ -5799,7 +5844,7 @@
     "defaultMessage": "Fejlett megjelenítés"
   },
   "settings.display.sidebar.external-links-new-tab.description": {
-    "defaultMessage": "A Modrinthen kívülre vezető hivatkozások új lapon nyíljanak meg. Ettől a beállítástól függetlenül az azonos domainre mutató hivatkozások és a Markdown-leírásokban található hivatkozások ugyanazon a lapon nyílnak meg, míg a hirdetésekben és a szerkesztési oldalakon található hivatkozások új lapon nyílnak meg."
+    "defaultMessage": "A Modrinthon kívülre vezető hivatkozások új lapon nyíljanak meg. Ettől a beállítástól függetlenül az azonos domainre mutató hivatkozások és a Markdown-leírásokban található hivatkozások ugyanazon a lapon nyílnak meg, míg a hirdetésekben és a szerkesztési oldalakon található hivatkozások új lapon nyílnak meg."
   },
   "settings.display.sidebar.external-links-new-tab.title": {
     "defaultMessage": "Külső hivatkozások megnyitása új lapon"
@@ -5874,7 +5919,7 @@
     "defaultMessage": "A weboldal körülbelül {percentage}%-a érhető el ezen a nyelven."
   },
   "settings.language.description": {
-    "defaultMessage": "Válaszd ki az {platform} preferált nyelvét. A fordításokat önkéntesek készítik <crowdin-link>a Crowdinon</crowdin-link>."
+    "defaultMessage": "Válaszd ki az {platform} nyelvét. A fordításokat önkéntesek készítik <crowdin-link>a Crowdinon</crowdin-link>."
   },
   "settings.language.languages.search-field.placeholder": {
     "defaultMessage": "Nyelv keresése..."

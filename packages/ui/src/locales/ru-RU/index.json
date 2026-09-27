@@ -203,6 +203,9 @@
   "button.download": {
     "defaultMessage": "Скачать"
   },
+  "button.download-files": {
+    "defaultMessage": "Скачать файлы"
+  },
   "button.downloading": {
     "defaultMessage": "Скачивание"
   },
@@ -362,17 +365,32 @@
   "collections.label.private": {
     "defaultMessage": "Приватная"
   },
+  "console.actions.collapse": {
+    "defaultMessage": "Свернуть"
+  },
+  "console.actions.expand": {
+    "defaultMessage": "Раскрыть"
+  },
+  "console.actions.share": {
+    "defaultMessage": "Поделиться"
+  },
   "content-type.content.lowercase": {
     "defaultMessage": "контент"
   },
   "content-type.item.lowercase": {
-    "defaultMessage": "{count, plural,  one {# элемент}  few {# элемента} many {# элементов} other {#элементов}}"
+    "defaultMessage": "{count, plural,  one {элемент} few {элемента} other {элементов}}"
   },
   "content.card.frozen": {
     "defaultMessage": "Этот проект заблокирован на его текущей версии до разморозки."
   },
   "content.card.select-project": {
     "defaultMessage": "Выбрать {project}"
+  },
+  "content.card.sync-update-pending": {
+    "defaultMessage": "Некоторые синхронизированные копии ожидают изменений. Сборка может быть запущена, замороженная или несовместимая версия, или уже содержит собственную копию."
+  },
+  "content.card.synced": {
+    "defaultMessage": "Синхронизировано между сборками"
   },
   "content.card.uploaded": {
     "defaultMessage": "Загружено"
@@ -1318,6 +1336,12 @@
   },
   "external-project-license-status.yes": {
     "defaultMessage": "Да"
+  },
+  "file-button.file-too-large.description": {
+    "defaultMessage": "Файл {filename} слишком большой. Лимит — {maxSize}."
+  },
+  "file-button.file-too-large.title": {
+    "defaultMessage": "Файл слишком большой"
   },
   "files.conflict-modal.header": {
     "defaultMessage": "Итоги распаковки"
@@ -2306,6 +2330,9 @@
   "instances.content-install.show-unavailable": {
     "defaultMessage": "Показать недоступные"
   },
+  "instances.managed-content-modal.disabled": {
+    "defaultMessage": "Отключено"
+  },
   "instances.managed-content-modal.download-file": {
     "defaultMessage": "Скачать файл"
   },
@@ -2313,7 +2340,10 @@
     "defaultMessage": "Этот источник не содержит управляемый контент."
   },
   "instances.managed-content-modal.empty-title": {
-    "defaultMessage": "Сборка пуста"
+    "defaultMessage": "Ничего не найдено"
+  },
+  "instances.managed-content-modal.enabled": {
+    "defaultMessage": "Включен"
   },
   "instances.managed-content-modal.external-content": {
     "defaultMessage": "Сторонний"
@@ -2335,6 +2365,9 @@
   },
   "instances.managed-content-modal.search-placeholder": {
     "defaultMessage": "Поиск по {count, number} {count, plural, one {проекту} other {проектам}}"
+  },
+  "instances.managed-content-modal.warnings": {
+    "defaultMessage": "Предупреждения"
   },
   "instances.updater-modal.badge.current": {
     "defaultMessage": "Текущая"
@@ -3509,6 +3542,9 @@
   "project.disclosure.advertising.title": {
     "defaultMessage": "Есть реклама"
   },
+  "project.disclosure.ai-functionality.title": {
+    "defaultMessage": "Функциональность на ИИ"
+  },
   "project.disclosure.ai-generated-content.title": {
     "defaultMessage": "Есть {types} от ИИ"
   },
@@ -3520,9 +3556,6 @@
   },
   "project.disclosure.ai-generated-content.use.content": {
     "defaultMessage": "контент"
-  },
-  "project.disclosure.ai-generated-content.use.functionality": {
-    "defaultMessage": "функциональность"
   },
   "project.disclosure.ai-generated-content.use.text": {
     "defaultMessage": "текст"
@@ -3914,9 +3947,6 @@
   "project.settings.disclosures.ai.types-code": {
     "defaultMessage": "Код"
   },
-  "project.settings.disclosures.ai.types-functionality": {
-    "defaultMessage": "Функциональность"
-  },
   "project.settings.disclosures.ai.types-text": {
     "defaultMessage": "Текст"
   },
@@ -4264,6 +4294,9 @@
   },
   "search.filter_type.advanced.disclosure.ai_content.usage": {
     "defaultMessage": "{usage} от ИИ"
+  },
+  "search.filter_type.advanced.disclosure.ai_functionality": {
+    "defaultMessage": "Функциональность на ИИ"
   },
   "search.filter_type.advanced.disclosure.archived": {
     "defaultMessage": "Архивированные"
@@ -5071,6 +5104,18 @@
   },
   "servers.busy.installing": {
     "defaultMessage": "Сервер устанавливается"
+  },
+  "servers.download.failed.description": {
+    "defaultMessage": "Произошла ошибка при попытке скачивания файлов мира."
+  },
+  "servers.download.failed.title": {
+    "defaultMessage": "Скачивание не удалось"
+  },
+  "servers.download.unavailable.description": {
+    "defaultMessage": "Файлы данного мира недоступны для скачивания в данный момент."
+  },
+  "servers.download.unavailable.title": {
+    "defaultMessage": "Скачивание недоступно"
   },
   "servers.files.zip-created": {
     "defaultMessage": "Архив создан"

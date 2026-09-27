@@ -1,14 +1,15 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::api::instance::projects::{InstalledSource, SourceCounterpart};
+use crate::api::instance::{InstalledSource, SourceCounterpart};
 use crate::state::instances::adapters::sqlite::content_rows;
 use crate::state::instances::{ContentEntry, InstanceFile};
 use crate::state::{CacheBehaviour, CachedEntry, ProjectType, State};
 
 use super::apply_content_install::{
 	ContentScope, add_project_from_curseforge_file, add_project_from_version,
-	normalized_identity_key_pub, remove_project, resolve_content_scope, toggle_disable_project,
+	normalized_identity_key_pub, resolve_content_scope,
 };
+use super::content_mutation::{remove_project, toggle_disable_project};
 use crate::state::instances::ContentSourceKind;
 use crate::util::fetch::DownloadReason;
 

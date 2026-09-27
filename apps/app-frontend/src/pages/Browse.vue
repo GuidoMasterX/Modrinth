@@ -312,19 +312,19 @@ async function initInstanceContext() {
 	}
 }
 
-function setBrowseHideInstalledFlag(flag: 'hide_installed_modpacks', value: boolean) {
-	appSettings.featureFlags[flag] = value
+function setHideInstalledModpacks(value: boolean) {
+	appSettings.hideInstalledModpacks = value
 	getSettings()
 		.then((settings) => {
-			settings.feature_flags[flag] = value
+			settings.hide_installed_modpacks = value
 			return setSettings(settings)
 		})
 		.catch(handleError)
 }
 
 const hideInstalledModpacks = computed({
-	get: () => appSettings.getFeatureFlag('hide_installed_modpacks'),
-	set: (value: boolean) => setBrowseHideInstalledFlag('hide_installed_modpacks', value),
+	get: () => appSettings.hideInstalledModpacks,
+	set: (value: boolean) => setHideInstalledModpacks(value),
 })
 
 const instanceFilters = computed(() => {
@@ -599,6 +599,30 @@ const selectableProjectTypes = computed(() => {
 })
 
 const installContext = computed(() => {
+	if (isServerContext.value && serverContextServerData.value) {
+		return {
+			name: serverContextServerData.value.name,
+			loader: serverContextServerData.value.loader ?? '',
+			gameVersion: serverContextServerData.value.mc_version ?? '',
+			serverId: serverIdQuery.value,
+			upstream: serverContextServerData.value.upstream,
+			iconSrc: null as string | null,
+			isMedal: serverContextServerData.value.is_medal,
+			backUrl: serverBackUrl.value,
+			backLabel: serverBackLabel.value,
+			heading: serverBrowseHeading.value,
+			queuedCount: queuedServerInstallCount.value,
+			selectedProjects: selectedServerInstallProjects.value,
+			isInstallingSelected: isInstallingQueuedServerInstalls.value,
+			skipNonEssentialWarnings: appSettings.skipNonEssentialWarnings,
+			installProgress: queuedInstallProgress.value,
+			clearQueued: clearQueuedServerInstalls,
+			clearSelected: clearQueuedServerInstalls,
+			onBack: flushQueuedServerInstalls,
+			discardSelectedAndBack: discardQueuedServerInstallsAndBack,
+			installSelected: installQueuedServerInstallsAndBack,
+		}
+	}
 	if (instance.value) {
 		return {
 			name: instance.value.name,
@@ -1092,12 +1116,12 @@ function getProjectBrowseQuery() {
 }
 
 const advancedFiltersCollapsed = computed({
-	get: () => appSettings.getFeatureFlag('advanced_filters_collapsed'),
+	get: () => appSettings.advancedFiltersCollapsed,
 	set: (value) => {
-		appSettings.featureFlags['advanced_filters_collapsed'] = value
+		appSettings.advancedFiltersCollapsed = value
 		getSettings()
 			.then((settings) => {
-				settings.feature_flags['advanced_filters_collapsed'] = value
+				settings.advanced_filters_collapsed = value
 				return setSettings(settings)
 			})
 			.catch(handleError)
@@ -1105,12 +1129,12 @@ const advancedFiltersCollapsed = computed({
 })
 
 const dismissedPhotosensitivityFilterWarning = computed({
-	get: () => appSettings.getFeatureFlag('dismissed_photosensitivity_filter_warning'),
+	get: () => appSettings.dismissedPhotosensitivityFilterWarning,
 	set: (value) => {
-		appSettings.featureFlags['dismissed_photosensitivity_filter_warning'] = value
+		appSettings.dismissedPhotosensitivityFilterWarning = value
 		getSettings()
 			.then((settings) => {
-				settings.feature_flags['dismissed_photosensitivity_filter_warning'] = value
+				settings.dismissed_photosensitivity_filter_warning = value
 				return setSettings(settings)
 			})
 			.catch(handleError)

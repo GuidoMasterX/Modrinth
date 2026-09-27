@@ -72,9 +72,8 @@
 									nag.status === 'warning' && 'text-orange',
 									nag.status === 'suggestion' && 'text-purple',
 								]"
-								:aria-label="getStatusTooltip(nag.status)"
 							/>
-							{{ getFormattedMessage(nag.title) }}
+							{{ getFormattedMessage(nag.title, nag.values) }}
 						</span>
 						<span>
 							<span
@@ -142,6 +141,7 @@ import {
 	type MessageDescriptor,
 	useVIntl,
 } from '@modrinth/ui'
+import { isStaff } from '@modrinth/utils'
 import type { Component } from 'vue'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
@@ -160,7 +160,7 @@ interface Props {
 	validationNags?: Labrinth.Projects.v3.ProjectNag[]
 	validationLoading?: boolean
 	validationAvailable?: boolean
-	refreshValidation?: () => Promise<Labrinth.Projects.v3.ProjectValidationResponse | null>
+	submitProject: () => Promise<boolean>
 	currentMember?: Labrinth.Projects.v3.TeamMember | null
 	collapsed?: boolean
 	disableHorizontalScroll?: boolean
@@ -223,6 +223,7 @@ const messages = defineMessages({
 
 const { formatMessage } = useVIntl()
 const { addNotification } = injectNotificationManager()
+const flags = useFeatureFlags()
 
 const props = withDefaults(defineProps<Props>(), {
 	versions: () => [],
@@ -237,7 +238,6 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<{
 	toggleCollapsed: []
-	setProcessing: [processing: boolean]
 }>()
 
 const isProcessing = computed(() => props.project.status === 'processing')
@@ -383,10 +383,8 @@ const canSubmitForReview = computed(() => {
 
 async function submitForReview() {
 	if (!canSubmitForReview.value) return
-	const validation = await props.refreshValidation?.()
-	if (!validation || validation.nags.some((nag) => nag.severity === 'required')) return
+	if (!(await props.submitProject())) return
 	if (!props.collapsed) emit('toggleCollapsed')
-	emit('setProcessing', true)
 	await navigateTo(
 		`/${props.project.project_type}/${props.project.slug ?? props.project.id}/${nagDestinations.moderation.path}`,
 	)
@@ -400,16 +398,15 @@ async function submitForReview() {
 const applicableNags = computed<Nag[]>(() => {
 	if (props.nags) return props.nags
 
-	const nagsByKind = new Map<
-		Labrinth.Projects.v3.NormalizedProjectNagKind,
-		Labrinth.Projects.v3.ProjectNag
-	>()
+	const nagsById = new Map<string, Nag>()
 	for (const nag of props.validationNags) {
 		const kind = normalizeProjectNagKind(nag.kind)
-		if (kind && !nagsByKind.has(kind)) nagsByKind.set(kind, nag)
+		if (!kind) continue
+		const mapped = toProjectNag(nag, props.project.project_type)
+		if (!nagsById.has(mapped.id)) nagsById.set(mapped.id, mapped)
 	}
 
-	return [...nagsByKind.values()].map((nag) => toProjectNag(nag, props.project.project_type))
+	return [...nagsById.values()]
 })
 
 function isNagComplete(nag: Nag): boolean {
@@ -419,6 +416,15 @@ function isNagComplete(nag: Nag): boolean {
 
 const visibleNags = computed<Nag[]>(() => {
 	const finalNags = applicableNags.value.filter((nag) => !isNagComplete(nag))
+
+	if (
+		isProcessing.value &&
+		isStaff(props.currentMember?.user) &&
+		!flags.value.alwaysShowPublishingChecklistForStaff &&
+		!finalNags.some((nag) => nag.status === 'required')
+	) {
+		return []
+	}
 
 	if (props.project.status === 'draft') {
 		finalNags.push({
@@ -480,7 +486,7 @@ watch(
 		const actionableNagKeys = new Set(
 			validationNags
 				.filter((nag) => nag.severity === 'required' || nag.severity === 'warning')
-				.map((nag) => `${nag.severity}:${nag.kind}`),
+				.map((nag) => `${nag.severity}:${nag.kind}:${JSON.stringify(nag.details)}`),
 		)
 		const previousNagKeys = previousActionableNagKeys
 		const hasNewActionableNag =
@@ -541,11 +547,11 @@ function getNagDescriptionSegments(nag: Nag): { text: string; isUrl: boolean }[]
 		.map((text) => ({ text, isUrl: /^https?:\/\//i.test(text) }))
 }
 
-function getFormattedMessage(message: string | MessageDescriptor): string {
+function getFormattedMessage(message: string | MessageDescriptor, values?: Nag['values']): string {
 	if (typeof message === 'string') {
 		return message
 	}
-	return formatMessage(message)
+	return formatMessage(message, values)
 }
 </script>
 

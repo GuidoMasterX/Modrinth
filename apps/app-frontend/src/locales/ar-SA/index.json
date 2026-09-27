@@ -53,8 +53,8 @@
   "app.action-bar.install.summary.download-failed": {
     "message": "لم يكتمل التنزيل"
   },
-  "app.action-bar.install.summary.instance-not-found": {
-    "message": "تعذّر العثور على النسخة"
+  "app.action-bar.install.summary.instance-error": {
+    "message": "تعذر تحضير النسخة"
   },
   "app.action-bar.install.summary.invalid-file-path": {
     "message": "مسار الملف غير صالح"
@@ -94,9 +94,6 @@
   },
   "app.action-bar.install.updating-shared-content": {
     "message": "جارٍ تحديث المحتوى المشترك"
-  },
-  "app.action-bar.installs": {
-    "message": "عمليات التثبيت"
   },
   "app.action-bar.make-primary-instance": {
     "message": "تعيين النسخة الأساسية"
@@ -269,6 +266,48 @@
   "app.content-install.no-compatible-versions": {
     "message": "لا توجد إصدارات متاحة تتوافق مع {compatibilityLabel}. اختر إصدارًا لتثبيته على أي حال. لن يتم تثبيت التبعيات تلقائيًا."
   },
+  "app.content.desync-pack": {
+    "message": "إلغاء المزامنة"
+  },
+  "app.content.sync-data-packs-disabled": {
+    "message": "يرجى تشغيل مزامنة داتا باك عبر إعدادات التطبيق."
+  },
+  "app.content.sync-pack": {
+    "message": "مزامنة"
+  },
+  "app.download-manager.active": {
+    "message": "فعال"
+  },
+  "app.download-manager.attention": {
+    "message": "يحتاج إلى الاهتمام"
+  },
+  "app.download-manager.cancel": {
+    "message": "إلغاء التثبيت"
+  },
+  "app.download-manager.clear-all": {
+    "message": "مسح الكل"
+  },
+  "app.download-manager.clear-completed": {
+    "message": "مسح جميع المهام المكتملة"
+  },
+  "app.download-manager.complete": {
+    "message": "مكتمل"
+  },
+  "app.download-manager.duplicated-instance": {
+    "message": "نسخة متكررة"
+  },
+  "app.download-manager.empty": {
+    "message": "لا يوجد مهام تثبيت"
+  },
+  "app.download-manager.estimated-rate": {
+    "message": "سرعة التحميل المقدرة"
+  },
+  "app.download-manager.tasks": {
+    "message": "المهام"
+  },
+  "app.download-manager.title": {
+    "message": "مدير التحميل"
+  },
   "app.error.state-init.open-backups-folder": {
     "message": "فتح مجلد النسخ الاحتياطية"
   },
@@ -298,6 +337,15 @@
   },
   "app.export-modal.version-number-placeholder": {
     "message": "1.0.0"
+  },
+  "app.features-settings.instance-pages.title": {
+    "message": "نسخ"
+  },
+  "app.features-settings.play-page.title": {
+    "message": "صفحة التشغيل"
+  },
+  "app.features-settings.sidebar.title": {
+    "message": "الشريط الجانبي"
   },
   "app.home.jump-back-in.actions.label": {
     "message": "إجراءات النسخة"
@@ -517,15 +565,6 @@
   },
   "app.instance.modpack-already-installed.instance": {
     "message": "النسخة"
-  },
-  "app.instance.mods.bulk-update.downloading-projects": {
-    "message": "جاري تنزيل {current, number}/{total, number} مشروعًا..."
-  },
-  "app.instance.mods.bulk-update.finishing": {
-    "message": "آخر المستجدات حول عملية التشطيب..."
-  },
-  "app.instance.mods.bulk-update.resolving-versions": {
-    "message": "تحديد الإصدارات..."
   },
   "app.instance.mods.content-type-project": {
     "message": "مشروع"
@@ -1529,6 +1568,105 @@
   "app.settings.downloading": {
     "message": "جار تنزيل الإصدار {version}"
   },
+  "app.settings.game-options.category.chat.label": {
+    "message": "المحادثة"
+  },
+  "app.settings.game-options.category.controls.label": {
+    "message": "عناصر التحكم"
+  },
+  "app.settings.game-options.category.custom.label": {
+    "message": "الإعدادات المخصصة"
+  },
+  "app.settings.game-options.category.language.description": {
+    "message": "لغة اللعبة"
+  },
+  "app.settings.game-options.category.language.label": {
+    "message": "اللغة"
+  },
+  "app.settings.game-options.category.online.label": {
+    "message": "متصل"
+  },
+  "app.settings.game-options.category.video.label": {
+    "message": "الفيديو"
+  },
+  "app.settings.game-options.choice.all": {
+    "message": "الكل"
+  },
+  "app.settings.game-options.choice.by-player": {
+    "message": "من قبل اللاعب"
+  },
+  "app.settings.game-options.choice.chat": {
+    "message": "المحادثة"
+  },
+  "app.settings.game-options.choice.commands-only": {
+    "message": "الأوامر فقط"
+  },
+  "app.settings.game-options.choice.constant": {
+    "message": "ثابت"
+  },
+  "app.settings.game-options.choice.crosshair": {
+    "message": "مؤشّر التصويب"
+  },
+  "app.settings.game-options.choice.custom": {
+    "message": "مخصص"
+  },
+  "app.settings.game-options.choice.decreased": {
+    "message": "ناقص"
+  },
+  "app.settings.game-options.choice.fabulous": {
+    "message": "رائع"
+  },
+  "app.settings.game-options.choice.fancy": {
+    "message": "أنيق"
+  },
+  "app.settings.game-options.choice.far": {
+    "message": "بعيد"
+  },
+  "app.settings.game-options.choice.fast": {
+    "message": "سريع"
+  },
+  "app.settings.game-options.choice.frequent": {
+    "message": "متكرر"
+  },
+  "app.settings.game-options.choice.hidden": {
+    "message": "مخفي"
+  },
+  "app.settings.game-options.choice.left": {
+    "message": "اليسار"
+  },
+  "app.settings.game-options.choice.limited": {
+    "message": "محدود"
+  },
+  "app.settings.game-options.choice.max-fps": {
+    "message": "الحد الأقصى لعدد الإطارات في الثانية"
+  },
+  "app.settings.game-options.choice.maximum": {
+    "message": "اقصى"
+  },
+  "app.settings.game-options.choice.never": {
+    "message": "ابداً"
+  },
+  "app.settings.game-options.choice.normal": {
+    "message": "عادي"
+  },
+  "app.settings.game-options.choice.on": {
+    "message": "مفعل"
+  },
+  "app.settings.game-options.choice.right": {
+    "message": "يمين"
+  },
+  "app.settings.game-options.choice.short": {
+    "message": "قصير"
+  },
+  "app.settings.game-options.choice.system": {
+    "message": "النظام"
+  },
+  "app.settings.game-options.choice.tiny": {
+    "message": "صغيرة جدًا"
+  },
+  "app.settings.game-options.choice.vulkan": {
+    "message": "Vulkan"
+  },
   "app.settings.java-installations.location.title": {
     "message": "موقع Java {version, number}"
   },
@@ -1604,15 +1742,6 @@
   "app.settings.sidebar.label.instances": {
     "message": "نسخ"
   },
-  "app.settings.synced-options.choose-sync-source.command-history-description": {
-    "message": "اختر النسخة التي يصبح تاريخ الأوامر الخاصة بها النسخة المشتركة."
-  },
-  "app.settings.synced-options.choose-sync-source.creative-hotbars-description": {
-    "message": "اختر النسخة التي ستصبح أشرطة الوصول السريع الإبداعية المحفوظة فيها هي النسخة المشتركة."
-  },
-  "app.settings.synced-options.choose-sync-source.multiplayer-servers-description": {
-    "message": "اختر النسخة التي خوادم اللاعبين المتعددة لديها هي النسخة المشتركة."
-  },
   "app.settings.synced-options.choose-sync-source.no-instances-found": {
     "message": "لم يتم العثور على أي نسخ"
   },
@@ -1654,9 +1783,6 @@
   },
   "app.settings.synced-options.multiplayer-servers.name": {
     "message": "اسم الخادم"
-  },
-  "app.settings.synced-options.multiplayer-servers.none-synced-yet": {
-    "message": "لا توجد خوادم متزامنة بعد"
   },
   "app.settings.tabs.appearance": {
     "message": "المظهر"

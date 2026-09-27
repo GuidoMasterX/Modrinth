@@ -2,19 +2,25 @@
 
 mod content;
 mod export_mrpack;
+mod files;
+pub use files::{
+    InstanceFileItem, create_instance_directory, delete_instance_file,
+    list_instance_files, read_instance_file, rename_instance_file,
+    save_instance_file_as, validate_instance_file_write, write_instance_file,
+};
 mod get;
 mod groups;
 mod icon;
 mod install;
 mod lifecycle;
 mod paths;
-pub(crate) mod projects;
+mod projects;
 mod run;
 mod screenshot_groups;
 mod screenshots;
 mod shared;
 mod synced_options;
-mod synced_packs;
+pub(crate) mod synced_packs;
 pub(crate) mod synced_servers;
 
 pub use self::content::{
@@ -46,14 +52,14 @@ pub use self::lifecycle::{edit, remove, set_synced_option};
 pub use self::paths::{get_full_path, get_mod_full_path};
 pub use self::projects::{
     InstallProjectWithDependenciesRequest, InstalledSource, SourceCounterpart,
-    add_project_from_curseforge_file,
-    add_project_from_path, add_project_from_version,
-    get_source_counterpart, install_curseforge_project_with_dependencies,
+    add_project_from_curseforge_file, add_project_from_path,
+    add_project_from_version, get_source_counterpart,
+    install_curseforge_project_with_dependencies,
     install_project_with_dependencies, is_file_on_modrinth, remove_project,
     repair_managed_modrinth, set_project_locked,
     set_project_skipped_update_version, set_project_updates_ignored,
-    switch_project_source, switch_project_version_with_dependencies, toggle_disable_project,
-    update_all_projects, update_managed_modrinth_version, update_project,
+    switch_project_source, switch_project_version_with_dependencies,
+    toggle_disable_project, update_managed_modrinth_version, update_project,
 };
 pub use self::run::{
     QuickPlayType, kill, run, try_update_playtime_by_instance_id,
@@ -101,11 +107,12 @@ pub use self::synced_options::game_options::{
     GameOptionEditorChoice, GameOptionEditorDefinition, GameOptionKind,
     GameOptionMappingKind, GameOptionValidationIssue, GameOptionValueState,
     GameOptionsPackSource, GameOptionsSourceCandidate, GameOptionsSourceIssue,
-    GameSettingCategory, GameSettingChange, GameSettingsEditorState,
-    SaveGameSettingsResult, UpdateGameSettingsRequest,
+    GameSettingCategory, GameSettingChange, GameSettingLocaleLabels,
+    GameSettingsEditorState, SaveGameSettingsResult, UpdateGameSettingsRequest,
     apply_launcher_overrides as apply_game_options_launcher_overrides,
     capture_pack_base as capture_game_options_pack_base,
     get_config as get_synced_game_options_config,
+    get_game_setting_locale_labels,
     get_local_config as get_local_game_options_config,
     list_sync_sources as list_game_options_sync_sources,
     preview_changes as preview_synced_game_option_changes,
@@ -115,7 +122,8 @@ pub use self::synced_options::game_options::{
     sync_before_launch as sync_game_options_before_launch,
 };
 pub(crate) use self::synced_options::game_options::{
-    shared_fullscreen_value, sync_all_participating_instances,
+    GameLocaleIndexer, queue_game_locale_index, shared_fullscreen_value,
+    start_game_locale_indexer, sync_all_participating_instances,
     update_shared_fullscreen_from_app,
 };
 pub use self::synced_options::{
@@ -142,9 +150,12 @@ pub use self::synced_servers::{
     list_synced_servers, remove_synced_server, update_synced_server,
 };
 
-pub(crate) use self::synced_packs::reconcile_after_change as reconcile_synced_packs;
 pub use self::synced_packs::{
     PackSyncPreview, PackSyncTarget, desync_pack, get_pack_sync_preview,
     list_synced_packs, remove_synced_pack, set_synced_pack_enabled, sync_pack,
     upload_synced_pack,
+};
+pub(crate) use self::synced_packs::{
+    PackSyncWorker, flush as reconcile_synced_packs,
+    queue_reconciliation as queue_synced_pack_reconciliation,
 };

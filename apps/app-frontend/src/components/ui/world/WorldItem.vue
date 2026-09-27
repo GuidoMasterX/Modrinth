@@ -6,6 +6,7 @@ import {
 	EyeIcon,
 	FolderOpenIcon,
 	IssuesIcon,
+	Link2Icon,
 	MoreVerticalIcon,
 	NoSignalIcon,
 	PlayIcon,
@@ -31,6 +32,7 @@ import {
 	SmartClickable,
 	TagItem,
 	TeleportOverflowMenu,
+	Tooltip,
 	useFormatDateTime,
 	useFormatNumber,
 	useRelativeTime,
@@ -39,21 +41,22 @@ import {
 import { getPingLevel } from '@modrinth/utils/utils'
 import { autoToHTML } from '@sfirew/minecraft-motd-parser'
 import dayjs from 'dayjs'
-import { Tooltip } from 'floating-vue'
 import type { Component } from 'vue'
 import { computed, useTemplateRef } from 'vue'
 import { useRouter } from 'vue-router'
 
 import { getInstanceIconUrl } from '@/helpers/instance'
 import { copyToClipboard, createInstanceShortcut } from '@/helpers/utils'
-import type {
-	ProtocolVersion,
-	ServerStatus,
-	ServerWorld,
-	SingleplayerWorld,
-	World,
+import {
+	getWorldDisplayName,
+	getWorldIdentifier,
+	type ProtocolVersion,
+	type ServerStatus,
+	type ServerWorld,
+	set_world_display_status,
+	type SingleplayerWorld,
+	type World,
 } from '@/helpers/worlds.ts'
-import { getWorldIdentifier, set_world_display_status } from '@/helpers/worlds.ts'
 
 import { LockIcon } from '../../../../../../packages/assets/generated-icons'
 
@@ -153,7 +156,7 @@ async function createShortcut() {
 
 	try {
 		const shortcutPath = await createInstanceShortcut(
-			props.world.name,
+			getWorldDisplayName(props.world),
 			shortcutInstanceId.value,
 			props.world.type === 'server'
 				? { server: (props.world as ServerWorld).address }
@@ -251,6 +254,10 @@ const messages = defineMessages({
 	createShortcut: {
 		id: 'instance.worlds.create_shortcut',
 		defaultMessage: 'Create shortcut',
+	},
+	syncedServer: {
+		id: 'instance.worlds.synced_server',
+		defaultMessage: 'Synced across instances',
 	},
 	linkedServer: {
 		id: 'instance.worlds.linked_server',
@@ -488,7 +495,7 @@ function openContextMenu(event: MouseEvent) {
 				<div class="flex flex-col justify-center gap-0.5 h-full">
 					<div class="flex items-center gap-1.5">
 						<div class="text-base text-contrast font-semibold truncate">
-							{{ world.name }}
+							{{ getWorldDisplayName(world) }}
 						</div>
 						<TagItem
 							v-if="managed"
@@ -498,6 +505,15 @@ function openContextMenu(event: MouseEvent) {
 						>
 							<LockIcon aria-hidden="true" class="h-5 w-5" />
 						</TagItem>
+						<span
+							v-if="world.type === 'server' && world.source === 'user_synced'"
+							v-tooltip="formatMessage(messages.syncedServer)"
+							role="img"
+							tabindex="0"
+							class="inline-flex shrink-0 cursor-help items-center justify-center rounded-full border border-solid border-brand-blue bg-highlight-blue px-2.5 py-1 text-brand-blue smart-clickable:allow-pointer-events focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-shadow"
+						>
+							<Link2Icon class="size-5" aria-hidden="true" />
+						</span>
 						<div
 							v-if="world.type === 'singleplayer'"
 							class="text-sm text-secondary flex items-center gap-1 font-semibold flex-nowrap whitespace-nowrap"

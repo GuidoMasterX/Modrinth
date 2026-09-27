@@ -10,6 +10,7 @@ use crate::database::{
     PgPool, PgTransaction, ReadOnlyPgPool, models as db_models,
 };
 use crate::models::ids::ProjectId;
+use crate::models::link_platform::LinkPlatform;
 use crate::models::pats::Scopes;
 use crate::models::projects::{Project, Version};
 use crate::models::teams::ProjectPermissions;
@@ -17,9 +18,46 @@ use crate::queue::session::AuthQueue;
 use crate::routes::ApiError;
 use crate::util::error::Context as _;
 use crate::validate::project::{
-    ProjectNag, has_required_nags_with_context,
-    validate_with_context as validate_project,
+    ProjectNag, ProjectNagSeverity, validate_with_context as validate_project,
 };
+
+#[derive(Debug, thiserror::Error)]
+#[error("resolve required project validation messages before saving")]
+pub(crate) struct ProjectValidationError(pub Vec<ProjectNag>);
+
+pub(crate) fn require_valid_project(
+    nags: Vec<ProjectNag>,
+) -> Result<(), ApiError> {
+    if nags
+        .iter()
+        .any(|nag| nag.severity == ProjectNagSeverity::Required)
+    {
+        return Err(ApiError::Request(eyre!(ProjectValidationError(nags))));
+    }
+    Ok(())
+}
+
+pub(crate) fn apply_link_changes(
+    project: &mut Project,
+    links: &std::collections::HashMap<String, Option<String>>,
+) {
+    for (field, url) in links {
+        if let Some(url) = url {
+            project.link_urls.insert(
+                field.clone(),
+                crate::models::projects::Link {
+                    platform: field.clone(),
+                    url: url.clone(),
+                    donation: field
+                        .parse::<LinkPlatform>()
+                        .map_or(true, LinkPlatform::is_donation),
+                },
+            );
+        } else {
+            project.link_urls.remove(field);
+        }
+    }
+}
 
 #[derive(Serialize, utoipa::ToSchema)]
 pub struct ProjectValidationResponse {
@@ -67,16 +105,17 @@ pub(crate) async fn ensure_project_is_valid_for_review(
     .collect::<Vec<_>>();
     let project = Project::from(reloaded_project.clone());
 
-    if has_required_nags_with_context(
-        &project,
-        &versions,
-        &available_categories,
-        &disclosures,
-    ) {
-        return Err(ApiError::Request(eyre!(
-            "project must have no required validation nags before or while under review"
-        )));
-    }
+    let nags = web::block(move || {
+        validate_project(
+            &project,
+            &versions,
+            &available_categories,
+            &disclosures,
+        )
+    })
+    .await
+    .wrap_internal_err("validating project for review")?;
+    require_valid_project(nags)?;
 
     Ok(reloaded_project)
 }
@@ -157,12 +196,15 @@ pub async fn validate(
     .collect::<Vec<_>>();
     let project = Project::from(project);
 
-    Ok(web::Json(ProjectValidationResponse {
-        nags: validate_project(
+    let nags = web::block(move || {
+        validate_project(
             &project,
             &versions,
             &available_categories,
             &disclosures,
-        ),
-    }))
+        )
+    })
+    .await
+    .wrap_internal_err("validating project")?;
+    Ok(web::Json(ProjectValidationResponse { nags }))
 }

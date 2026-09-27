@@ -206,6 +206,9 @@
   "button.download": {
     "defaultMessage": "Pobierz"
   },
+  "button.download-files": {
+    "defaultMessage": "Pobierz pliki"
+  },
   "button.downloading": {
     "defaultMessage": "Pobieranie"
   },
@@ -365,6 +368,15 @@
   "collections.label.private": {
     "defaultMessage": "Prywatna"
   },
+  "console.actions.collapse": {
+    "defaultMessage": "Zwiń"
+  },
+  "console.actions.expand": {
+    "defaultMessage": "Rozwiń"
+  },
+  "console.actions.share": {
+    "defaultMessage": "Udostępnij"
+  },
   "content-type.content.lowercase": {
     "defaultMessage": "zawartość"
   },
@@ -376,6 +388,12 @@
   },
   "content.card.select-project": {
     "defaultMessage": "Wybierz {project}"
+  },
+  "content.card.sync-update-pending": {
+    "defaultMessage": "Niektóre synchronizowane kopie oczekują na zastosowanie zmian. Przyczyną może być uruchomiona instancja, zamrożona lub niezgodna wersja albo własna kopia zawartości w instancji."
+  },
+  "content.card.synced": {
+    "defaultMessage": "Synchronizowana między instancjami"
   },
   "content.card.uploaded": {
     "defaultMessage": "Przesłano"
@@ -1379,6 +1397,12 @@
   "external-project-license-status.yes": {
     "defaultMessage": "Tak"
   },
+  "file-button.file-too-large.description": {
+    "defaultMessage": "Plik {filename} jest zbyt duży. Maksymalny rozmiar pliku to {maxSize}."
+  },
+  "file-button.file-too-large.title": {
+    "defaultMessage": "Zbyt duży plik"
+  },
   "files.conflict-modal.header": {
     "defaultMessage": "Podsumowanie rozpakowywania"
   },
@@ -2060,6 +2084,9 @@
   "image-viewer.editor.crop.dimensions": {
     "defaultMessage": "{width} × {height} px"
   },
+  "image-viewer.editor.crop.reset": {
+    "defaultMessage": "Resetuj przycięcie"
+  },
   "image-viewer.editor.delete-selection": {
     "defaultMessage": "Usuń zaznaczone adnotacje"
   },
@@ -2095,6 +2122,9 @@
   },
   "image-viewer.editor.tool.arrow": {
     "defaultMessage": "Strzałka"
+  },
+  "image-viewer.editor.tool.censor": {
+    "defaultMessage": "Zamaskuj"
   },
   "image-viewer.editor.tool.crop": {
     "defaultMessage": "Przytnij"
@@ -2372,6 +2402,9 @@
   "instances.content-install.show-unavailable": {
     "defaultMessage": "Pokaż niedostępne"
   },
+  "instances.managed-content-modal.disabled": {
+    "defaultMessage": "Wyłączone"
+  },
   "instances.managed-content-modal.download-file": {
     "defaultMessage": "Pobierz plik"
   },
@@ -2380,6 +2413,9 @@
   },
   "instances.managed-content-modal.empty-title": {
     "defaultMessage": "Nie znaleziono żadnej zawartości"
+  },
+  "instances.managed-content-modal.enabled": {
+    "defaultMessage": "Włączone"
   },
   "instances.managed-content-modal.external-content": {
     "defaultMessage": "Zewnętrzne"
@@ -2401,6 +2437,9 @@
   },
   "instances.managed-content-modal.search-placeholder": {
     "defaultMessage": "Szukaj wśród {count, number} {count, plural, one {projektu} other {projektów}}"
+  },
+  "instances.managed-content-modal.warnings": {
+    "defaultMessage": "Ostrzeżenia"
   },
   "instances.updater-modal.badge.current": {
     "defaultMessage": "Aktualny"
@@ -3578,6 +3617,9 @@
   "project.disclosure.advertising.title": {
     "defaultMessage": "Zawiera reklamy"
   },
+  "project.disclosure.ai-functionality.title": {
+    "defaultMessage": "Funkcje używające AI"
+  },
   "project.disclosure.ai-generated-content.title": {
     "defaultMessage": "Zawiera {types} przez sztuczną inteligencję"
   },
@@ -3589,9 +3631,6 @@
   },
   "project.disclosure.ai-generated-content.use.content": {
     "defaultMessage": "zawartość wygenerowaną"
-  },
-  "project.disclosure.ai-generated-content.use.functionality": {
-    "defaultMessage": "funkcjonalność wygenerowaną"
   },
   "project.disclosure.ai-generated-content.use.text": {
     "defaultMessage": "tekst wygenerowany"
@@ -3615,7 +3654,7 @@
     "defaultMessage": "Zawiera zewnętrzne interakcje z systemem"
   },
   "project.disclosure.telemetry.title": {
-    "defaultMessage": "Zawiera {consent, select, opt_in {telemetria opt-in} opt_out {telemetria opt-out} always_active {zawsze aktywna telemetria} other {telemetria}}"
+    "defaultMessage": "Zawiera {consent, select, opt_in {telemetrię za zgodą użytkownika} opt_out {telemetrię możliwą do wyłączenia} always_active {zawsze aktywną telemetrię} other {telemetrię}}"
   },
   "project.download-count-tooltip": {
     "defaultMessage": "{count, number} {count, plural, one {pobranie} few {pobrania} other {pobrań}}"
@@ -3986,9 +4025,6 @@
   "project.settings.disclosures.ai.types-code": {
     "defaultMessage": "Kod"
   },
-  "project.settings.disclosures.ai.types-functionality": {
-    "defaultMessage": "Funkcjonalność"
-  },
   "project.settings.disclosures.ai.types-text": {
     "defaultMessage": "Tekst"
   },
@@ -3996,10 +4032,10 @@
     "defaultMessage": "Zawsze aktywna"
   },
   "project.settings.disclosures.telemetry.consent-opt-in": {
-    "defaultMessage": "Dodaj"
+    "defaultMessage": "Za zgodą"
   },
   "project.settings.disclosures.telemetry.consent-opt-out": {
-    "defaultMessage": "Usuń"
+    "defaultMessage": "Możliwa do wyłączenia"
   },
   "project.settings.disclosures.title": {
     "defaultMessage": "Ujawnienie informacji"
@@ -4326,7 +4362,7 @@
     "defaultMessage": "Pokaż więcej opcji"
   },
   "search.filter_type.advanced": {
-    "defaultMessage": "Wyłączenia zaawansowane"
+    "defaultMessage": "Zaawansowane wykluczenia"
   },
   "search.filter_type.advanced.disclosure.advertisements": {
     "defaultMessage": "Reklamy"
@@ -4337,6 +4373,9 @@
   "search.filter_type.advanced.disclosure.ai_content.usage": {
     "defaultMessage": "AI {usage}"
   },
+  "search.filter_type.advanced.disclosure.ai_functionality": {
+    "defaultMessage": "Funkcje używające AI"
+  },
   "search.filter_type.advanced.disclosure.archived": {
     "defaultMessage": "Zarchiwizowane"
   },
@@ -4344,7 +4383,7 @@
     "defaultMessage": "Zawartość pochodnych"
   },
   "search.filter_type.advanced.disclosure.epilepsy_triggers": {
-    "defaultMessage": "Ostrzeżenie dotyczące nadwrażliwości na światło"
+    "defaultMessage": "Ryzyko epilepsji"
   },
   "search.filter_type.advanced.disclosure.paid_features": {
     "defaultMessage": "Płatne funkcje"
@@ -4356,7 +4395,7 @@
     "defaultMessage": "Telemetria"
   },
   "search.filter_type.compatible_dependency_project_ids": {
-    "defaultMessage": "Zależy od"
+    "defaultMessage": "Wymaga"
   },
   "search.filter_type.environment": {
     "defaultMessage": "Środowisko"
@@ -5144,6 +5183,18 @@
   "servers.busy.installing": {
     "defaultMessage": "Serwer jest instalowany"
   },
+  "servers.download.failed.description": {
+    "defaultMessage": "Wystąpił błąd podczas pobierania plików świata."
+  },
+  "servers.download.failed.title": {
+    "defaultMessage": "Pobieranie nie powiodło się"
+  },
+  "servers.download.unavailable.description": {
+    "defaultMessage": "Obecnie nie można pobrać plików tego świata."
+  },
+  "servers.download.unavailable.title": {
+    "defaultMessage": "Pobieranie niedostępne"
+  },
   "servers.files.zip-created": {
     "defaultMessage": "Utworzono ZIP"
   },
@@ -5543,6 +5594,9 @@
   "servers.purchase.step.plan.get-started": {
     "defaultMessage": "Rozpocznij"
   },
+  "servers.purchase.step.plan.hardware-subtitle": {
+    "defaultMessage": "Procesory AMD Ryzen 7950X, 9950X lub równoważne oraz pamięć DDR5."
+  },
   "servers.purchase.step.plan.large": {
     "defaultMessage": "Duży"
   },
@@ -5660,11 +5714,26 @@
   "servers.remove-access-modal.what-happens-label": {
     "defaultMessage": "Co się stanie?"
   },
+  "servers.settings.advanced.sftp.roll-credentials": {
+    "defaultMessage": "Wygeneruj nowe dane logowania"
+  },
   "servers.settings.advanced.sftp.roll-credentials-error-text": {
     "defaultMessage": "Spróbuj ponownie później."
   },
+  "servers.settings.advanced.sftp.roll-credentials-error-title": {
+    "defaultMessage": "Nie udało się wygenerować nowych danych logowania SFTP"
+  },
   "servers.settings.advanced.sftp.roll-credentials-modal-description": {
     "defaultMessage": "Poprzednia nazwa użytkownika i hasło przestaną działać."
+  },
+  "servers.settings.advanced.sftp.roll-credentials-modal-title": {
+    "defaultMessage": "Wygeneruj nowe dane logowania"
+  },
+  "servers.settings.advanced.sftp.roll-credentials-success-text": {
+    "defaultMessage": "Twoja nazwa użytkownika i hasło SFTP zostały wygenerowane ponownie."
+  },
+  "servers.settings.advanced.sftp.roll-credentials-success-title": {
+    "defaultMessage": "Wygenerowano nowe dane logowania SFTP"
   },
   "servers.setup.onboarding.installation-failed.text": {
     "defaultMessage": "Wystąpił nieoczekiwany błąd podczas instalacji. Spróbuj ponownie później."
@@ -6827,6 +6896,9 @@
   "version.file-type.dev-jar": {
     "defaultMessage": "Jar dev"
   },
+  "version.file-type.javadoc-jar": {
+    "defaultMessage": "Plik JAR z dokumentacją Javadoc"
+  },
   "version.file-type.optional-resource-pack": {
     "defaultMessage": "Opcjonalna paczka zasobów"
   },
@@ -6838,6 +6910,9 @@
   },
   "version.file-type.signature": {
     "defaultMessage": "Plik z sygnaturą"
+  },
+  "version.file-type.sources-jar": {
+    "defaultMessage": "Plik JAR z kodem źródłowym"
   },
   "version.file-type.unknown": {
     "defaultMessage": "Inne"

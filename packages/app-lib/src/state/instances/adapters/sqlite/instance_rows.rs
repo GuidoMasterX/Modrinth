@@ -818,7 +818,7 @@ pub(crate) async fn update_instance_icon_if_empty(
     pool: &SqlitePool,
 ) -> crate::Result<bool> {
     let modified = Utc::now().timestamp();
-    let mut tx = pool.begin().await?;
+    let mut tx = pool.begin_with("BEGIN IMMEDIATE").await?;
     let result = sqlx::query(
         "
 		UPDATE instances
@@ -1112,7 +1112,7 @@ pub(crate) async fn create_instance_group(
     name: &str,
     pool: &SqlitePool,
 ) -> crate::Result<()> {
-    let mut tx = pool.begin().await?;
+    let mut tx = pool.begin_with("BEGIN IMMEDIATE").await?;
 
     sqlx::query(
         "
@@ -1145,7 +1145,7 @@ pub(crate) async fn set_instance_group_order(
     group_ids: &[String],
     pool: &SqlitePool,
 ) -> crate::Result<()> {
-    let mut tx = pool.begin().await?;
+    let mut tx = pool.begin_with("BEGIN IMMEDIATE").await?;
     let existing_group_ids = sqlx::query_scalar::<_, String>(
         "
 		SELECT id

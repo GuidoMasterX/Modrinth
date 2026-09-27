@@ -291,7 +291,7 @@
     "message": "収益の推移"
   },
   "analytics.graph.title.views": {
-    "message": "表示の推移"
+    "message": "閲覧回数の推移"
   },
   "analytics.group-by.1h": {
     "message": "1 時間"
@@ -519,7 +519,7 @@
     "message": "アナリティクス"
   },
   "analytics.value.monetized": {
-    "message": "収益の対象"
+    "message": "収益発生済み"
   },
   "analytics.value.no-dependent": {
     "message": "なし"
@@ -540,7 +540,7 @@
     "message": "このダウンロードがどの依存プロジェクトに帰属するのかを特定するためのメタデータがありません。"
   },
   "analytics.value.unmonetized": {
-    "message": "収益の対象外"
+    "message": "収益未発生"
   },
   "app-marketing.download.description": {
     "message": "我々のデスクトップアプリはすべてのプラットフォームでご利用いただけますので、ご希望のバージョンをお選びください。"
@@ -581,14 +581,8 @@
   "app-marketing.download.windows": {
     "message": "Windows"
   },
-  "app-marketing.features.follow.description": {
-    "message": "お気に入りのコンテンツを保存し、ワンクリックで更新情報を受け取ります。"
-  },
-  "app-marketing.features.follow.title": {
-    "message": "プロジェクトをフォローする"
-  },
   "app-marketing.features.importing.description": {
-    "message": "以前使用していたランチャーからお気に入りのプロファイルをすべてインポートし、Modrinth Appをすぐに使い始めましょう！"
+    "message": "以前に使用していたランチャーから既存のゲームインスタンスをすべてインポートし、数秒でModrinth Appを開始しましょう！"
   },
   "app-marketing.features.importing.gdlauncher-alt": {
     "message": "GDLauncher"
@@ -597,7 +591,13 @@
     "message": "MultiMC"
   },
   "app-marketing.features.importing.title": {
-    "message": "プロファイルのインポート"
+    "message": "インスタンスのインポート"
+  },
+  "app-marketing.features.manage-skins.description": {
+    "message": "アプリから Minecraft のスキンをすべて切り替えます。"
+  },
+  "app-marketing.features.manage-skins.title": {
+    "message": "スキンセレクター"
   },
   "app-marketing.features.mod-management.actions": {
     "message": "アクション"
@@ -623,14 +623,8 @@
   "app-marketing.features.mod-management.version": {
     "message": "バージョン"
   },
-  "app-marketing.features.offline.description": {
-    "message": "インターネットに接続しているかどうかに関係なく、Modをプレイできます。"
-  },
-  "app-marketing.features.offline.title": {
-    "message": "オフラインモード"
-  },
   "app-marketing.features.open-source.description": {
-    "message": "Modrinthのランチャーは完全にオープンソースです。ソースコードは<github-link>GitHub</github-link>にてご覧いただけます！"
+    "message": "Modrinth Appは完全にオープンソースです。ソースコードは<github-link>GitHub</github-link>にてご覧いただけます！"
   },
   "app-marketing.features.open-source.title": {
     "message": "オープンソース"
@@ -642,7 +636,7 @@
     "message": "% CPU"
   },
   "app-marketing.features.performance.description": {
-    "message": "Modrinth AppのRAM使用量は、わずか150MB。多くの主要なModマネージャーよりも効率的です！"
+    "message": "Modrinth Appは多くの主要なModマネージャーよりも効率的です！"
   },
   "app-marketing.features.performance.discord": {
     "message": "Discord"
@@ -652,15 +646,6 @@
   },
   "app-marketing.features.performance.google-chrome": {
     "message": "Google Chrome"
-  },
-  "app-marketing.features.performance.infinite-mb": {
-    "message": "∞ MB"
-  },
-  "app-marketing.features.performance.infinite-times-infinite-mb": {
-    "message": "∞ × ∞ MB"
-  },
-  "app-marketing.features.performance.less-than-150mb": {
-    "message": "< 150 MB"
   },
   "app-marketing.features.performance.modrinth-app": {
     "message": "Modrinth App"
@@ -685,6 +670,12 @@
   },
   "app-marketing.features.play.title": {
     "message": "お気に入りのModで遊ぶ"
+  },
+  "app-marketing.features.settings-sync.description": {
+    "message": "すべてのインスタンスで同じオプション、リソースパックなどを使用できます。"
+  },
+  "app-marketing.features.settings-sync.title": {
+    "message": "設定の同期"
   },
   "app-marketing.features.sharing.description": {
     "message": "Modrinthでホストされている何千ものModやModパックのいずれかを使用して、Modパックを構築、共有、プレイできます。"
@@ -914,6 +905,12 @@
   "auth.sign-in.launcher.complete.return-button": {
     "message": "Modrinth Appを開く"
   },
+  "auth.sign-in.launcher.complete.title": {
+    "message": "サインインしています"
+  },
+  "auth.sign-in.launcher.opening.description": {
+    "message": "アプリが開かない場合は、下のボタンを使用してサインインしてください。"
+  },
   "auth.sign-in.no-account": {
     "message": "アカウントを持っていませんか？"
   },
@@ -946,6 +943,9 @@
   },
   "auth.sign-up.title.sign-up-with": {
     "message": "アカウントの作成"
+  },
+  "auth.two-factor.incorrect-code": {
+    "message": "二段階認証コードが正しくありません。もう一度試すか、バックアップコードを使用してください。"
   },
   "auth.verify-email.action.account-settings": {
     "message": "アカウント設定"
@@ -1282,6 +1282,9 @@
   },
   "create-project-version.create-modal.stage.metadata.no-versions-selected": {
     "message": "バージョンが選択されていません。"
+  },
+  "create-project-version.create-modal.stage.metadata.prefilled-environment-tooltip": {
+    "message": "以前の類似バージョンから入力済み"
   },
   "create-project-version.create-modal.stage.metadata.suggested": {
     "message": "おすすめ"
@@ -1736,6 +1739,9 @@
   "dashboard.creator-withdraw-modal.tremendous-details.enter-denomination-placeholder": {
     "message": "金額を入力してください"
   },
+  "dashboard.creator-withdraw-modal.tremendous-details.need-at-least-gift-card": {
+    "message": "このギフトカードを使用するには少なくとも {min} が必要です。"
+  },
   "dashboard.creator-withdraw-modal.tremendous-details.payment-method": {
     "message": "支払い方法"
   },
@@ -1750,6 +1756,9 @@
   },
   "dashboard.creator-withdraw-modal.tremendous-details.search-amount-label": {
     "message": "検索金額"
+  },
+  "dashboard.creator-withdraw-modal.tremendous-details.search-category-placeholder": {
+    "message": "{category}を検索…"
   },
   "dashboard.creator-withdraw-modal.tremendous-details.select-category-placeholder": {
     "message": "{category}を選択"
@@ -4216,9 +4225,6 @@
   },
   "settings.account.two-factor.error.incorrect-code": {
     "message": "入力されたコードが間違っています！"
-  },
-  "settings.account.two-factor.field.code.description": {
-    "message": "続行するには二要素認証コードを入力してください。"
   },
   "settings.account.two-factor.field.code.label": {
     "message": "二要素認証コードを入力"

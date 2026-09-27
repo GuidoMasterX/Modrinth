@@ -23,7 +23,8 @@ pub(crate) use self::commands::{
     dependencies_to_content_items, get_content_projects,
     get_installed_project_ids_for_instance, get_instance_install_candidates,
     get_linked_modpack_info, list_content, list_content_sets,
-    list_linked_modpack_content, refresh_content_updates, sync_content_files,
+    list_indexed_content, list_linked_modpack_content, refresh_content_updates,
+    sync_content_files,
 };
 pub(crate) use self::commands::{
     game_options_sync_is_enabled, load_game_option_preferences,
@@ -31,3 +32,9 @@ pub(crate) use self::commands::{
     shared_game_options_exist,
 };
 pub(crate) mod watcher;
+
+pub(crate) use adapters::sqlite::content_rows::{
+    get_instance_file_by_relative_path, get_instance_files,
+    upsert_instance_file,
+};
+pub(crate) use adapters::sqlite::instance_rows::list_instances as load_instance_rows;

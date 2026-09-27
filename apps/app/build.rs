@@ -174,6 +174,7 @@ fn main() {
                         "install_get_shared_instance_update_preview",
                         "install_shared_instance",
                         "install_update_shared_instance",
+                        "install_bulk_update_content",
                         "install_import_instance",
                         "install_duplicate_instance",
                         "install_existing_instance",
@@ -181,6 +182,8 @@ fn main() {
                         "install_job_list",
                         "install_job_get",
                         "install_job_retry",
+                        "install_job_pause",
+                        "install_job_resume",
                         "install_job_cancel",
                         "install_job_dismiss",
                         "install_job_support_details",
@@ -222,6 +225,7 @@ fn main() {
                         "instance_get_install_candidates",
                         "instance_content",
                         "instance_get_content_items",
+                        "instance_sync_content_files",
                         "instance_refresh_content_updates",
                         "instance_get_dependencies_as_content_items",
                         "instance_get_linked_modpack_info",
@@ -251,6 +255,7 @@ fn main() {
                         "instance_set_global_synced_option",
                         "instance_list_game_options_sync_sources",
                         "instance_get_synced_game_options_config",
+                        "instance_get_game_setting_locale_labels",
                         "instance_preview_synced_game_option_changes",
                         "instance_save_synced_game_option_changes",
                         "instance_get_local_game_options_config",
@@ -278,7 +283,6 @@ fn main() {
                         "instance_set_group_order",
                         "instance_set_group_memberships",
                         "instance_check_installed",
-                        "instance_update_all",
                         "instance_update_project",
                         "instance_add_project_from_version",
                         "instance_add_project_from_curseforge_file",
@@ -327,6 +331,10 @@ fn main() {
                     .commands(&[
                         "settings_get",
                         "settings_set",
+                        "store_usage",
+                        "store_cleanup",
+                        "store_set_cache_limit",
+                        "store_verify",
                         "cancel_directory_change",
                     ])
                     .default_permission(
@@ -401,6 +409,12 @@ fn main() {
                 InlinedPlugin::new()
                     .commands(&[
                         "file_extract_zip",
+                        "file_list",
+                        "file_read",
+                        "file_write",
+                        "file_create_directory",
+                        "file_rename",
+                        "file_delete",
                         "file_save_as",
                         "file_read_dragged_file",
                     ])
@@ -434,6 +448,7 @@ fn main() {
                         "backup_world",
                         "delete_world",
                         "add_server_to_instance",
+                        "ensure_managed_server_in_instance",
                         "edit_server_in_instance",
                         "remove_server_from_instance",
                         "desync_server",
