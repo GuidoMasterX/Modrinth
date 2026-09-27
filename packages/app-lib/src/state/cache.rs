@@ -1053,8 +1053,7 @@ impl CacheValue {
     Deserialize, Serialize, PartialEq, Eq, Debug, Copy, Clone, Default,
 )]
 #[serde(rename_all = "snake_case")]
-pub enum CacheBehaviour {
-    /// Serve expired data. If fetch fails / launcher is offline, errors are ignored
+pub enum CacheBehaviour {    /// Serve expired data. If fetch fails / launcher is offline, errors are ignored
     /// and expired data is served
     #[default]
     StaleWhileRevalidateSkipOffline,
@@ -1074,6 +1073,74 @@ pub struct CachedEntry {
     pub type_: CacheValueType,
     data: Option<CacheValue>,
     pub expires: i64,
+}
+
+/// Resolves CurseForge project class ids, preferring already-cached
+/// `cf_project_v3` rows and only asking the API for ids that are missing.
+/// Kept as a free function (and DB-first) so it never re-enters `get_many`,
+/// which would make `fetch_many` a non-`Send` recursive future.
+async fn curseforge_project_types_for(
+    ids: &[String],
+    pool: &SqlitePool,
+    fetch_semaphore: &FetchSemaphore,
+) -> std::collections::HashMap<
+    i64,
+    crate::api::curseforge::normalize::SourceProjectType,
+> {
+    let mut project_types = std::collections::HashMap::new();
+    let mut missing = Vec::new();
+    for key in ids {
+        let Ok(id) = key.parse::<i64>() else {
+            continue;
+        };
+        let cached = sqlx::query_scalar::<_, String>(
+            "SELECT data FROM cache WHERE data_type = 'cf_project_v3' AND id = ?",
+        )
+        .bind(key)
+        .fetch_optional(pool)
+        .await
+        .ok()
+        .flatten()
+        .and_then(|data| {
+            serde_json::from_str::<crate::api::curseforge::normalize::SourceProject>(
+                &data,
+            )
+            .ok()
+        });
+        match cached {
+            Some(project) => {
+                project_types.insert(id, project.project_type);
+            }
+            None => missing.push(id),
+        }
+    }
+    if !missing.is_empty() {
+        match crate::api::curseforge::api::get_mods(
+            &missing,
+            fetch_semaphore,
+            pool,
+        )
+        .await
+        {
+            Ok(projects) => {
+                for project in projects {
+                    project_types.insert(
+                        project.id,
+                        crate::api::curseforge::normalize::SourceProjectType::from_cf_class(
+                            project.class_id,
+                        ),
+                    );
+                }
+            }
+            Err(err) => {
+                tracing::warn!(
+                    "Unable to fetch CurseForge project classes: {err}; \
+                     assuming mods"
+                );
+            }
+        }
+    }
+    project_types
 }
 
 macro_rules! impl_cache_methods {
@@ -2325,41 +2392,14 @@ impl CachedEntry {
                     .iter()
                     .map(|key| key.key().to_string())
                     .collect::<Vec<_>>();
-                let ids = keys
-                    .iter()
-                    .filter_map(|key| key.parse::<i64>().ok())
-                    .collect::<Vec<i64>>();
-
-                // The loader synthesis below needs each project's class id, but
-                // fetching it per project doubled the request count and burned
-                // CurseForge's error budget on large modpacks. One batched
-                // `POST /mods` covers every project instead.
-                let project_types = if ids.is_empty() {
+                // The loader synthesis below needs each project's class id.
+                // Reuse the project cache (usually warm from the same page's
+                // project fetch) instead of paying an extra batched request.
+                let project_types = if keys.is_empty() {
                     std::collections::HashMap::new()
                 } else {
-                    match crate::api::curseforge::api::get_mods(
-                        &ids,
-                        fetch_semaphore,
-                        pool,
-                    )
-                    .await
-                    {
-                        Ok(projects) => projects
-                            .into_iter()
-                            .filter_map(|project| {
-                                project
-                                    .class_id
-                                    .map(|class_id| (project.id, SourceProjectType::from_cf_class(Some(class_id))))
-                            })
-                            .collect(),
-                        Err(err) => {
-                            tracing::warn!(
-                                "Unable to fetch CurseForge project classes: {err}; \
-                                 assuming mods"
-                            );
-                            std::collections::HashMap::new()
-                        }
-                    }
+                    curseforge_project_types_for(&keys, pool, fetch_semaphore)
+                        .await
                 };
 
                 let requests = keys

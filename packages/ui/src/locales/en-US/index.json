@@ -2378,6 +2378,9 @@
   "instance.confirm-source-switch.header": {
     "defaultMessage": "Switch source?"
   },
+  "instance.confirm-source-switch.loading-body": {
+    "defaultMessage": "Checking whether this exact version is available on {source}…"
+  },
   "instance.confirm-source-switch.switch-button": {
     "defaultMessage": "Switch"
   },
@@ -3643,9 +3646,6 @@
   },
   "project.about.links.wiki": {
     "defaultMessage": "Visit wiki"
-  },
-  "project.about.modpacks.title": {
-    "defaultMessage": "Modpacks"
   },
   "project.about.repository.fork": {
     "defaultMessage": "fork"

@@ -26,11 +26,6 @@
 				:dependencies="sidebarDependencies"
 				class="project-sidebar-section"
 			/>
-			<ProjectSidebarModpacks
-				v-if="!isServerProject && data.id"
-				:project-id="data.id"
-				class="project-sidebar-section"
-			/>
 			<ProjectSidebarLinks
 				link-target="_blank"
 				:project="data"
@@ -263,7 +258,6 @@ import {
 	ProjectSidebarDependencies,
 	ProjectSidebarDetails,
 	ProjectSidebarLinks,
-	ProjectSidebarModpacks,
 	ProjectSidebarRepository,
 	ProjectSidebarServerInfo,
 	ProjectSidebarTags,
@@ -943,10 +937,10 @@ async function fetchProjectData() {
 }
 
 async function fetchCfProjectData(requestedId) {
-	const [project, cfVersions] = await Promise.all([
-		getCfProject(requestedId).catch(handleError),
-		getCfVersions(requestedId).catch(handleError),
-	])
+	// Render the project as soon as it loads: the description panel mounts
+	// with `data`, and waiting for the full version history made every cold
+	// project page sit behind up to twenty serial CurseForge file pages.
+	const project = await getCfProject(requestedId).catch(handleError)
 	if (String(route.params.id ?? '') !== requestedId) return
 
 	if (!project) {
@@ -956,19 +950,17 @@ async function fetchCfProjectData(requestedId) {
 
 	data.value = project
 	// The compatibility/details panels only need to know whether any versions
-	// exist; the full list is fetched separately by the versions tab.
-	data.value.versions = cfVersions.map((version) => version.id)
+	// exist; the full list is fetched separately below and by the versions tab.
+	data.value.versions = []
 	projectV3.value = null
 	projectBreadcrumbLabel.value = project.title
 	const cfMembers = project.cf_members ?? []
-	;[versions.value, members.value, categories.value, instance.value, instanceProjects.value] =
-		await Promise.all([
-			Promise.resolve(cfVersions.sort((a, b) => dayjs(b.date_published) - dayjs(a.date_published))),
-			Promise.resolve(cfMembers),
-			Promise.resolve([]),
-			route.query.i ? getInstance(route.query.i).catch(handleError) : Promise.resolve(),
-			route.query.i ? getInstanceProjects(route.query.i).catch(handleError) : Promise.resolve(),
-		])
+	;[members.value, categories.value, instance.value, instanceProjects.value] = await Promise.all([
+		Promise.resolve(cfMembers),
+		Promise.resolve([]),
+		route.query.i ? getInstance(route.query.i).catch(handleError) : Promise.resolve(),
+		route.query.i ? getInstanceProjects(route.query.i).catch(handleError) : Promise.resolve(),
+	])
 	if (String(route.params.id ?? '') !== requestedId) return
 
 	const installedFile = instanceProjects.value
@@ -987,6 +979,11 @@ async function fetchCfProjectData(requestedId) {
 	organization.value = null
 	isServerProject.value = false
 	serverStatusOnline.value = false
+
+	const cfVersions = await getCfVersions(requestedId).catch(() => null)
+	if (String(route.params.id ?? '') !== requestedId || !cfVersions) return
+	versions.value = cfVersions.sort((a, b) => dayjs(b.date_published) - dayjs(a.date_published))
+	data.value.versions = cfVersions.map((version) => version.id)
 }
 
 async function checkCrossSourceInstalled(project, requestedId) {

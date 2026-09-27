@@ -253,9 +253,14 @@ pub(crate) async fn get_instance_install_candidates(
         // installed file also exists on the source being viewed.
         let mut switchable_path = None;
         if installed {
-            for path in other_source_install_paths(
+            // Probe the installed file itself instead of scanning every
+            // opposite-source file: that scan read hundreds of jars and
+            // queued minutes of fingerprint requests just to build the
+            // instance picker.
+            if let Some(path) = installed_project_path(
                 &row.content_set_id,
-                viewing_is_curseforge,
+                project_id,
+                cf_project_id,
                 state,
             )
             .await
@@ -272,7 +277,6 @@ pub(crate) async fn get_instance_install_candidates(
                 };
                 if is_viewed_project && counterpart.can_switch() {
                     switchable_path = Some(path);
-                    break;
                 }
             }
         }
@@ -293,32 +297,32 @@ pub(crate) async fn get_instance_install_candidates(
     Ok(candidates)
 }
 
-/// Relative paths of an instance's files that were installed from the source
-/// opposite to the one being viewed. Runtime query so the prepared-query cache
-/// does not need regenerating.
-async fn other_source_install_paths(
+/// Relative path of the installed file for a project in an instance. Runtime
+/// query so the prepared-query cache does not need regenerating.
+async fn installed_project_path(
     content_set_id: &str,
-    viewing_is_curseforge: bool,
+    project_id: &str,
+    cf_project_id: Option<i64>,
     state: &State,
-) -> Vec<String> {
-    let wanted_source = if viewing_is_curseforge { "modrinth" } else { "curseforge" };
-    let rows = sqlx::query_as::<_, (String, String)>(
+) -> Option<String> {
+    sqlx::query_as::<_, (String,)>(
         r#"
-		SELECT f.relative_path, entry.source
+		SELECT f.relative_path
 		FROM instance_content_entries entry
 		INNER JOIN instance_files f ON f.id = entry.file_id
-		WHERE entry.content_set_id = ? AND f.missing = 0
+		WHERE entry.content_set_id = ?
+			AND (entry.project_id = ? OR entry.cf_project_id = ?)
+			AND f.missing = 0
+		LIMIT 1
 		"#,
     )
     .bind(content_set_id)
-    .fetch_all(&state.pool)
+    .bind(project_id)
+    .bind(cf_project_id)
+    .fetch_optional(&state.pool)
     .await
-    .unwrap_or_default();
-
-    rows.into_iter()
-        .filter(|(_, source)| source == wanted_source)
-        .map(|(relative_path, _)| relative_path)
-        .collect()
+    .unwrap_or_default()
+    .map(|(relative_path,)| relative_path)
 }
 
 fn instance_matches_targets(

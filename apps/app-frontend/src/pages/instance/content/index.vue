@@ -90,6 +90,7 @@
 						sourceSwitchTarget ? SOURCE_LABELS[sourceSwitchTarget] : 'the other source'
 					"
 					:available="sourceSwitchAvailable"
+					:loading="sourceSwitchLoading"
 					@switch="handleSourceSwitchConfirm"
 				/>
 			</template>
@@ -1173,6 +1174,9 @@ async function handleSwitchSource(item: ContentItem) {
 	sourceSwitchAvailable.value = false
 	sourceSwitchTarget.value = item.package_source === 'curseforge' ? 'modrinth' : 'curseforge'
 	sourceSwitchLoading.value = true
+	// Show the dialog immediately: resolving the counterpart can involve a
+	// file read and API lookups, which must not delay the prompt.
+	confirmSourceSwitchModalRef.value?.show()
 	try {
 		// Ask the backend which sources hold the exact installed file before
 		// offering the switch, so the dialog can explain a refusal.
@@ -1185,7 +1189,6 @@ async function handleSwitchSource(item: ContentItem) {
 		sourceSwitchAvailable.value = false
 	} finally {
 		sourceSwitchLoading.value = false
-		confirmSourceSwitchModalRef.value?.show()
 	}
 }
 

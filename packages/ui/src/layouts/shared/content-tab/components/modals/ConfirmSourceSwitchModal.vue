@@ -2,15 +2,17 @@
 	<NewModal ref="modal" :header="formatMessage(messages.header)" max-width="500px">
 		<p class="m-0 text-primary">
 			{{
-				available
-					? formatMessage(messages.availableBody, {
-							project: projectName,
-							source: targetSource,
-						})
-					: formatMessage(messages.unavailableBody, {
-							project: projectName,
-							source: targetSource,
-						})
+				loading
+					? formatMessage(messages.loadingBody, { source: targetSource })
+					: available
+						? formatMessage(messages.availableBody, {
+								project: projectName,
+								source: targetSource,
+							})
+						: formatMessage(messages.unavailableBody, {
+								project: projectName,
+								source: targetSource,
+							})
 			}}
 		</p>
 
@@ -20,7 +22,7 @@
 					<XIcon />
 					{{ formatMessage(commonMessages.cancelButton) }}
 				</Button>
-				<Button v-if="available" type="colored" color="brand" @click="confirm">
+				<Button v-if="available" type="colored" color="brand" :disabled="loading" @click="confirm">
 					<ArrowLeftRightIcon />
 					{{ formatMessage(messages.switchButton) }}
 				</Button>
@@ -59,12 +61,17 @@ const messages = defineMessages({
 		id: 'instance.confirm-source-switch.switch-button',
 		defaultMessage: 'Switch',
 	},
+	loadingBody: {
+		id: 'instance.confirm-source-switch.loading-body',
+		defaultMessage: 'Checking whether this exact version is available on {source}…',
+	},
 })
 
 defineProps<{
 	projectName: string
 	targetSource: string
 	available: boolean
+	loading?: boolean
 }>()
 
 const emit = defineEmits<{

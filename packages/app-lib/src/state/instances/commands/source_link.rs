@@ -57,8 +57,14 @@ async fn resolve_counterpart_parts(
 		&state.pool,
 	)
 	.await?;
-	let counterparts =
-		resolve_file_counterparts(&scope, file_path, &file.sha1, state).await;
+	let counterparts = resolve_file_counterparts(
+		&scope,
+		file_path,
+		&file.sha1,
+		entry.as_ref(),
+		state,
+	)
+	.await;
 	Ok((scope, file, entry, counterparts))
 }
 
@@ -328,11 +334,29 @@ pub(crate) async fn resolve_file_counterparts(
 	scope: &ContentScope,
 	relative_path: &str,
 	sha1: &str,
+	entry: Option<&ContentEntry>,
 	state: &State,
 ) -> FileCounterparts {
 	let mut counterparts = FileCounterparts::default();
 
-	if !sha1.is_empty() {
+	// Ids stored on the entry are authoritative and free. Only resolve the
+	// sides that are still unknown: reading the jar and hitting both APIs on
+	// every source-tag click is what made the prompt slow.
+	if let Some(entry) = entry {
+		if let (Some(project_id), Some(version_id)) = (
+			entry.project_id.clone().filter(|id| !id.is_empty()),
+			entry.version_id.clone().filter(|id| !id.is_empty()),
+		) {
+			counterparts.mr = Some((project_id, version_id));
+		}
+		if let (Some(cf_project_id), Some(cf_version_id)) =
+			(entry.cf_project_id, entry.cf_version_id)
+		{
+			counterparts.cf = Some((cf_project_id, cf_version_id));
+		}
+	}
+
+	if counterparts.mr.is_none() && !sha1.is_empty() {
 		match CachedEntry::get_file_many(
 			&[sha1],
 			Some(CacheBehaviour::StaleWhileRevalidateSkipOffline),
@@ -352,35 +376,37 @@ pub(crate) async fn resolve_file_counterparts(
 		}
 	}
 
-	let full_path = state
-		.directories
-		.instances_dir()
-		.join(&scope.instance.path)
-		.join(relative_path);
-	match tokio::fs::read(&full_path).await {
-		Ok(bytes) => {
-			let fingerprint = crate::util::murmur2::murmur2(&bytes) as i64;
-			match CachedEntry::get_curseforge_fingerprints(
-				&fingerprint.to_string(),
-				Some(CacheBehaviour::StaleWhileRevalidateSkipOffline),
-				&state.pool,
-				&state.api_semaphore,
-			)
-			.await
-			{
-				Ok(Some(cached)) => {
-					if let Some(exact) = cached.data.exact_matches.first() {
-						counterparts.cf = Some((exact.id, exact.file.id));
+	if counterparts.cf.is_none() {
+		let full_path = state
+			.directories
+			.instances_dir()
+			.join(&scope.instance.path)
+			.join(relative_path);
+		match tokio::fs::read(&full_path).await {
+			Ok(bytes) => {
+				let fingerprint = crate::util::murmur2::murmur2(&bytes) as i64;
+				match CachedEntry::get_curseforge_fingerprints(
+					&fingerprint.to_string(),
+					Some(CacheBehaviour::StaleWhileRevalidateSkipOffline),
+					&state.pool,
+					&state.api_semaphore,
+				)
+				.await
+				{
+					Ok(Some(cached)) => {
+						if let Some(exact) = cached.data.exact_matches.first() {
+							counterparts.cf = Some((exact.id, exact.file.id));
+						}
 					}
+					Ok(None) => {}
+					Err(error) => tracing::warn!(
+						"Unable to resolve CurseForge fingerprint for {relative_path}: {error}"
+					),
 				}
-				Ok(None) => {}
-				Err(error) => tracing::warn!(
-					"Unable to resolve CurseForge fingerprint for {relative_path}: {error}"
-				),
 			}
-		}
-		Err(error) => {
-			tracing::warn!("Unable to read {full_path:?} for fingerprinting: {error}")
+			Err(error) => {
+				tracing::warn!("Unable to read {full_path:?} for fingerprinting: {error}")
+			}
 		}
 	}
 
