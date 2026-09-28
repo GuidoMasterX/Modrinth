@@ -848,6 +848,9 @@
   "content.selection-bar.selected-count-simple": {
     "defaultMessage": "{count, number} selected"
   },
+  "content.table.source": {
+    "defaultMessage": "Source"
+  },
   "creation-flow.button.create-instance": {
     "defaultMessage": "Create instance"
   },

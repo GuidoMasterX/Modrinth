@@ -599,30 +599,6 @@ const selectableProjectTypes = computed(() => {
 })
 
 const installContext = computed(() => {
-	if (isServerContext.value && serverContextServerData.value) {
-		return {
-			name: serverContextServerData.value.name,
-			loader: serverContextServerData.value.loader ?? '',
-			gameVersion: serverContextServerData.value.mc_version ?? '',
-			serverId: serverIdQuery.value,
-			upstream: serverContextServerData.value.upstream,
-			iconSrc: null as string | null,
-			isMedal: serverContextServerData.value.is_medal,
-			backUrl: serverBackUrl.value,
-			backLabel: serverBackLabel.value,
-			heading: serverBrowseHeading.value,
-			queuedCount: queuedServerInstallCount.value,
-			selectedProjects: selectedServerInstallProjects.value,
-			isInstallingSelected: isInstallingQueuedServerInstalls.value,
-			skipNonEssentialWarnings: appSettings.skipNonEssentialWarnings,
-			installProgress: queuedInstallProgress.value,
-			clearQueued: clearQueuedServerInstalls,
-			clearSelected: clearQueuedServerInstalls,
-			onBack: flushQueuedServerInstalls,
-			discardSelectedAndBack: discardQueuedServerInstallsAndBack,
-			installSelected: installQueuedServerInstallsAndBack,
-		}
-	}
 	if (instance.value) {
 		return {
 			name: instance.value.name,
