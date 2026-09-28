@@ -26,21 +26,25 @@ const props = defineProps({
 
 const rawDescription = ref(null)
 let descriptionRequest = 0
+let descriptionTimer
 
 watch(
 	() => props.project.id,
-	async (id) => {
+	(id) => {
 		rawDescription.value = null
 		const request = ++descriptionRequest
+		clearTimeout(descriptionTimer)
 		if (!id?.startsWith('cf-')) return
-		try {
-			const html = await get_curseforge_description(id)
-			if (request === descriptionRequest) {
-				rawDescription.value = html
+		descriptionTimer = setTimeout(async () => {
+			try {
+				const html = await get_curseforge_description(id)
+				if (request === descriptionRequest) {
+					rawDescription.value = html
+				}
+			} catch {
+				// description unavailable - fall back to the summary
 			}
-		} catch {
-			// description unavailable - fall back to the summary
-		}
+		}, 250)
 	},
 	{ immediate: true },
 )

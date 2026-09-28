@@ -144,12 +144,21 @@ async fn apply_content_update(
             state,
         )
         .await?;
+        let enabled = content_rows::get_instance_file_by_relative_path(
+            instance_id,
+            project_path,
+            &state.pool,
+        )
+        .await?
+        .is_none_or(|file| file.enabled);
         let new_path =
             super::apply_content_install::add_project_from_curseforge_file(
                 instance_id,
                 cf_project_id,
                 cf_file_id,
                 DownloadReason::Update,
+                Some(project_path),
+                Some(enabled),
                 state,
             )
             .await?;

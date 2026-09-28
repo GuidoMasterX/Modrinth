@@ -980,6 +980,8 @@ async function fetchCfProjectData(requestedId) {
 	isServerProject.value = false
 	serverStatusOnline.value = false
 
+	await new Promise((resolve) => setTimeout(resolve, 400))
+	if (String(route.params.id ?? '') !== requestedId) return
 	const cfVersions = await getCfVersions(requestedId).catch(() => null)
 	if (String(route.params.id ?? '') !== requestedId || !cfVersions) return
 	versions.value = cfVersions.sort((a, b) => dayjs(b.date_published) - dayjs(a.date_published))

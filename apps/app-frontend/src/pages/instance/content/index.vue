@@ -1414,7 +1414,12 @@ async function refreshManagedContentItems(cacheBehaviour?: CacheBehaviour) {
 			queryKey: modpackContentQueryKey.value,
 			queryFn: () => get_linked_modpack_content(instance.value.id, cacheBehaviour),
 		})
-		.catch(handleError)
+		.catch((error) => {
+			if ((error as { name?: string } | null)?.name !== 'CancelledError') {
+				handleError(error as Error)
+			}
+			return null
+		})
 
 	if (contentItems) {
 		managedContentModal.value?.setItems(managedContentItems.value)

@@ -136,6 +136,8 @@ pub async fn add_project_from_curseforge_file(
             cf_project_id,
             cf_file_id,
             reason,
+            None,
+            None,
             &state,
         )
         .await?;

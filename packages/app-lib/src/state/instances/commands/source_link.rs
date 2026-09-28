@@ -449,6 +449,8 @@ pub(crate) async fn switch_project_source(
 			cf_project_id,
 			cf_file_id,
 			DownloadReason::Update,
+			None,
+			None,
 			state,
 		)
 		.await?

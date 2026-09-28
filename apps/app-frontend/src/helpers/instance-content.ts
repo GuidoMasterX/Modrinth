@@ -37,6 +37,7 @@ export async function loadInstanceContentData(
 }
 
 function handleLoadError(error: unknown, onError?: (error: Error) => unknown) {
+	if ((error as { name?: string } | null)?.name === 'CancelledError') return null
 	if (!onError) throw error
 	onError(error as Error)
 	return null

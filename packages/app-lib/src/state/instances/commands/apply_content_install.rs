@@ -665,6 +665,8 @@ pub(crate) async fn add_project_from_curseforge_file(
     cf_project_id: i64,
     cf_file_id: i64,
     reason: DownloadReason,
+    previous_path: Option<&str>,
+    enabled_override: Option<bool>,
     state: &State,
 ) -> crate::Result<String> {
     let scope = resolve_content_scope(instance_id, None, state).await?;
@@ -765,6 +767,8 @@ pub(crate) async fn add_project_from_curseforge_file(
         ContentSourceKind::Local,
         None,
         None,
+        previous_path,
+        enabled_override,
         EntryOrigin::curseforge(cf_project_id, Some(cf_file_id)),
         state,
     )
@@ -900,6 +904,8 @@ pub(crate) async fn resolve_and_install_curseforge_project(
         cf_project_id,
         root_file_id,
         DownloadReason::Standalone,
+        None,
+        None,
         state,
     )
     .await?;
@@ -1016,6 +1022,8 @@ pub(crate) async fn resolve_and_install_curseforge_project(
             dep_id,
             file_id,
             DownloadReason::Dependency,
+            None,
+            None,
             state,
         )
         .await
@@ -1110,6 +1118,8 @@ pub(crate) async fn add_project_bytes(
     source_kind: ContentSourceKind,
     project_id: Option<&str>,
     version_id: Option<&str>,
+    previous_path: Option<&str>,
+    enabled_override: Option<bool>,
     origin: EntryOrigin,
     state: &State,
 ) -> crate::Result<String> {
@@ -1155,8 +1165,8 @@ pub(crate) async fn add_project_bytes(
                     version_id,
                 },
             ),
-            enabled_override: None,
-            previous_path: None,
+            enabled_override,
+            previous_path,
         },
         state,
     )

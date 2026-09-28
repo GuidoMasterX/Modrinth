@@ -889,6 +889,8 @@ async fn install_shared_instance_external_file(
         ContentSourceKind::SharedInstance,
         None,
         None,
+        None,
+        None,
         Default::default(),
         state,
     )
