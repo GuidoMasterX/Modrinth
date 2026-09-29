@@ -365,15 +365,6 @@
   "collections.label.private": {
     "defaultMessage": "Privata"
   },
-  "console.actions.collapse": {
-    "defaultMessage": "Comprimi"
-  },
-  "console.actions.expand": {
-    "defaultMessage": "Espandi"
-  },
-  "console.actions.share": {
-    "defaultMessage": "Condividi"
-  },
   "content-type.content.lowercase": {
     "defaultMessage": "contenuto"
   },

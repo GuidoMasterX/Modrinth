@@ -365,15 +365,6 @@
   "collections.label.private": {
     "defaultMessage": "Privát"
   },
-  "console.actions.collapse": {
-    "defaultMessage": "Összecsukás"
-  },
-  "console.actions.expand": {
-    "defaultMessage": "Teljes képernyő"
-  },
-  "console.actions.share": {
-    "defaultMessage": "Megosztás"
-  },
   "content-type.content.lowercase": {
     "defaultMessage": "tartalom"
   },

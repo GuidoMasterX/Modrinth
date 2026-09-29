@@ -659,9 +659,6 @@
   "app.instance.mods.content-type-project": {
     "message": "проект"
   },
-  "app.instance.mods.freeze-content": {
-    "message": "Заморозить версию"
-  },
   "app.instance.mods.locked-content": {
     "message": "Содержимое заблокированных сборок нельзя изменить."
   },
@@ -676,9 +673,6 @@
   },
   "app.instance.mods.successfully-uploaded": {
     "message": "Успешно загружено"
-  },
-  "app.instance.mods.unfreeze-content": {
-    "message": "Разморозить версию"
   },
   "app.instance.navigation.back-to-instance": {
     "message": "Вернуться к сборке"

@@ -662,9 +662,6 @@
   "app.instance.mods.content-type-project": {
     "message": "プロジェクト"
   },
-  "app.instance.mods.freeze-content": {
-    "message": "バージョンを凍結"
-  },
   "app.instance.mods.locked-content": {
     "message": "ロックされたインスタンス内のコンテンツは変更できません。"
   },
@@ -682,9 +679,6 @@
   },
   "app.instance.mods.successfully-uploaded": {
     "message": "アップロードに成功しました"
-  },
-  "app.instance.mods.unfreeze-content": {
-    "message": "バージョンを解凍"
   },
   "app.instance.navigation.back-to-instance": {
     "message": "インスタンスに戻る"

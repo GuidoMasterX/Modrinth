@@ -683,14 +683,14 @@
   "app.instance.mods.content-type-project": {
     "message": "project"
   },
-  "app.instance.mods.freeze-content": {
-    "message": "Freeze version"
-  },
   "app.instance.mods.ignore-updates": {
-    "message": "Ignore updates"
+    "message": "Ignore all updates"
   },
   "app.instance.mods.locked-content": {
     "message": "Content in locked instances cannot be changed."
+  },
+  "app.instance.mods.open-in-browser": {
+    "message": "Open in browser"
   },
   "app.instance.mods.project-was-added": {
     "message": "\"{name}\" was added"
@@ -705,13 +705,10 @@
     "message": "Sharing modpack content"
   },
   "app.instance.mods.skip-version": {
-    "message": "Skip this version"
+    "message": "Ignore updates"
   },
   "app.instance.mods.successfully-uploaded": {
     "message": "Successfully uploaded"
-  },
-  "app.instance.mods.unfreeze-content": {
-    "message": "Unfreeze version"
   },
   "app.instance.mods.unignore-updates": {
     "message": "Unignore updates"

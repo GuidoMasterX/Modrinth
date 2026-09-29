@@ -368,15 +368,6 @@
   "collections.label.private": {
     "defaultMessage": "Gizli"
   },
-  "console.actions.collapse": {
-    "defaultMessage": "Daralt"
-  },
-  "console.actions.expand": {
-    "defaultMessage": "Genişlet"
-  },
-  "console.actions.share": {
-    "defaultMessage": "Paylaş"
-  },
   "content-type.content.lowercase": {
     "defaultMessage": "içerik"
   },

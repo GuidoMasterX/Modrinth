@@ -359,15 +359,6 @@
   "collections.label.private": {
     "defaultMessage": "비공개"
   },
-  "console.actions.collapse": {
-    "defaultMessage": "접기"
-  },
-  "console.actions.expand": {
-    "defaultMessage": "펼치기"
-  },
-  "console.actions.share": {
-    "defaultMessage": "공유"
-  },
   "content-type.content.lowercase": {
     "defaultMessage": "콘텐츠"
   },

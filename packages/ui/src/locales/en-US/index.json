@@ -368,15 +368,6 @@
   "collections.label.private": {
     "defaultMessage": "Private"
   },
-  "console.actions.collapse": {
-    "defaultMessage": "Collapse"
-  },
-  "console.actions.expand": {
-    "defaultMessage": "Expand"
-  },
-  "console.actions.share": {
-    "defaultMessage": "Share"
-  },
   "content-type.content.lowercase": {
     "defaultMessage": "content"
   },
@@ -406,6 +397,12 @@
   },
   "content.card.synced": {
     "defaultMessage": "Synced across instances"
+  },
+  "content.card.update-skipped-tooltip": {
+    "defaultMessage": "The latest version of this project has been ignored"
+  },
+  "content.card.updates-ignored-tooltip": {
+    "defaultMessage": "Updates are ignored for this project"
   },
   "content.card.uploaded": {
     "defaultMessage": "Uploaded"

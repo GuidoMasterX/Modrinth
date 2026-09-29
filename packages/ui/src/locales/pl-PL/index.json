@@ -368,15 +368,6 @@
   "collections.label.private": {
     "defaultMessage": "Prywatna"
   },
-  "console.actions.collapse": {
-    "defaultMessage": "Zwiń"
-  },
-  "console.actions.expand": {
-    "defaultMessage": "Rozwiń"
-  },
-  "console.actions.share": {
-    "defaultMessage": "Udostępnij"
-  },
   "content-type.content.lowercase": {
     "defaultMessage": "zawartość"
   },

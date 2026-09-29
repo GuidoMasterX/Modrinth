@@ -662,9 +662,6 @@
   "app.instance.mods.content-type-project": {
     "message": "프로젝트"
   },
-  "app.instance.mods.freeze-content": {
-    "message": "버전 고정"
-  },
   "app.instance.mods.locked-content": {
     "message": "잠긴 인스턴스의 콘텐츠는 변경할 수 없습니다."
   },
@@ -682,9 +679,6 @@
   },
   "app.instance.mods.successfully-uploaded": {
     "message": "업로드 성공"
-  },
-  "app.instance.mods.unfreeze-content": {
-    "message": "버전 고정 해제"
   },
   "app.instance.navigation.back-to-instance": {
     "message": "인스턴스로 돌아가기"

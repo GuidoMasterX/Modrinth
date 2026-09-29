@@ -8,7 +8,6 @@ import {
 	SpinnerIcon,
 	XIcon,
 } from '@modrinth/assets'
-import { renderHighlightedString } from '@modrinth/utils'
 import { useElementSize, useMediaQuery } from '@vueuse/core'
 import { AnimatePresence, Motion, useReducedMotion } from 'motion-v'
 import { computed, nextTick, ref, useId, watch } from 'vue'
@@ -22,6 +21,7 @@ import { useScrollIndicator } from '#ui/composables/scroll-indicator'
 import { dismissTooltip } from '#ui/providers/tooltip'
 import { commonMessages } from '#ui/utils/common-messages'
 import { getModifiedSelection } from '#ui/utils/modified-selection'
+import { renderChangelog } from '#ui/utils/render-changelog'
 
 import { messages } from './update-all-modal-messages'
 import UpdateAllModalTruncatedProjectTitle from './update-all-modal-truncated-project-title.vue'
@@ -654,7 +654,7 @@ defineExpose({ show, hide })
 						<div
 							v-else-if="activeRow.version.changelog"
 							class="markdown-body [&>:first-child]:!mt-0"
-							v-html="renderHighlightedString(activeRow.version.changelog)"
+							v-html="renderChangelog(activeRow.version.changelog)"
 						/>
 						<p v-else class="m-0 text-secondary">{{ formatMessage(messages.noChangelog) }}</p>
 					</div>

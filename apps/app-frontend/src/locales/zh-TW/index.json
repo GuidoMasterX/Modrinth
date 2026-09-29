@@ -665,9 +665,6 @@
   "app.instance.mods.content-type-project": {
     "message": "專案"
   },
-  "app.instance.mods.freeze-content": {
-    "message": "鎖定版本"
-  },
   "app.instance.mods.locked-content": {
     "message": "已鎖定實例中的內容無法變更。"
   },
@@ -685,9 +682,6 @@
   },
   "app.instance.mods.successfully-uploaded": {
     "message": "已成功上傳"
-  },
-  "app.instance.mods.unfreeze-content": {
-    "message": "解除鎖定版本"
   },
   "app.instance.navigation.back-to-instance": {
     "message": "回到實例"

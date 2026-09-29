@@ -425,9 +425,6 @@
   "app.instance.mods.content-type-project": {
     "message": "Dự án"
   },
-  "app.instance.mods.freeze-content": {
-    "message": "Phiên bản cố định"
-  },
   "app.instance.mods.locked-content": {
     "message": "Không thể thay đổi nội dung trong các instance bị khóa."
   },
@@ -445,9 +442,6 @@
   },
   "app.instance.mods.successfully-uploaded": {
     "message": "Tải lên thành công"
-  },
-  "app.instance.mods.unfreeze-content": {
-    "message": "Hủy đóng băng phiên bản"
   },
   "app.instance.share.empty.description": {
     "message": "Bạn có thể chia sẻ phiên bản này với bạn bè của mình!"

@@ -365,15 +365,6 @@
   "collections.label.private": {
     "defaultMessage": "Приватная"
   },
-  "console.actions.collapse": {
-    "defaultMessage": "Свернуть"
-  },
-  "console.actions.expand": {
-    "defaultMessage": "Раскрыть"
-  },
-  "console.actions.share": {
-    "defaultMessage": "Поделиться"
-  },
   "content-type.content.lowercase": {
     "defaultMessage": "контент"
   },

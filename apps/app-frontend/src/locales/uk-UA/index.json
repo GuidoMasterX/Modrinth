@@ -656,9 +656,6 @@
   "app.instance.mods.content-type-project": {
     "message": "проєкт"
   },
-  "app.instance.mods.freeze-content": {
-    "message": "Заморозити версію"
-  },
   "app.instance.mods.locked-content": {
     "message": "Уміст у заблокованих примірниках не можна змінювати."
   },
@@ -676,9 +673,6 @@
   },
   "app.instance.mods.successfully-uploaded": {
     "message": "Успішно вивантажено"
-  },
-  "app.instance.mods.unfreeze-content": {
-    "message": "Розморозити версію"
   },
   "app.instance.navigation.back-to-instance": {
     "message": "Назад до примірника"

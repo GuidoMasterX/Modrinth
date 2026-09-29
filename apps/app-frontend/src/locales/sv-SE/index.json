@@ -644,9 +644,6 @@
   "app.instance.mods.content-type-project": {
     "message": "projekt"
   },
-  "app.instance.mods.freeze-content": {
-    "message": "Frys version"
-  },
   "app.instance.mods.locked-content": {
     "message": "Innehåll i låsta instanser kan inte ändras."
   },
@@ -664,9 +661,6 @@
   },
   "app.instance.mods.successfully-uploaded": {
     "message": "Uppladdning lyckades"
-  },
-  "app.instance.mods.unfreeze-content": {
-    "message": "Avfrys version"
   },
   "app.instance.navigation.back-to-instance": {
     "message": "Tillbaka till instans"

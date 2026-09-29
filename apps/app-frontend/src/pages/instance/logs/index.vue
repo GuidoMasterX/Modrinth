@@ -12,7 +12,7 @@ import {
 	provideConsoleManager,
 } from '@modrinth/ui'
 import { useQuery } from '@tanstack/vue-query'
-import { computed, ref, shallowRef, triggerRef, watch, watchEffect } from 'vue'
+import { computed, onUnmounted, ref, shallowRef, triggerRef, watch, watchEffect } from 'vue'
 
 import { useAppEvent } from '@/composables/use-app-event'
 import { useInstanceConsole } from '@/composables/useInstanceConsole'
@@ -29,6 +29,7 @@ const {
 	liveConsole,
 	historicalConsole,
 	hydrate,
+	syncLiveBuffer,
 	getHistoricalLogs,
 	getHistoricalContent,
 	invalidate,
@@ -191,13 +192,31 @@ if (!instancePage.playing.value) {
 	void analyseForCrash()
 }
 
-useAppEvent('log', (payload) => {
-	if (payload.instance_id !== instanceId.value) return
+let liveSyncTimer = null
 
-	if (payload.type === 'log4j') {
-		liveConsole.addLog4jEvent(payload)
-	} else if (payload.type === 'legacy') {
-		liveConsole.addLegacyLog(payload.message)
+watch(
+	() => instancePage.playing.value,
+	(playing) => {
+		if (playing) {
+			void syncLiveBuffer()
+			if (liveSyncTimer === null) {
+				liveSyncTimer = setInterval(() => void syncLiveBuffer(), 750)
+			}
+		} else {
+			void syncLiveBuffer()
+			if (liveSyncTimer !== null) {
+				clearInterval(liveSyncTimer)
+				liveSyncTimer = null
+			}
+		}
+	},
+	{ immediate: true },
+)
+
+onUnmounted(() => {
+	if (liveSyncTimer !== null) {
+		clearInterval(liveSyncTimer)
+		liveSyncTimer = null
 	}
 })
 

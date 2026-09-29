@@ -283,6 +283,18 @@ async fn check_content_updates_with_cache_behaviours(
             })
             .map(|version| version.id);
 
+        let suppressed = update_version_id.as_deref().is_some_and(
+            |update_version_id| {
+                candidate.entry.as_ref().is_some_and(|entry| {
+                    entry.updates_ignored
+                        || skips_by_entry_id
+                            .get(entry.id.as_str())
+                            .and_then(|skipped| skipped.as_deref())
+                            == Some(update_version_id)
+                })
+            },
+        );
+
         if let Some(entry) = &candidate.entry {
             content_rows::upsert_content_update_check(
                 &entry.id,
@@ -294,6 +306,9 @@ async fn check_content_updates_with_cache_behaviours(
         }
 
         if let Some(update_version_id) = update_version_id {
+            if suppressed {
+                continue;
+            }
             output.push(ContentUpdate {
                 project_id: file_info_by_hash[&candidate.file.sha1]
                     .project_id

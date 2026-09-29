@@ -368,15 +368,6 @@
   "collections.label.private": {
     "defaultMessage": "Privado"
   },
-  "console.actions.collapse": {
-    "defaultMessage": "Contraer"
-  },
-  "console.actions.expand": {
-    "defaultMessage": "Expandir"
-  },
-  "console.actions.share": {
-    "defaultMessage": "Compartir"
-  },
   "content-type.content.lowercase": {
     "defaultMessage": "contenido"
   },
@@ -6987,4 +6978,3 @@
     "defaultMessage": "Tipo"
   }
 }
-

@@ -569,9 +569,6 @@
   "app.instance.mods.content-type-project": {
     "message": "مشروع"
   },
-  "app.instance.mods.freeze-content": {
-    "message": "تثبيت الإصدار"
-  },
   "app.instance.mods.locked-content": {
     "message": "لا يمكن تعديل المحتوى في النسخ المُغلقة."
   },
@@ -589,9 +586,6 @@
   },
   "app.instance.mods.successfully-uploaded": {
     "message": "تم الرفع بنجاح"
-  },
-  "app.instance.mods.unfreeze-content": {
-    "message": "إلغاء تثبيت الإصدار"
   },
   "app.instance.navigation.back-to-instance": {
     "message": "العودة إلى النسخة"

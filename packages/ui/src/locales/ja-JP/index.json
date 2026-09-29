@@ -368,9 +368,6 @@
   "collections.label.private": {
     "defaultMessage": "非公開"
   },
-  "console.actions.share": {
-    "defaultMessage": "共有"
-  },
   "content-type.content.lowercase": {
     "defaultMessage": "コンテンツ"
   },

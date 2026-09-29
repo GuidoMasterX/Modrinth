@@ -368,15 +368,6 @@
   "collections.label.private": {
     "defaultMessage": "Privé"
   },
-  "console.actions.collapse": {
-    "defaultMessage": "Klap in"
-  },
-  "console.actions.expand": {
-    "defaultMessage": "Vouw uit"
-  },
-  "console.actions.share": {
-    "defaultMessage": "Deel"
-  },
   "content-type.content.lowercase": {
     "defaultMessage": "inhoud"
   },

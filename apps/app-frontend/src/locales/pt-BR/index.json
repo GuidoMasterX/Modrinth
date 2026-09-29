@@ -665,9 +665,6 @@
   "app.instance.mods.content-type-project": {
     "message": "projeto"
   },
-  "app.instance.mods.freeze-content": {
-    "message": "Congelar versão"
-  },
   "app.instance.mods.locked-content": {
     "message": "O conteúdo em instâncias privadas não podem ser alterados."
   },
@@ -685,9 +682,6 @@
   },
   "app.instance.mods.successfully-uploaded": {
     "message": "Adicionado com sucesso"
-  },
-  "app.instance.mods.unfreeze-content": {
-    "message": "Descongelar versão"
   },
   "app.instance.navigation.back-to-instance": {
     "message": "Voltar para instância"

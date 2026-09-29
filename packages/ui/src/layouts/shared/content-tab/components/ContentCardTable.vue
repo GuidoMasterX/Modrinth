@@ -281,7 +281,7 @@ function handleSort(column: ContentCardTableSortColumn) {
 				}}</span>
 			</div>
 
-			<div v-if="hasAnyActions" role="columnheader" class="min-w-[160px] shrink-0 text-right">
+			<div v-if="hasAnyActions" role="columnheader" class="min-w-[160px] shrink-0">
 				<span class="font-semibold text-secondary">{{
 					formatMessage(commonMessages.actionsLabel)
 				}}</span>
@@ -316,6 +316,8 @@ function handleSort(column: ContentCardTableSortColumn) {
 					:installing="item.installing"
 					:install-progress="item.installProgress"
 					:has-update="item.hasUpdate"
+					:update-skipped="item.updateSkipped"
+					:updates-ignored="item.updatesIgnored"
 					:is-client-only="item.isClientOnly"
 					:client-warning="item.clientWarning"
 					:synced="item.synced"
@@ -390,11 +392,15 @@ function handleSort(column: ContentCardTableSortColumn) {
 				:owner="item.owner"
 				:source="item.source"
 				:external="item.external"
+				:package-source="item.package_source"
+				:external-url="item.external_url"
 				:enabled="item.enabled"
 				:locked="item.locked"
 				:installing="item.installing"
 				:install-progress="item.installProgress"
 				:has-update="item.hasUpdate"
+				:update-skipped="item.updateSkipped"
+				:updates-ignored="item.updatesIgnored"
 				:is-client-only="item.isClientOnly"
 				:client-warning="item.clientWarning"
 				:synced="item.synced"

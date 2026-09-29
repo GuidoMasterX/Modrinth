@@ -22,6 +22,8 @@ pub struct ContentItem {
     pub update_version_id: Option<String>,
     #[serde(default)]
     pub updates_ignored: bool,
+    #[serde(default)]
+    pub update_skipped: bool,
     pub date_added: Option<String>,
     pub source_kind: Option<ContentSourceKind>,
     pub package_source: Option<Source>,

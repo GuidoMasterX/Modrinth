@@ -288,13 +288,20 @@ function handleOnline() {
 	offline.value = false
 }
 
+useAppEvent('process', async () => {
+	await refresh()
+})
+
+let processPollTimer: ReturnType<typeof setInterval> | null = null
+
 onMounted(() => {
 	window.addEventListener('offline', handleOffline)
 	window.addEventListener('online', handleOnline)
-})
-
-useAppEvent('process', async () => {
-	await refresh()
+	if (processPollTimer === null) {
+		processPollTimer = setInterval(() => {
+			if (document.visibilityState === 'visible') void refresh()
+		}, 5000)
+	}
 })
 
 const stop = async (process: RunningProcess) => {
@@ -517,5 +524,9 @@ onBeforeUnmount(() => {
 	dismissed.value = false
 	window.removeEventListener('offline', handleOffline)
 	window.removeEventListener('online', handleOnline)
+	if (processPollTimer !== null) {
+		clearInterval(processPollTimer)
+		processPollTimer = null
+	}
 })
 </script>

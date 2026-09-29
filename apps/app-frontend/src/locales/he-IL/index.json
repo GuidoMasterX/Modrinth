@@ -581,9 +581,6 @@
   "app.instance.mods.content-type-project": {
     "message": "פרויקט"
   },
-  "app.instance.mods.freeze-content": {
-    "message": "הקפאת גרסה"
-  },
   "app.instance.mods.locked-content": {
     "message": "תוכן בהעתקים מוקפאים לא ניתן לשינוי."
   },
@@ -601,9 +598,6 @@
   },
   "app.instance.mods.successfully-uploaded": {
     "message": "הועלה בהצלחה"
-  },
-  "app.instance.mods.unfreeze-content": {
-    "message": "הפשרת הגרסה"
   },
   "app.instance.navigation.back-to-instance": {
     "message": "חזרה להעתק"

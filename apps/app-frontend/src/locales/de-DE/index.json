@@ -665,9 +665,6 @@
   "app.instance.mods.content-type-project": {
     "message": "Projekt"
   },
-  "app.instance.mods.freeze-content": {
-    "message": "Version sperren"
-  },
   "app.instance.mods.locked-content": {
     "message": "Inhalte in gesperrten Instanzen können nicht geändert werden."
   },
@@ -685,9 +682,6 @@
   },
   "app.instance.mods.successfully-uploaded": {
     "message": "Erfolgreich hochgeladen"
-  },
-  "app.instance.mods.unfreeze-content": {
-    "message": "Version entsperren"
   },
   "app.instance.navigation.back-to-instance": {
     "message": "Zurück zur Instanz"

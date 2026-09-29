@@ -1,12 +1,7 @@
 <script setup lang="ts">
 import type { Labrinth } from '@modrinth/api-client'
 import { DownloadIcon, ExternalIcon, FileIcon, SearchIcon } from '@modrinth/assets'
-import {
-	capitalizeString,
-	formatVersionsForDisplay,
-	type GameVersionTag,
-	renderHighlightedString,
-} from '@modrinth/utils'
+import { capitalizeString, formatVersionsForDisplay, type GameVersionTag } from '@modrinth/utils'
 import { useQuery } from '@tanstack/vue-query'
 import { computed, ref } from 'vue'
 
@@ -22,6 +17,7 @@ import {
 	fileTypeMessages,
 	projectCompatibilityMessages,
 } from '#ui/utils/common-messages.ts'
+import { renderChangelog } from '#ui/utils/render-changelog.ts'
 
 import AutoLink from '../base/AutoLink.vue'
 import Avatar from '../base/Avatar.vue'
@@ -72,11 +68,7 @@ const publishDateTooltip = computed(() => formatDateTime(props.version.date_publ
 
 const isModpack = computed(() => props.version.loaders.includes('mrpack'))
 const changelogHtml = computed(() =>
-	props.version.id.startsWith('cf-')
-		? props.version.changelog
-			? renderHighlightedString(props.version.changelog)
-			: undefined
-		: undefined,
+	props.version.changelog ? renderChangelog(props.version.changelog) : undefined,
 )
 const platforms = computed(() =>
 	isModpack.value ? props.version.mrpack_loaders : props.version.loaders,
@@ -473,11 +465,7 @@ const authorLink = computed(() =>
 		<section id="changes">
 			<h3 class="mt-0 mb-2 text-lg font-semibold">{{ formatMessage(messages.changes) }}</h3>
 			<div class="p-4 bg-surface-3 rounded-2xl border-solid border border-surface-4">
-				<div
-					v-if="version.changelog"
-					class="markdown-body"
-					v-html="changelogHtml ?? renderHighlightedString(version.changelog)"
-				/>
+				<div v-if="version.changelog" class="markdown-body" v-html="changelogHtml" />
 				<div v-else class="text-secondary">{{ formatMessage(messages.noChanges) }}</div>
 			</div>
 		</section>

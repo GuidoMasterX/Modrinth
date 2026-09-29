@@ -665,9 +665,6 @@
   "app.instance.mods.content-type-project": {
     "message": "proyecto"
   },
-  "app.instance.mods.freeze-content": {
-    "message": "Versión congelada"
-  },
   "app.instance.mods.locked-content": {
     "message": "El contenido en instancias bloqueadas no se puede cambiar."
   },
@@ -685,9 +682,6 @@
   },
   "app.instance.mods.successfully-uploaded": {
     "message": "Cargado correctamente"
-  },
-  "app.instance.mods.unfreeze-content": {
-    "message": "Versión descongelada"
   },
   "app.instance.navigation.back-to-instance": {
     "message": "Volver a la instancia"

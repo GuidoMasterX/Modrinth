@@ -659,9 +659,6 @@
   "app.instance.mods.content-type-project": {
     "message": "proje"
   },
-  "app.instance.mods.freeze-content": {
-    "message": "Sürümü dondur"
-  },
   "app.instance.mods.locked-content": {
     "message": "İnstance'ta kilitli olan içerikler değiştirilemez."
   },
@@ -679,9 +676,6 @@
   },
   "app.instance.mods.successfully-uploaded": {
     "message": "Başarıyla yüklendi"
-  },
-  "app.instance.mods.unfreeze-content": {
-    "message": "Sürümü çöz"
   },
   "app.instance.navigation.back-to-instance": {
     "message": "Kuruluma dön"

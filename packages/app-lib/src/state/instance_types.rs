@@ -130,6 +130,8 @@ pub struct ContentFile {
     pub update_version_id: Option<String>,
     #[serde(default)]
     pub updates_ignored: bool,
+    #[serde(default)]
+    pub update_skipped: bool,
     pub project_type: ProjectType,
     pub source_kind: Option<ContentSourceKind>,
 }

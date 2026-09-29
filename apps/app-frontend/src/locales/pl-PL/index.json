@@ -659,9 +659,6 @@
   "app.instance.mods.content-type-project": {
     "message": "projekt"
   },
-  "app.instance.mods.freeze-content": {
-    "message": "Zamróź wersje"
-  },
   "app.instance.mods.locked-content": {
     "message": "Treści w zablokowanej instalacji nie można zmienić."
   },
@@ -676,9 +673,6 @@
   },
   "app.instance.mods.successfully-uploaded": {
     "message": "Przesyłanie zakończone sukcesem"
-  },
-  "app.instance.mods.unfreeze-content": {
-    "message": "Odmroź wersje"
   },
   "app.instance.navigation.back-to-instance": {
     "message": "Powrót do instancji"

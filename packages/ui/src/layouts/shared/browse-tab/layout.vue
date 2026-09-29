@@ -163,11 +163,7 @@ function getProjectCardTags(result: Labrinth.Search.v3.ResultSearchProject, disp
 				"
 				@click="ctx.switchSource('modrinth')"
 			>
-				<span
-					class="size-2.5 rounded-full"
-					:style="{ background: 'var(--color-source-modrinth)' }"
-				/>
-				<ModrinthIcon class="size-3.5" />
+				<ModrinthIcon class="size-3.5" :style="{ color: 'var(--color-source-modrinth)' }" />
 				Modrinth
 			</button>
 			<button
@@ -179,11 +175,7 @@ function getProjectCardTags(result: Labrinth.Search.v3.ResultSearchProject, disp
 				"
 				@click="ctx.switchSource('curseforge')"
 			>
-				<span
-					class="size-2.5 rounded-full"
-					:style="{ background: 'var(--color-source-curseforge)' }"
-				/>
-				<CurseForgeIcon class="size-3.5" />
+				<CurseForgeIcon class="size-3.5" :style="{ color: 'var(--color-source-curseforge)' }" />
 				CurseForge
 			</button>
 		</div>

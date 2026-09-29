@@ -24,7 +24,7 @@ use tokio::process::{Child, Command};
 use uuid::Uuid;
 
 const LAUNCHER_LOG_PATH: &str = "launcher_log.txt";
-const LOG_BUFFER_CAPACITY: usize = 50_000;
+const LOG_BUFFER_CAPACITY: usize = 250_000;
 
 struct LogRingBuffer {
     lines: VecDeque<String>,

@@ -362,15 +362,6 @@
   "collections.label.private": {
     "defaultMessage": "Privat"
   },
-  "console.actions.collapse": {
-    "defaultMessage": "Fäll ihop"
-  },
-  "console.actions.expand": {
-    "defaultMessage": "Expandera"
-  },
-  "console.actions.share": {
-    "defaultMessage": "Dela"
-  },
   "content-type.content.lowercase": {
     "defaultMessage": "innehåll"
   },

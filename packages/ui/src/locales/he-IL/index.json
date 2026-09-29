@@ -299,15 +299,6 @@
   "collections.label.private": {
     "defaultMessage": "פרטי"
   },
-  "console.actions.collapse": {
-    "defaultMessage": "סגור"
-  },
-  "console.actions.expand": {
-    "defaultMessage": "הרחב"
-  },
-  "console.actions.share": {
-    "defaultMessage": "שתף"
-  },
   "content-type.content.lowercase": {
     "defaultMessage": "תוכן"
   },

@@ -123,19 +123,21 @@
 				<div v-if="selectedVersion" class="flex-1 flex flex-col min-w-0 min-h-0 relative">
 					<div class="bg-bg p-4">
 						<div class="flex flex-col gap-1.5">
-							<div class="flex items-center justify-between">
-								<div class="flex items-center gap-2">
-									<span class="font-semibold text-xl text-contrast">
+							<div class="flex items-start justify-between gap-3">
+								<div class="flex min-w-0 items-start gap-2">
+									<span
+										class="min-w-0 break-words font-semibold text-xl leading-tight text-contrast"
+									>
 										{{ selectedVersion.version_number }}
 									</span>
 									<span
-										class="px-2.5 py-0.5 rounded-full text-sm font-medium flex items-center flex-shrink-0 border border-solid"
+										class="mt-0.5 px-2.5 py-0.5 rounded-full text-sm font-medium flex items-center flex-shrink-0 border border-solid"
 										:class="getVersionTypeBadgeClasses(selectedVersion)"
 									>
 										{{ capitalizeString(selectedVersion.version_type) }}
 									</span>
 								</div>
-								<span class="font-medium text-primary">
+								<span class="shrink-0 whitespace-nowrap font-medium text-primary">
 									{{ formatLongDate(selectedVersion.date_published) }}
 								</span>
 							</div>
@@ -169,7 +171,7 @@
 						<div
 							v-else-if="selectedVersion.changelog"
 							class="markdown-body"
-							v-html="changelogHtml ?? renderHighlightedString(selectedVersion.changelog)"
+							v-html="changelogHtml"
 						/>
 						<div v-else class="text-secondary italic">
 							{{ formatMessage(messages.noChangelog) }}
@@ -281,12 +283,7 @@ import {
 	TriangleAlertIcon,
 	XIcon,
 } from '@modrinth/assets'
-import {
-	capitalizeString,
-	formatVersionsForDisplay,
-	type GameVersionTag,
-	renderHighlightedString,
-} from '@modrinth/utils'
+import { capitalizeString, formatVersionsForDisplay, type GameVersionTag } from '@modrinth/utils'
 import { useTimeoutFn } from '@vueuse/core'
 import { computed, ref, toRef } from 'vue'
 
@@ -300,6 +297,7 @@ import { useDebugLogger } from '#ui/composables/debug-logger'
 import { defineMessages, useVIntl } from '#ui/composables/i18n'
 import { injectTags } from '#ui/providers'
 import { commonMessages } from '#ui/utils/common-messages'
+import { renderChangelog } from '#ui/utils/render-changelog'
 import {
 	versionChangesGameVersion,
 	versionMatchesCompatibilityTarget,
@@ -454,9 +452,7 @@ const props = withDefaults(
 const isModpack = computed(() => props.projectType === 'modpack')
 const incompatibilityWarningMode = computed(() => props.mode === 'incompatibility-warning')
 const changelogHtml = computed(() =>
-	selectedVersion.value?.id.startsWith('cf-')
-		? renderHighlightedString(selectedVersion.value.changelog)
-		: undefined,
+	selectedVersion.value?.changelog ? renderChangelog(selectedVersion.value.changelog) : undefined,
 )
 const defaultHeader = computed(() => {
 	if (incompatibilityWarningMode.value) {

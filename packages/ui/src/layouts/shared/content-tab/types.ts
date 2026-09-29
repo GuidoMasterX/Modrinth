@@ -76,6 +76,8 @@ export interface ContentCardTableItem {
 	installing?: boolean
 	installProgress?: number | null
 	hasUpdate?: boolean
+	updateSkipped?: boolean
+	updatesIgnored?: boolean
 	isClientOnly?: boolean
 	clientWarning?: ClientWarningType | null
 	synced?: boolean
@@ -113,6 +115,7 @@ export interface ContentItem extends Omit<
 	has_update: boolean
 	update_version_id: string | null
 	updates_ignored?: boolean
+	update_skipped?: boolean
 	date_added?: string
 	environment?: Labrinth.Projects.v3.Environment
 	pack_client_retained?: boolean

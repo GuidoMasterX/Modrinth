@@ -659,9 +659,6 @@
   "app.instance.mods.content-type-project": {
     "message": "projet"
   },
-  "app.instance.mods.freeze-content": {
-    "message": "Geler la version"
-  },
   "app.instance.mods.locked-content": {
     "message": "Le contenu dans les instances verrouillées ne peut pas être modifié."
   },
@@ -679,9 +676,6 @@
   },
   "app.instance.mods.successfully-uploaded": {
     "message": "Mis en ligne avec succès"
-  },
-  "app.instance.mods.unfreeze-content": {
-    "message": "Dégeler la version"
   },
   "app.instance.navigation.back-to-instance": {
     "message": "Retour à l'instance"

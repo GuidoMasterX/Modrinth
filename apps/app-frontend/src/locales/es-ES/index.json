@@ -662,9 +662,6 @@
   "app.instance.mods.content-type-project": {
     "message": "proyecto"
   },
-  "app.instance.mods.freeze-content": {
-    "message": "Congelar versión"
-  },
   "app.instance.mods.locked-content": {
     "message": "El contenido en las instancias bloqueadas no puede ser cambiado."
   },
@@ -682,9 +679,6 @@
   },
   "app.instance.mods.successfully-uploaded": {
     "message": "Se ha subido correctamente"
-  },
-  "app.instance.mods.unfreeze-content": {
-    "message": "Descongelar versión"
   },
   "app.instance.navigation.back-to-instance": {
     "message": "Volver a la instancia"

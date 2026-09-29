@@ -102,12 +102,10 @@
 import type { Labrinth } from '@modrinth/api-client'
 import {
 	CircleSlashIcon,
-	ClipboardCopyIcon,
+	ExternalIcon,
 	EyeIcon,
 	EyeOffIcon,
 	FolderOpenIcon,
-	LockIcon,
-	LockOpenIcon,
 } from '@modrinth/assets'
 import {
 	type ButtonMenuOption,
@@ -178,7 +176,6 @@ import {
 	is_file_on_modrinth,
 	refresh_content_updates,
 	remove_project,
-	set_project_locked,
 	set_project_skipped_update_version,
 	set_project_updates_ignored,
 	switch_project_source,
@@ -232,17 +229,9 @@ const messages = defineMessages({
 		id: 'app.instance.mods.locked-content',
 		defaultMessage: 'Content in locked instances cannot be changed.',
 	},
-	freezeContent: {
-		id: 'app.instance.mods.freeze-content',
-		defaultMessage: 'Freeze version',
-	},
-	unfreezeContent: {
-		id: 'app.instance.mods.unfreeze-content',
-		defaultMessage: 'Unfreeze version',
-	},
 	ignoreUpdates: {
 		id: 'app.instance.mods.ignore-updates',
-		defaultMessage: 'Ignore updates',
+		defaultMessage: 'Ignore all updates',
 	},
 	unignoreUpdates: {
 		id: 'app.instance.mods.unignore-updates',
@@ -250,7 +239,11 @@ const messages = defineMessages({
 	},
 	skipVersion: {
 		id: 'app.instance.mods.skip-version',
-		defaultMessage: 'Skip this version',
+		defaultMessage: 'Ignore updates',
+	},
+	openInBrowser: {
+		id: 'app.instance.mods.open-in-browser',
+		defaultMessage: 'Open in browser',
 	},
 	contentTypeProject: {
 		id: 'app.instance.mods.content-type-project',
@@ -1731,29 +1724,22 @@ function getOverflowOptions(item: ContentItem): ButtonMenuOption[] {
 		action: () => highlightModInInstance(instance.value.id, item.file_path),
 	})
 
-	if (item.project?.slug) {
+	if (item.external_url || item.project?.slug) {
 		options.push({
-			id: 'copy-link',
-			label: formatMessage(commonMessages.copyLinkButton),
-			icon: ClipboardCopyIcon,
-			action: async () => {
-				await navigator.clipboard.writeText(
-					`https://modrinth.com/${item.project_type}/${item.project?.slug}`,
+			id: 'open-in-browser',
+			label: formatMessage(messages.openInBrowser),
+			icon: ExternalIcon,
+			action: () => {
+				void openUrl(
+					item.external_url ??
+						`https://modrinth.com/${item.project_type}/${item.project?.slug ?? ''}`,
 				)
 			},
 		})
 	}
 
 	if (canMutateContent(item)) {
-		options.push(
-			{ type: 'divider' },
-			{
-				id: item.locked ? 'unfreeze-content' : 'freeze-content',
-				label: formatMessage(item.locked ? messages.unfreezeContent : messages.freezeContent),
-				icon: item.locked ? LockOpenIcon : LockIcon,
-				action: () => handleContentFreeze(item, !item.locked),
-			},
-		)
+		options.push({ type: 'divider' })
 		if (item.has_update && item.update_version_id) {
 			options.push({
 				id: 'skip-version',
@@ -1792,28 +1778,10 @@ async function handleContentSkipVersion(item: ContentItem, versionId: string) {
 	try {
 		await set_project_skipped_update_version(instance.value.id, item.file_path, versionId)
 		item.has_update = false
+		item.update_version_id = null
+		item.update_skipped = true
 	} catch (err) {
 		handleError(err as Error)
-	}
-}
-
-async function handleContentFreeze(item: ContentItem, frozen: boolean) {
-	if (!item.file_path || !canMutateContent(item)) return
-	const operation = beginContentOperation(item)
-	if (!operation) return
-	const originalFilePath = item.file_path
-
-	try {
-		await set_project_locked(instance.value.id, item.file_path, frozen)
-		item.locked = frozen
-		managedContentModal.value?.updateItem(operation.originalFileName, { locked: frozen })
-		updateLinkedModpackContentCache(item, operation.originalFileName, originalFilePath, {
-			locked: frozen,
-		})
-	} catch (err) {
-		handleError(err as Error)
-	} finally {
-		finishContentOperation(item, operation)
 	}
 }
 
@@ -1975,6 +1943,8 @@ provideContentManager({
 		hideDelete: !canDeleteContent(item),
 		hideSwitchVersion: !canChangeContentVersion(item) || !item.project?.id || !item.version?.id,
 		hasUpdate: canUpdateProject(item) && !item.locked,
+		updateSkipped: !!item.update_skipped,
+		updatesIgnored: !!item.updates_ignored,
 	}),
 	showSharedContentFilter,
 	filterPersistKey: instance.value.id,

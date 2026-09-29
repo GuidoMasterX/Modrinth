@@ -2,6 +2,7 @@
 import {
 	ArrowLeftRightIcon,
 	DownloadIcon,
+	EyeOffIcon,
 	Link2Icon,
 	LockIcon,
 	MoreVerticalIcon,
@@ -79,6 +80,14 @@ const messages = defineMessages({
 		defaultMessage:
 			'Some synced copies are waiting for changes. An instance may be running, have a frozen or incompatible version, or already contain its own copy.',
 	},
+	updateSkippedTooltip: {
+		id: 'content.card.update-skipped-tooltip',
+		defaultMessage: 'The latest version of this project has been ignored',
+	},
+	updatesIgnoredTooltip: {
+		id: 'content.card.updates-ignored-tooltip',
+		defaultMessage: 'Updates are ignored for this project',
+	},
 })
 
 interface Props {
@@ -97,6 +106,8 @@ interface Props {
 	installing?: boolean
 	installProgress?: number | null
 	hasUpdate?: boolean
+	updateSkipped?: boolean
+	updatesIgnored?: boolean
 	isClientOnly?: boolean
 	clientWarning?: ClientWarningType | null
 	synced?: boolean
@@ -129,6 +140,8 @@ const props = withDefaults(defineProps<Props>(), {
 	installing: false,
 	installProgress: undefined,
 	hasUpdate: false,
+	updateSkipped: false,
+	updatesIgnored: false,
 	isClientOnly: false,
 	clientWarning: null,
 	synced: false,
@@ -428,22 +441,37 @@ const sourcePillMessage = computed(() =>
 			]"
 		>
 			<template v-if="version">
-				<AutoLink
-					v-tooltip="truncatedTooltip(versionNumberRef, version.version_number)"
-					:target="
-						typeof versionLink === 'string' && versionLink.startsWith('http') ? '_blank' : undefined
-					"
-					:to="versionLink"
-					class="inline-flex min-w-0 font-semibold leading-6 text-contrast !decoration-contrast"
-					:class="{ 'hover:underline': versionLink, 'cursor-pointer': versionLink }"
-				>
-					<span ref="versionNumberRef" class="truncate">{{
-						version.version_number.slice(0, Math.ceil(version.version_number.length / 2))
-					}}</span
-					><span class="shrink-0">{{
-						version.version_number.slice(Math.ceil(version.version_number.length / 2))
-					}}</span>
-				</AutoLink>
+				<div class="flex min-w-0 items-center gap-1.5">
+					<AutoLink
+						v-tooltip="truncatedTooltip(versionNumberRef, version.version_number)"
+						:target="
+							typeof versionLink === 'string' && versionLink.startsWith('http')
+								? '_blank'
+								: undefined
+						"
+						:to="versionLink"
+						class="inline-flex min-w-0 font-semibold leading-6 text-contrast !decoration-contrast"
+						:class="{ 'hover:underline': versionLink, 'cursor-pointer': versionLink }"
+					>
+						<span ref="versionNumberRef" class="truncate">{{
+							version.version_number.slice(0, Math.ceil(version.version_number.length / 2))
+						}}</span
+						><span class="shrink-0">{{
+							version.version_number.slice(Math.ceil(version.version_number.length / 2))
+						}}</span>
+					</AutoLink>
+					<span
+						v-if="updateSkipped || updatesIgnored"
+						v-tooltip="
+							formatMessage(
+								updateSkipped ? messages.updateSkippedTooltip : messages.updatesIgnoredTooltip,
+							)
+						"
+						class="inline-flex shrink-0 items-center text-secondary"
+					>
+						<EyeOffIcon class="size-4" aria-hidden="true" />
+					</span>
+				</div>
 				<span
 					v-tooltip="truncatedTooltip(fileNameRef, version.file_name)"
 					class="flex min-w-0 leading-6 text-secondary"

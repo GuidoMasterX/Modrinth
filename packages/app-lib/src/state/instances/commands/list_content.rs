@@ -783,6 +783,7 @@ pub(crate) async fn dependencies_to_content_items(
                 has_update: false,
                 update_version_id: None,
                 updates_ignored: false,
+                update_skipped: false,
                 date_added: None,
                 source_kind: None,
                 package_source: Some(Source::Modrinth),
@@ -1131,6 +1132,7 @@ async fn content_projects_for_scope_inner(
                 }
             }
         };
+        let mut update_skipped = false;
         if let Some(entry) = entry {
             let skipped = update_skips
                 .get(entry.id.as_str())
@@ -1138,6 +1140,10 @@ async fn content_projects_for_scope_inner(
             if entry.updates_ignored
                 || skipped.is_some() && skipped == update_version_id.as_deref()
             {
+                update_skipped = skipped
+                    .is_some_and(|skipped| {
+                        update_version_id.as_deref() == Some(skipped)
+                    });
                 update_version_id = None;
             }
         }
@@ -1147,6 +1153,7 @@ async fn content_projects_for_scope_inner(
             ContentFile {
                 update_version_id,
                 updates_ignored: entry.is_some_and(|entry| entry.updates_ignored),
+                update_skipped,
                 hash: file.sha1,
                 file_name: file.file_name,
                 enabled: entry.map_or(file.enabled, |entry| {
@@ -1486,6 +1493,7 @@ async fn content_files_to_content_items(
                 has_update: file.update_version_id.is_some(),
                 update_version_id: file.update_version_id.clone(),
                 updates_ignored: file.updates_ignored,
+                update_skipped: file.update_skipped,
                 date_added: modification_times[index].clone(),
                 source_kind: file.source_kind,
                 package_source: metadata.map(|metadata| metadata.source),

@@ -368,15 +368,6 @@
   "collections.label.private": {
     "defaultMessage": "Privatno"
   },
-  "console.actions.collapse": {
-    "defaultMessage": "Zatvori"
-  },
-  "console.actions.expand": {
-    "defaultMessage": "Proširi"
-  },
-  "console.actions.share": {
-    "defaultMessage": "Podeli"
-  },
   "content-type.content.lowercase": {
     "defaultMessage": "sadržaji"
   },

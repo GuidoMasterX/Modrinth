@@ -665,9 +665,6 @@
   "app.instance.mods.content-type-project": {
     "message": "progetto"
   },
-  "app.instance.mods.freeze-content": {
-    "message": "Congela"
-  },
   "app.instance.mods.locked-content": {
     "message": "I contenuti delle istanze bloccate non possono essere modificati."
   },
@@ -685,9 +682,6 @@
   },
   "app.instance.mods.successfully-uploaded": {
     "message": "Caricato con successo"
-  },
-  "app.instance.mods.unfreeze-content": {
-    "message": "Scongela"
   },
   "app.instance.navigation.back-to-instance": {
     "message": "Torna all'istanza"

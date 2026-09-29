@@ -368,15 +368,6 @@
   "collections.label.private": {
     "defaultMessage": "私人"
   },
-  "console.actions.collapse": {
-    "defaultMessage": "收合"
-  },
-  "console.actions.expand": {
-    "defaultMessage": "展開"
-  },
-  "console.actions.share": {
-    "defaultMessage": "分享"
-  },
   "content-type.content.lowercase": {
     "defaultMessage": "內容"
   },
@@ -6987,4 +6978,3 @@
     "defaultMessage": "類型"
   }
 }
-

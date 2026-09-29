@@ -620,9 +620,6 @@
   "app.instance.mods.content-type-project": {
     "message": "projekt"
   },
-  "app.instance.mods.freeze-content": {
-    "message": "Rögzített verzió"
-  },
   "app.instance.mods.locked-content": {
     "message": "Zárolt példányokban a tartalom nem változtatható meg."
   },
@@ -640,9 +637,6 @@
   },
   "app.instance.mods.successfully-uploaded": {
     "message": "Sikeresen feltöltve"
-  },
-  "app.instance.mods.unfreeze-content": {
-    "message": "Verzió feloldása"
   },
   "app.instance.navigation.back-to-instance": {
     "message": "Vissza a példányhoz"

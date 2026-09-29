@@ -368,15 +368,6 @@
   "collections.label.private": {
     "defaultMessage": "私有"
   },
-  "console.actions.collapse": {
-    "defaultMessage": "折叠"
-  },
-  "console.actions.expand": {
-    "defaultMessage": "展开"
-  },
-  "console.actions.share": {
-    "defaultMessage": "分享"
-  },
   "content-type.content.lowercase": {
     "defaultMessage": "内容"
   },
@@ -6987,4 +6978,3 @@
     "defaultMessage": "类型"
   }
 }
-

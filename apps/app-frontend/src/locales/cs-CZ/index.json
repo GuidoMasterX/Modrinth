@@ -545,9 +545,6 @@
   "app.instance.mods.content-type-project": {
     "message": "projekt"
   },
-  "app.instance.mods.freeze-content": {
-    "message": "Zmrazit verzi"
-  },
   "app.instance.mods.locked-content": {
     "message": "Obsah v uzamčených instancích nelze změnit."
   },
@@ -565,9 +562,6 @@
   },
   "app.instance.mods.successfully-uploaded": {
     "message": "Úspěšně nahráno"
-  },
-  "app.instance.mods.unfreeze-content": {
-    "message": "Odmrazit verzi"
   },
   "app.instance.navigation.back-to-instance": {
     "message": "Zpět k instanci"

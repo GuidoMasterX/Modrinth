@@ -665,9 +665,6 @@
   "app.instance.mods.content-type-project": {
     "message": "project"
   },
-  "app.instance.mods.freeze-content": {
-    "message": "Creëer versies"
-  },
   "app.instance.mods.locked-content": {
     "message": "De inhoud van vergrendelde instanties kan niet worden gewijzigd."
   },
@@ -685,9 +682,6 @@
   },
   "app.instance.mods.successfully-uploaded": {
     "message": "Succesvol geüpload"
-  },
-  "app.instance.mods.unfreeze-content": {
-    "message": "Ontgrendel versie"
   },
   "app.instance.navigation.back-to-instance": {
     "message": "Terug naar de instantie"

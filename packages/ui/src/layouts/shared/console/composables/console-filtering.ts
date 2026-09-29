@@ -192,6 +192,10 @@ export function useConsoleFilters() {
 	return { activeFilters, toggleFilter, buildFilterPredicate }
 }
 
+let rewriteGeneration = 0
+
+const REWRITE_CHUNK_SIZE = 5000
+
 export function rewriteTerminal(
 	terminal: Terminal,
 	allLines: LogLine[],
@@ -210,12 +214,30 @@ export function rewriteTerminal(
 		return
 	}
 
+	const generation = ++rewriteGeneration
+	let index = 0
+
 	terminal.write('\x1b[?2026h')
-	terminal.write(filtered.map((line) => colorize(line)).join('\r\n'), () => {
-		terminal.write('\x1b[?2026l')
-		if (searchQuery) {
-			applySearchHighlights(terminal, searchQuery)
+
+	const writeNextChunk = () => {
+		if (generation !== rewriteGeneration) return
+
+		const start = index
+		const chunk = filtered.slice(start, start + REWRITE_CHUNK_SIZE)
+		if (chunk.length === 0) {
+			terminal.write('\x1b[?2026l', () => {
+				if (searchQuery) applySearchHighlights(terminal, searchQuery)
+				callback?.()
+			})
+			return
 		}
-		callback?.()
-	})
+
+		index += chunk.length
+		const data = (start === 0 ? '' : '\r\n') + chunk.map((line) => colorize(line)).join('\r\n')
+		terminal.write(data, () => {
+			setTimeout(writeNextChunk, 0)
+		})
+	}
+
+	writeNextChunk()
 }

@@ -51,10 +51,12 @@
 					:show-delete="showDelete"
 					:delete-disabled="resolvedDeleteDisabled"
 					:delete-disabled-tooltip="ctx.deleteDisabledTooltip"
+					:render-limit="renderLimit"
 					@clear="handleClear"
 					@share="handleShare"
 					@toggle-fullscreen="toggleFullscreen"
 					@delete="handleDelete"
+					@update:render-limit="setRenderLimit"
 				/>
 			</div>
 		</div>
@@ -213,6 +215,41 @@ onBeforeUnmount(() => {
 
 let lastWrittenIndex = 0
 let searchDebounce: ReturnType<typeof setTimeout> | null = null
+let isRewriting = false
+let pendingAppend = false
+
+const RENDER_LIMIT_STORAGE_KEY = 'console:render-limit'
+const RENDER_LIMIT_VALUES = new Set([0, 100_000, 25_000, 5_000])
+const RENDER_LIMIT_SLACK = 2000
+
+function readStoredRenderLimit(): number {
+	try {
+		const stored = Number(window.localStorage.getItem(RENDER_LIMIT_STORAGE_KEY))
+		if (RENDER_LIMIT_VALUES.has(stored)) return stored
+	} catch {
+		// localStorage may be unavailable
+	}
+	return 0
+}
+
+const renderLimit = ref(readStoredRenderLimit())
+
+function setRenderLimit(value: number) {
+	renderLimit.value = value
+	try {
+		window.localStorage.setItem(RENDER_LIMIT_STORAGE_KEY, String(value))
+	} catch {
+		// localStorage may be unavailable
+	}
+	rewriteFiltered()
+}
+
+function visibleLogLines(): LogLine[] {
+	const lines = ctx.logLines.value
+	const limit = renderLimit.value
+	if (limit <= 0 || lines.length <= limit) return lines
+	return lines.slice(lines.length - limit)
+}
 
 const resolvedShowInput = computed(() => {
 	const v = ctx.showCommandInput
@@ -289,7 +326,8 @@ function activeSearchQuery(): string {
 function rewriteFiltered() {
 	const term = terminalRef.value?.terminal
 	if (!term) return
-	const lines = ctx.logLines.value
+	const allLines = ctx.logLines.value
+	const lines = visibleLogLines()
 	if (resolvedLoading.value && lines.length === 0 && isLiveSource.value) {
 		terminalRef.value?.clearEmptyState()
 		lastWrittenIndex = 0
@@ -301,7 +339,40 @@ function rewriteFiltered() {
 	}
 	terminalRef.value?.clearEmptyState()
 	const predicate = buildCombinedPredicate()
-	rewriteTerminal(term, lines, predicate, activeSearchQuery())
+	const snapshot = allLines.length
+	isRewriting = true
+	pendingAppend = false
+	rewriteTerminal(term, lines, predicate, activeSearchQuery(), () => {
+		isRewriting = false
+		lastWrittenIndex = snapshot
+		if (pendingAppend || ctx.logLines.value.length > snapshot) {
+			pendingAppend = false
+			appendNewLines()
+		}
+	})
+}
+
+function appendNewLines() {
+	const term = terminalRef.value?.terminal
+	if (!term) return
+	const lines = ctx.logLines.value
+	const predicate = buildCombinedPredicate()
+	const newLines: string[] = []
+	for (let i = lastWrittenIndex; i < lines.length; i++) {
+		if (!predicate || predicate(lines[i])) {
+			newLines.push(colorize(lines[i]))
+		}
+	}
+	if (newLines.length > 0) {
+		const buffer = term.buffer.active
+		const onFreshLine = buffer.cursorX === 0
+		const data = onFreshLine ? newLines.join('\r\n') : '\r\n' + newLines.join('\r\n')
+		const fromRow = buffer.baseY + buffer.cursorY
+		const version = getHighlightVersion(term)
+		term.write(data, () => {
+			highlightAppendedRange(term, fromRow, version)
+		})
+	}
 	lastWrittenIndex = lines.length
 }
 
@@ -365,24 +436,17 @@ watch(ctx.logLines, (lines, oldLines) => {
 		return
 	}
 
-	const predicate = buildCombinedPredicate()
-	const newLines: string[] = []
-	for (let i = lastWrittenIndex; i < lines.length; i++) {
-		if (!predicate || predicate(lines[i])) {
-			newLines.push(colorize(lines[i]))
-		}
+	if (isRewriting) {
+		pendingAppend = true
+		return
 	}
-	if (newLines.length > 0) {
-		const buffer = term.buffer.active
-		const onFreshLine = buffer.cursorX === 0
-		const data = onFreshLine ? newLines.join('\r\n') : '\r\n' + newLines.join('\r\n')
-		const fromRow = buffer.baseY + buffer.cursorY
-		const version = getHighlightVersion(term)
-		term.write(data, () => {
-			highlightAppendedRange(term, fromRow, version)
-		})
+
+	if (renderLimit.value > 0 && lines.length > renderLimit.value + RENDER_LIMIT_SLACK) {
+		rewriteFiltered()
+		return
 	}
-	lastWrittenIndex = lines.length
+
+	appendNewLines()
 })
 
 watch(searchQuery, () => {

@@ -368,15 +368,6 @@
   "collections.label.private": {
     "defaultMessage": "Приватно"
   },
-  "console.actions.collapse": {
-    "defaultMessage": "Згорнути"
-  },
-  "console.actions.expand": {
-    "defaultMessage": "Розкрити"
-  },
-  "console.actions.share": {
-    "defaultMessage": "Поширити"
-  },
   "content-type.content.lowercase": {
     "defaultMessage": "уміст"
   },

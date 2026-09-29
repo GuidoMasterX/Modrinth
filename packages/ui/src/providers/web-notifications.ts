@@ -60,6 +60,8 @@ export abstract class AbstractWebNotificationManager {
 	 * @deprecated You should use `addNotification` instead to provide a more human-readable error message to the user.
 	 */
 	handleError = (error: Error): void => {
+		if (error?.name === 'CancelledError') return
+
 		this.addNotification({
 			title: 'An error occurred',
 			text: error.message ?? error,
