@@ -1,3 +1,4 @@
+import { isCancelledError } from '@tanstack/vue-query'
 import type { Component } from 'vue'
 
 import { createContext } from '.'
@@ -57,10 +58,12 @@ export abstract class AbstractWebNotificationManager {
 	}
 
 	/**
+	 * Query cancellations (e.g. navigating away mid-fetch) are ignored, as they are not user-facing failures.
+	 *
 	 * @deprecated You should use `addNotification` instead to provide a more human-readable error message to the user.
 	 */
 	handleError = (error: Error): void => {
-		if (error?.name === 'CancelledError') return
+		if (isCancelledError(error)) return
 
 		this.addNotification({
 			title: 'An error occurred',

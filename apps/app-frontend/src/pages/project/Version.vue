@@ -111,7 +111,7 @@ import {
 	get_version_many,
 } from '@/helpers/cache.js'
 import { CF_ID_PREFIX, cfProjectUrl, isCfProjectId, parseCfId } from '@/helpers/curseforge-project'
-import { useBreadcrumb } from '@/providers/breadcrumbs'
+import { useBreadcrumb } from '@/shared/breadcrumbs'
 
 const { formatMessage } = useVIntl()
 const formatBytes = useFormatBytes()

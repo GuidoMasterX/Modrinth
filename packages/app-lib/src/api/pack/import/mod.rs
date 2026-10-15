@@ -1,5 +1,6 @@
 use std::{
     fmt,
+    future::Future,
     path::{Path, PathBuf},
 };
 
@@ -202,23 +203,22 @@ pub async fn get_importable_instance_contents(
     Ok(contents)
 }
 
-pub(crate) async fn import_instance_with_reporter(
+pub(crate) fn import_instance_with_reporter(
     instance_id: &str,
     launcher_type: ImportLauncherType,
     base_path: PathBuf,
     instance_folder: String,
     selected_paths: Option<Vec<String>>,
     reporter: InstallProgressReporter,
-) -> crate::Result<()> {
-    import_instance_inner(
+) -> impl Future<Output = crate::Result<()>> + Send + '_ {
+    Box::pin(import_instance_inner(
         instance_id,
         launcher_type,
         base_path,
         instance_folder,
         selected_paths,
         reporter,
-    )
-    .await
+    ))
 }
 
 async fn import_instance_inner(
@@ -450,7 +450,25 @@ pub async fn recache_icon(
     }
 }
 
-pub(crate) async fn copy_dotminecraft_with_reporter(
+pub(crate) fn copy_dotminecraft_with_reporter<'a>(
+    instance_id: &'a str,
+    dotminecraft: PathBuf,
+    selected_paths: Option<Vec<String>>,
+    io_semaphore: &'a IoSemaphore,
+    reporter: InstallProgressReporter,
+    details: InstallPhaseDetails,
+) -> impl Future<Output = crate::Result<()>> + Send + 'a {
+    Box::pin(copy_dotminecraft_with_reporter_inner(
+        instance_id,
+        dotminecraft,
+        selected_paths,
+        io_semaphore,
+        reporter,
+        details,
+    ))
+}
+
+async fn copy_dotminecraft_with_reporter_inner(
     instance_id: &str,
     dotminecraft: PathBuf,
     selected_paths: Option<Vec<String>>,

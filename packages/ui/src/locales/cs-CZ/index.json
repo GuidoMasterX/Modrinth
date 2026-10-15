@@ -1151,9 +1151,6 @@
   "external-files.permissions-card.editor.save": {
     "defaultMessage": "Uložit uvedení autora"
   },
-  "external-files.permissions-card.editor.select-license-label": {
-    "defaultMessage": "Vyberte licenci..."
-  },
   "external-files.permissions-card.editor.type-label": {
     "defaultMessage": "Důvod práva"
   },
@@ -1882,9 +1879,6 @@
   },
   "hosting.loader.reset-server": {
     "defaultMessage": "Resetovat server"
-  },
-  "hosting.loader.support-options-title": {
-    "defaultMessage": "Možnosti podpory"
   },
   "hosting.specs.burst": {
     "defaultMessage": "Vylítne až na {cpus} CPUs"

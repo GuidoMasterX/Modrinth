@@ -7,6 +7,7 @@ use crate::database::PgTransaction;
 use crate::database::models::flow_item::DBFlow;
 use crate::database::models::notification_item::NotificationBuilder;
 use crate::database::models::session_item::DBSession;
+use crate::database::models::user_lock_item::DBUserLock;
 use crate::database::models::{DBPasskey, DBPasskeyId, DBUser, DBUserId};
 use crate::env::ENV;
 use crate::file_hosting::{FileHost, FileHostPublicity};
@@ -18,7 +19,7 @@ use crate::models::users::{Badges, Role};
 use crate::queue::email::EmailQueue;
 use crate::queue::session::AuthQueue;
 use crate::routes::ApiError;
-use crate::routes::internal::session::issue_session;
+use crate::routes::internal::session::{AuthSession, issue_auth_sessions};
 use crate::util::captcha::check_hcaptcha;
 use crate::util::error::ApiContext as _;
 use crate::util::error::Context;
@@ -327,6 +328,7 @@ impl TempUser {
             allow_friend_requests: true,
             is_subscribed_to_newsletter: sign_up_newsletter,
             eligibility_verified_at: Some(Utc::now()),
+            lock: None,
         }
         .insert(transaction)
         .await
@@ -1133,6 +1135,7 @@ pub struct AuthorizationInit {
     pub token: Option<String>,
     /// If the user is already logged in, and is linking a PayPal account,
     /// this will be set to the user's auth token from the frontend.
+    /// Only first-party session tokens may authorize linking.
     pub auth_token: Option<String>,
 }
 #[derive(Serialize, Deserialize, utoipa::ToSchema)]
@@ -1168,7 +1171,11 @@ pub async fn init(
     // This can happen when linking to a PayPal account (logging in) when already
     // logged in.
     let existing_user_id = if let Some(auth_token) = &info.auth_token {
-        get_user_record_from_bearer_token(
+        if !auth_token.starts_with("mra_") {
+            return Err(AuthenticationError::InvalidCredentials);
+        }
+
+        let (scopes, user) = get_user_record_from_bearer_token(
             &req,
             Some(auth_token),
             &**client,
@@ -1176,10 +1183,14 @@ pub async fn init(
             &session_queue,
             false,
         )
-        .await
-        .ok()
-        .flatten()
-        .map(|(_scopes, user)| user.id)
+        .await?
+        .ok_or_else(|| AuthenticationError::InvalidCredentials)?;
+
+        if !scopes.contains(Scopes::USER_AUTH_WRITE) {
+            return Err(AuthenticationError::InvalidCredentials);
+        }
+
+        Some(user.id)
     } else {
         None
     };
@@ -1340,11 +1351,6 @@ pub async fn auth_callback(
             .await
             .wrap_err("failed to get user from provider")?;
 
-        let user_id_opt = provider
-            .get_user_id(&oauth_user.id, &**client)
-            .await
-            .wrap_err("failed to get user ID from provider")?;
-
         let mut transaction = client
             .begin()
             .await
@@ -1360,6 +1366,26 @@ pub async fn auth_callback(
             let existing_user_id = existing_user_id.wrap_err(
                 "attempting to link a PayPal account without being logged in",
             )?;
+
+            if DBUserLock::exists(existing_user_id, &mut transaction).await? {
+                return Err(AuthenticationError::AccountLocked);
+            }
+
+            crate::database::advisory_lock::AdvisoryLock::PayPalAccount(
+                oauth_user.id.clone(),
+            )
+            .acquire(&mut transaction)
+            .await
+            .wrap_err("failed to lock PayPal account for linking")?;
+
+            let linked_user_id = provider
+                .get_user_id(&oauth_user.id, &mut transaction)
+                .await
+                .wrap_err("failed to get linked user ID from PayPal")?;
+
+            if linked_user_id.is_some_and(|id| id != existing_user_id) {
+                return Err(AuthenticationError::ProviderAlreadyLinked);
+            }
 
             sqlx::query!(
                 "
@@ -1391,6 +1417,11 @@ pub async fn auth_callback(
                 .append_header(("Location", url.as_str()))
                 .json(serde_json::json!({ "url": url })));
         }
+
+        let user_id_opt = provider
+            .get_user_id(&oauth_user.id, &**client)
+            .await
+            .wrap_err("failed to get user ID from provider")?;
 
         if let Some(id) = user_id {
             if user_id_opt.is_some() {
@@ -1447,15 +1478,29 @@ pub async fn auth_callback(
                     .append_header((LOCATION, redirect_url.as_str()))
                     .json(serde_json::json!({ "url": redirect_url })))
             } else {
-                let session =
-                    issue_session(req, user_id, &mut transaction, &redis, None)
-                        .await?;
+                let sessions = issue_auth_sessions(
+                    req,
+                    user_id,
+                    &mut transaction,
+                    &redis,
+                    requests_app_session(&url),
+                )
+                .await?;
                 transaction.commit().await?;
 
                 let mut redirect_url = url.clone();
-                redirect_url
-                    .query_pairs_mut()
-                    .append_pair("code", &session.session);
+                let session = sessions
+                    .session
+                    .session
+                    .as_deref()
+                    .ok_or(AuthenticationError::InvalidCredentials)?;
+                {
+                    let mut query = redirect_url.query_pairs_mut();
+                    query.append_pair("code", session);
+                    if let Some(app_session) = sessions.app_session {
+                        query.append_pair("app_code", &app_session);
+                    }
+                }
 
                 Ok(HttpResponse::TemporaryRedirect()
                     .append_header((LOCATION, redirect_url.as_str()))
@@ -1506,6 +1551,11 @@ fn requires_dob(provider: AuthProvider) -> bool {
     )
 }
 
+fn requests_app_session(url: &Url) -> bool {
+    url.query_pairs()
+        .any(|(key, value)| key == "app_session" && value == "true")
+}
+
 #[derive(Deserialize, Validate, utoipa::ToSchema)]
 struct NewOAuthAccount {
     // keep in sync with NewAccount
@@ -1516,6 +1566,8 @@ struct NewOAuthAccount {
     pub sign_up_newsletter: bool,
     #[serde(default)]
     pub account_consent: bool,
+    #[serde(default)]
+    pub app_session: bool,
 }
 
 fn validate_account_consent(account_consent: bool) -> Result<(), ApiError> {
@@ -1657,10 +1709,15 @@ pub async fn create_oauth_account(
         }
     }
 
-    let session = issue_session(req, user_id, &mut txn, &redis, None)
-        .await
-        .wrap_auth_err("authenticating API request")?;
-    let res = crate::models::sessions::Session::from(session, true, None);
+    let res = issue_auth_sessions(
+        req,
+        user_id,
+        &mut txn,
+        &redis,
+        new_account.app_session,
+    )
+    .await
+    .wrap_auth_err("authenticating API request")?;
     txn.commit()
         .await
         .wrap_internal_err("committing database transaction")?;
@@ -1889,6 +1946,8 @@ pub struct NewAccount {
     pub sign_up_newsletter: Option<bool>,
     #[serde(default)]
     pub account_consent: bool,
+    #[serde(default)]
+    pub app_session: bool,
 }
 
 #[derive(Debug, Validate)]
@@ -1900,6 +1959,7 @@ struct AccountRegisterFlow {
     #[validate(email)]
     email: String,
     sign_up_newsletter: bool,
+    app_session: bool,
 }
 
 #[derive(Debug)]
@@ -1914,6 +1974,7 @@ impl From<NewAccount> for AccountRegisterFlow {
             password: account.password,
             email: account.email,
             sign_up_newsletter: account.sign_up_newsletter.unwrap_or(false),
+            app_session: account.app_session,
         }
     }
 }
@@ -2072,7 +2133,7 @@ impl ReadyAccountRegisterFlow {
         transaction: &mut PgTransaction<'_>,
         redis: &RedisPool,
         email_queue: &EmailQueue,
-    ) -> Result<crate::models::sessions::Session, CreateAccountError> {
+    ) -> Result<AuthSession, CreateAccountError> {
         let register_flow = self.inner;
 
         let user_id = crate::database::models::generate_user_id(transaction)
@@ -2114,6 +2175,7 @@ impl ReadyAccountRegisterFlow {
             allow_friend_requests: true,
             is_subscribed_to_newsletter: register_flow.sign_up_newsletter,
             eligibility_verified_at: Some(Utc::now()),
+            lock: None,
         }
         .insert(transaction)
         .await;
@@ -2139,10 +2201,15 @@ impl ReadyAccountRegisterFlow {
             }
         }
 
-        let session = issue_session(req, user_id, transaction, redis, None)
-            .await
-            .wrap_auth_err("authenticating API request")?;
-        let res = crate::models::sessions::Session::from(session, true, None);
+        let res = issue_auth_sessions(
+            req,
+            user_id,
+            transaction,
+            redis,
+            register_flow.app_session,
+        )
+        .await
+        .wrap_auth_err("authenticating API request")?;
 
         send_verify_email(
             email_queue,
@@ -2249,6 +2316,8 @@ pub struct Login {
     pub username_or_email: String,
     pub password: String,
     pub challenge: String,
+    #[serde(default)]
+    pub app_session: bool,
 }
 
 /// Log in with a password.
@@ -2335,11 +2404,15 @@ pub async fn login_password(
             .begin()
             .await
             .wrap_internal_err("starting database transaction")?;
-        let session =
-            issue_session(req, user.id, &mut transaction, &redis, None)
-                .await
-                .wrap_auth_err("authenticating API request")?;
-        let res = crate::models::sessions::Session::from(session, true, None);
+        let res = issue_auth_sessions(
+            req,
+            user.id,
+            &mut transaction,
+            &redis,
+            login.app_session,
+        )
+        .await
+        .wrap_auth_err("authenticating API request")?;
         transaction
             .commit()
             .await
@@ -2353,6 +2426,8 @@ pub async fn login_password(
 pub struct Login2FA {
     pub code: String,
     pub flow: String,
+    #[serde(default)]
+    pub app_session: bool,
 }
 
 async fn validate_2fa_code(
@@ -2486,11 +2561,15 @@ pub async fn login_2fa(
             .await
             .wrap_internal_err("removing authentication flow from Redis")?;
 
-        let session =
-            issue_session(req, user_id, &mut transaction, &redis, None)
-                .await
-                .wrap_auth_err("authenticating API request")?;
-        let res = crate::models::sessions::Session::from(session, true, None);
+        let res = issue_auth_sessions(
+            req,
+            user_id,
+            &mut transaction,
+            &redis,
+            login.app_session,
+        )
+        .await
+        .wrap_auth_err("authenticating API request")?;
         transaction
             .commit()
             .await
@@ -2774,28 +2853,9 @@ pub async fn remove_2fa(
         )));
     }
 
-    sqlx::query!(
-        "
-        UPDATE users
-        SET totp_secret = NULL
-        WHERE (id = $1)
-        ",
-        user.id as crate::database::models::ids::DBUserId,
-    )
-    .execute(&mut transaction)
-    .await
-    .wrap_internal_err("querying database for `remove_2fa`")?;
-
-    sqlx::query!(
-        "
-        DELETE FROM user_backup_codes
-        WHERE user_id = $1
-        ",
-        user.id as crate::database::models::ids::DBUserId,
-    )
-    .execute(&mut transaction)
-    .await
-    .wrap_internal_err("querying database for `remove_2fa`")?;
+    DBUser::remove_2fa(user.id, &mut transaction)
+        .await
+        .wrap_internal_err("removing 2FA")?;
 
     NotificationBuilder {
         body: NotificationBody::TwoFactorRemoved,
@@ -2910,28 +2970,30 @@ pub async fn reset_password_begin(
 
     if let Some(DBUser {
         id: user_id,
-        email: user_email,
+        email: Some(user_email),
         ..
-    }) = user
+    }) = user.filter(|user| !user.is_locked())
+        && let Ok(mailbox) = user_email.parse()
     {
-        let flow = DBFlow::ForgotPassword { user_id }
-            .insert(Duration::hours(24), &redis)
-            .await
-            .wrap_internal_err("inserting authentication flow into database")?;
-
-        if let Ok(mailbox) = user_email.unwrap_or_default().parse() {
-            email
-                .send_one(
-                    &mut txn,
-                    NotificationBody::ResetPassword { flow },
-                    user_id,
-                    mailbox,
-                )
-                .await
-                .wrap_api_err("sending account email")?
-                .as_user_error()
-                .wrap_api_err("validating email delivery status")?;
+        let flow = DBFlow::ForgotPassword {
+            user_id,
+            email: user_email,
         }
+        .insert(Duration::hours(24), &redis)
+        .await
+        .wrap_internal_err("inserting authentication flow into database")?;
+
+        email
+            .send_one(
+                &mut txn,
+                NotificationBody::ResetPassword { flow },
+                user_id,
+                mailbox,
+            )
+            .await
+            .wrap_api_err("sending account email")?
+            .as_user_error()
+            .wrap_api_err("validating email delivery status")?;
     }
 
     txn.commit()
@@ -2974,21 +3036,39 @@ pub async fn change_password(
             .await
             .wrap_internal_err("fetching password-reset flow from Redis")?;
 
-        if let Some(DBFlow::ForgotPassword { user_id }) = flow {
-            let user = crate::database::models::DBUser::get_id(
-                user_id, &**pool, &redis,
-            )
+        let (user_id, flow_email, allow_locked) = match flow {
+            Some(DBFlow::ForgotPassword { user_id, email }) => {
+                (user_id, email, false)
+            }
+            Some(DBFlow::ForcedPasswordReset { user_id, email }) => {
+                (user_id, email, true)
+            }
+            _ => {
+                return Err(ApiError::Auth(eyre::eyre!(
+                    "The password change flow code is invalid or has expired. Did you copy it promptly and correctly?",
+                )));
+            }
+        };
+
+        let user = DBUser::get_id(user_id, &**pool, &redis)
             .await
             .wrap_internal_err("fetching user from database")?
             .ok_or_else(|| AuthenticationError::InvalidCredentials)
             .wrap_auth_err("fetching user from database")?;
 
-            Some(user)
-        } else {
+        if user.email.as_deref() != Some(flow_email.as_str()) {
             return Err(ApiError::Auth(eyre::eyre!(
                 "The password change flow code is invalid or has expired. Did you copy it promptly and correctly?",
             )));
         }
+
+        if user.is_locked() && !allow_locked {
+            return Err(ApiError::Auth(
+                AuthenticationError::AccountLocked.into(),
+            ));
+        }
+
+        Some(user)
     } else {
         None
     };
@@ -3817,6 +3897,8 @@ pub struct AuthenticatePasskeyFinish {
     pub flow: String,
     #[schema(value_type = Object)]
     pub credential: PublicKeyCredential,
+    #[serde(default)]
+    pub app_session: bool,
 }
 
 /// Finish passkey authentication.
@@ -3837,7 +3919,7 @@ pub async fn authenticate_passkey_finish(
     redis: Data<RedisPool>,
     webauthn: Data<Webauthn>,
     response: web::Json<AuthenticatePasskeyFinish>,
-) -> Result<web::Json<crate::models::sessions::Session>, ApiError> {
+) -> Result<web::Json<AuthSession>, ApiError> {
     let flow = DBFlow::take_if(
         &response.flow,
         |f| matches!(f, DBFlow::AuthenticatePasskey { .. }),
@@ -3883,16 +3965,9 @@ pub async fn authenticate_passkey_finish(
                     .commit()
                     .await
                     .wrap_internal_err("committing database transaction")?;
-                DBSession::clear_cache(
-                    sessions
-                        .into_iter()
-                        .map(|(id, session)| (Some(id), Some(session), None))
-                        .chain(std::iter::once((
-                            None,
-                            None,
-                            Some(db_passkey.user_id),
-                        )))
-                        .collect(),
+                DBSession::clear_user_sessions_cache(
+                    db_passkey.user_id,
+                    sessions,
                     &redis,
                 )
                 .await
@@ -3921,16 +3996,15 @@ pub async fn authenticate_passkey_finish(
             )));
         }
 
-        let session = issue_session(
+        let res = issue_auth_sessions(
             req,
             db_passkey.user_id,
             &mut transaction,
             &redis,
-            None,
+            response.app_session,
         )
         .await
         .wrap_auth_err("authenticating API request")?;
-        let res = crate::models::sessions::Session::from(session, true, None);
 
         transaction
             .commit()

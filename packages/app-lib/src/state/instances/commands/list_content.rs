@@ -6,6 +6,7 @@ use crate::api::curseforge::normalize::{
     Source, SourceProject, SourceVersionFile,
 };
 use crate::pack::install_from::{PackFileHash, PackFormat};
+use crate::state::content_store::content_file_path;
 use crate::state::instances::adapters::sqlite;
 use crate::state::instances::{
     ContentEntry, ContentSet, ContentSourceKind, Instance, InstanceFile,
@@ -1151,6 +1152,7 @@ async fn content_projects_for_scope_inner(
         output.insert(
             file.relative_path.clone(),
             ContentFile {
+                on_disk_path: content_file_path(&file),
                 update_version_id,
                 updates_ignored: entry.is_some_and(|entry| entry.updates_ignored),
                 update_skipped,
@@ -1368,7 +1370,7 @@ async fn content_files_to_content_items(
     let instance_path = state.directories.instances_dir().join(&instance.path);
     let paths = files
         .iter()
-        .map(|(path, _)| instance_path.join(path))
+        .map(|(_, file)| instance_path.join(&file.on_disk_path))
         .collect::<Vec<_>>();
     let modification_times: Vec<Option<String>> =
         tokio::task::spawn_blocking(move || {

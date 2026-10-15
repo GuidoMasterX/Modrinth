@@ -165,8 +165,7 @@ pub async fn emit_blocked_files_warning(
     blocked_files: Vec<crate::api::pack::install_from::BlockedFileInfo>,
 ) -> crate::Result<()> {
     #[cfg(feature = "tauri")]
-    {
-        let event_state = crate::EventState::get();
+    if let Some(event_state) = crate::EventState::try_get() {
         event_state.send(AppEvent::Warning(WarningPayload {
             message: message.to_string(),
             blocked_files,
