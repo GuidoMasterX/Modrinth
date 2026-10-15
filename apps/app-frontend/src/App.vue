@@ -256,9 +256,6 @@ const hasPlus = computed(
 		(hasMidasBadge(credentials.value.user) ||
 			hasActivePride26Midas(authenticatedModrinthUser.value?.campaigns?.pride_26)),
 )
-const showAd = computed(
-	() => sidebarVisible.value && !hasPlus.value && credentials.value !== undefined,
-)
 providePageContext({
 	hierarchicalSidebarAvailable: ref(true),
 	floatingActionBarOffsets: {
@@ -1907,7 +1904,6 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 			ref="sidebar"
 			:credentials="credentials"
 			:has-plus="hasPlus"
-			:show-ad="showAd"
 			:visible="sidebarVisible"
 			:request-sign-in="() => requestSignIn()"
 			@create-instance="installationModal?.show()"

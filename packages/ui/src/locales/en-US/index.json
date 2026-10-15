@@ -368,6 +368,21 @@
   "collections.label.private": {
     "defaultMessage": "Private"
   },
+  "console.actions.collapse": {
+    "defaultMessage": "Collapse"
+  },
+  "console.actions.expand": {
+    "defaultMessage": "Expand"
+  },
+  "console.actions.lines-shown": {
+    "defaultMessage": "Lines shown"
+  },
+  "console.actions.options": {
+    "defaultMessage": "Options"
+  },
+  "console.actions.share": {
+    "defaultMessage": "Share"
+  },
   "content-type.content.lowercase": {
     "defaultMessage": "content"
   },

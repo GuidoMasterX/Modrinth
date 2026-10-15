@@ -57,7 +57,7 @@
 						:key="option.value"
 						type="button"
 						class="flex items-center gap-2 rounded-lg px-3 py-1.5 text-left text-sm font-medium text-contrast hover:bg-surface-4"
-						@click="emit('update:renderLimit', option.value); hide()"
+						@click="selectRenderLimit(option.value, hide)"
 					>
 						<CheckIcon v-if="renderLimit === option.value" class="size-4 shrink-0" />
 						<span v-else class="size-4 shrink-0" />
@@ -139,4 +139,9 @@ const emit = defineEmits<{
 	delete: []
 	'update:renderLimit': [value: number]
 }>()
+
+function selectRenderLimit(value: number, hide: () => void) {
+	emit('update:renderLimit', value)
+	hide()
+}
 </script>
