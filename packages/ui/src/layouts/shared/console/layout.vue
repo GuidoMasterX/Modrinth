@@ -21,14 +21,37 @@
 
 		<div class="flex flex-col gap-2">
 			<div class="flex items-center gap-2">
-				<Input
-					v-model="searchQuery"
-					:icon="SearchIcon"
-					placeholder="Search logs"
-					wrapper-class="flex-1"
-					size="medium"
-					clearable
-				/>
+				<div
+					class="min-w-0 flex-1"
+					@keydown.enter.exact.prevent="findNext"
+					@keydown.shift.enter.exact.prevent="findPrevious"
+				>
+					<Input
+						v-model="searchQuery"
+						:icon="SearchIcon"
+						placeholder="Find in logs"
+						wrapper-class="w-full"
+						size="medium"
+						clearable
+					/>
+				</div>
+				<template v-if="searchQuery.trim()">
+					<span class="whitespace-nowrap text-xs tabular-nums text-secondary">
+						{{
+							searchResultCount > 0
+								? searchResultIndex >= 0
+									? `${searchResultIndex + 1} / ${searchResultCount}`
+									: `${searchResultCount}+ matches`
+								: '0 / 0'
+						}}
+					</span>
+					<IconButton label="Previous match" @click="findPrevious">
+						<ChevronUpIcon />
+					</IconButton>
+					<IconButton label="Next match" @click="findNext">
+						<ChevronDownIcon />
+					</IconButton>
+				</template>
 				<div v-if="ctx.logSources?.value && ctx.activeLogSourceIndex" class="w-[220px]">
 					<Combobox
 						:model-value="ctx.activeLogSourceIndex.value"
@@ -103,13 +126,14 @@
 </template>
 
 <script setup lang="ts">
-import { SearchIcon, TrashIcon, XIcon } from '@modrinth/assets'
+import { ChevronDownIcon, ChevronUpIcon, SearchIcon, TrashIcon, XIcon } from '@modrinth/assets'
+import type { SearchAddon } from '@xterm/addon-search'
 import type { Terminal } from '@xterm/xterm'
 import { computed, isRef, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 import Admonition from '#ui/components/base/Admonition.vue'
 import BaseTerminal from '#ui/components/base/BaseTerminal.vue'
-import { Button } from '#ui/components/base/buttons'
+import { Button, IconButton } from '#ui/components/base/buttons'
 import type { CollapsibleAdmonitionItem } from '#ui/components/base/CollapsibleAdmonition.vue'
 import CollapsibleAdmonition from '#ui/components/base/CollapsibleAdmonition.vue'
 import Combobox from '#ui/components/base/Combobox.vue'
@@ -162,6 +186,9 @@ const shareModal = ref<InstanceType<typeof ShareModal> | null>(null)
 const deleteModal = ref<InstanceType<typeof NewModal> | null>(null)
 const isDeleting = ref(false)
 const searchQuery = ref('')
+const searchAddon = ref<SearchAddon | null>(null)
+const searchResultIndex = ref(0)
+const searchResultCount = ref(0)
 const isFullscreen = ref(false)
 const fullscreenBodyClass = 'modrinth-console-fullscreen-active'
 const fullscreenIntercomPadding = 20
@@ -191,14 +218,7 @@ const logSourceOptions = computed(() =>
 )
 
 function buildCombinedPredicate(): ((line: LogLine) => boolean) | null {
-	const levelPred = buildFilterPredicate()
-	const query = searchQuery.value.trim().toLowerCase()
-	if (!levelPred && !query) return null
-	return (line: LogLine) => {
-		if (levelPred && !levelPred(line)) return false
-		if (query && !line.text.toLowerCase().includes(query)) return false
-		return true
-	}
+	return buildFilterPredicate()
 }
 
 onMounted(() => {
@@ -207,6 +227,10 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
 	window.removeEventListener('keydown', handleWindowKeyDown, true)
+	if (searchDebounce) {
+		clearTimeout(searchDebounce)
+		searchDebounce = null
+	}
 	if (isFullscreen.value) {
 		document.body.style.overflow = ''
 		document.body.classList.remove(fullscreenBodyClass)
@@ -316,7 +340,53 @@ const resolvedClearDisabledTooltip = computed(() =>
 )
 
 function handleTerminalReady(_terminal: Terminal) {
+	const addon = terminalRef.value?.searchAddon
+	if (addon) {
+		addon.onDidChangeResults(({ resultIndex, resultCount }) => {
+			searchResultIndex.value = resultIndex
+			searchResultCount.value = resultCount
+		})
+		searchAddon.value = addon
+	}
 	rewriteFiltered()
+}
+
+const SEARCH_DECORATIONS = {
+	matchBackground: '#FFB34766',
+	matchBorder: '#FFB347',
+	matchOverviewRuler: '#FFB347',
+	activeMatchBackground: '#FF8C00',
+	activeMatchBorder: '#FF8C00',
+	activeMatchColorOverviewRuler: '#FF8C00',
+}
+
+function runFind(incremental: boolean) {
+	const query = searchQuery.value.trim()
+	if (!searchAddon.value) return
+	if (!query) {
+		clearFindState()
+		return
+	}
+	searchAddon.value.findNext(query, {
+		decorations: SEARCH_DECORATIONS,
+		incremental,
+	})
+}
+
+function clearFindState() {
+	searchAddon.value?.clearDecorations()
+	searchResultIndex.value = 0
+	searchResultCount.value = 0
+}
+
+function findNext() {
+	runFind(false)
+}
+
+function findPrevious() {
+	const query = searchQuery.value.trim()
+	if (!query || !searchAddon.value) return
+	searchAddon.value.findPrevious(query, { decorations: SEARCH_DECORATIONS })
 }
 
 function handleFilterToggle(value: LogLevel | 'all') {
@@ -324,21 +394,20 @@ function handleFilterToggle(value: LogLevel | 'all') {
 	rewriteFiltered()
 }
 
-function activeSearchQuery(): string {
-	return searchQuery.value.trim().toLowerCase()
-}
-
 function rewriteFiltered() {
 	const term = terminalRef.value?.terminal
 	if (!term) return
+	searchAddon.value?.clearDecorations()
 	const allLines = ctx.logLines.value
 	const lines = visibleLogLines()
 	if (resolvedLoading.value && lines.length === 0 && isLiveSource.value) {
+		clearFindState()
 		terminalRef.value?.clearEmptyState()
 		lastWrittenIndex = 0
 		return
 	}
 	if (lines.length === 0 && isLiveSource.value) {
+		clearFindState()
 		writeEmptyState()
 		return
 	}
@@ -347,13 +416,14 @@ function rewriteFiltered() {
 	const snapshot = allLines.length
 	isRewriting = true
 	pendingAppend = false
-	rewriteTerminal(term, lines, predicate, activeSearchQuery(), () => {
+	rewriteTerminal(term, lines, predicate, undefined, () => {
 		isRewriting = false
 		lastWrittenIndex = snapshot
 		if (pendingAppend || ctx.logLines.value.length > snapshot) {
 			pendingAppend = false
 			appendNewLines()
 		}
+		runFind(true)
 	})
 }
 
@@ -421,6 +491,7 @@ watch(ctx.logLines, (lines, oldLines) => {
 	if (!term) return
 
 	if (lines.length === 0 && isLiveSource.value) {
+		clearFindState()
 		if (resolvedLoading.value) {
 			terminalRef.value?.clearEmptyState()
 			lastWrittenIndex = 0
@@ -457,7 +528,7 @@ watch(ctx.logLines, (lines, oldLines) => {
 watch(searchQuery, () => {
 	if (searchDebounce) clearTimeout(searchDebounce)
 	searchDebounce = setTimeout(() => {
-		rewriteFiltered()
+		runFind(true)
 	}, 200)
 })
 
@@ -476,6 +547,7 @@ function handleClear() {
 	if (resolvedClearDisabled.value) return
 	const term = terminalRef.value?.terminal
 	if (term) clearSearchHighlights(term)
+	clearFindState()
 	terminalRef.value?.reset()
 	lastWrittenIndex = 0
 	ctx.onClear?.()

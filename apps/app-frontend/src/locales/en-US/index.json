@@ -3120,7 +3120,7 @@
     "message": "Integrations"
   },
   "app.settings.tabs.java-and-memory": {
-    "message": "Java and memory"
+    "message": "Java and Memory"
   },
   "app.settings.tabs.java-installations": {
     "message": "Java installations"
@@ -4047,7 +4047,22 @@
     "message": "/path/to/java"
   },
   "instance.settings.tabs.java.label": {
-    "message": "Java and memory"
+    "message": "Java and Memory"
+  },
+  "instance.settings.tabs.java.presets": {
+    "message": "Presets"
+  },
+  "instance.settings.tabs.java.presets.aikar": {
+    "message": "Aikar's flags"
+  },
+  "instance.settings.tabs.java.presets.default": {
+    "message": "Default (none)"
+  },
+  "instance.settings.tabs.java.presets.g1gc": {
+    "message": "G1GC (recommended)"
+  },
+  "instance.settings.tabs.java.presets.zgc": {
+    "message": "ZGC (Java 21+)"
   },
   "instance.settings.tabs.sharing": {
     "message": "Sharing"

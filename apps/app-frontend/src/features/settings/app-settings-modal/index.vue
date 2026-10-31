@@ -166,7 +166,7 @@ const tabs = [
 	{
 		name: defineMessage({
 			id: 'app.settings.tabs.java-and-memory',
-			defaultMessage: 'Java and memory',
+			defaultMessage: 'Java and Memory',
 		}),
 		category: tabCategories.instanceDefaults,
 		icon: CoffeeIcon,

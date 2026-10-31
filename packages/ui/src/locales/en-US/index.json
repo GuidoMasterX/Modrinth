@@ -809,11 +809,26 @@
   "content.page-layout.sort.date-updated": {
     "defaultMessage": "Date updated"
   },
+  "content.page-layout.sort.date-updated-newest": {
+    "defaultMessage": "Date updated (newest)"
+  },
+  "content.page-layout.sort.date-updated-oldest": {
+    "defaultMessage": "Date updated (oldest)"
+  },
   "content.page-layout.sort.downloads": {
     "defaultMessage": "Downloads"
   },
+  "content.page-layout.sort.downloads-least": {
+    "defaultMessage": "Downloads (least first)"
+  },
+  "content.page-layout.sort.downloads-most": {
+    "defaultMessage": "Downloads (most first)"
+  },
   "content.page-layout.sort.label": {
     "defaultMessage": "Sort by {mode}"
+  },
+  "content.page-layout.sort.name": {
+    "defaultMessage": "Name"
   },
   "content.page-layout.update-all": {
     "defaultMessage": "Update all"

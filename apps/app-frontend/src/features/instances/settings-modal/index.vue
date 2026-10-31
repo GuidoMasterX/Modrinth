@@ -135,7 +135,7 @@ const tabs = computed<TabbedModalTab[]>(() => [
 	{
 		name: defineMessage({
 			id: 'instance.settings.tabs.java.label',
-			defaultMessage: 'Java and memory',
+			defaultMessage: 'Java and Memory',
 		}),
 		icon: CoffeeIcon,
 		category: tabCategories.game,

@@ -30,6 +30,7 @@ const {
 	historicalConsole,
 	hydrate,
 	syncLiveBuffer,
+	resetLive,
 	getHistoricalLogs,
 	getHistoricalContent,
 	invalidate,
@@ -44,6 +45,7 @@ const consoleHydrationQuery = useQuery({
 	},
 	staleTime: 0,
 	refetchOnMount: 'always',
+	refetchOnWindowFocus: false,
 })
 
 await consoleHydrationQuery.suspense()
@@ -223,7 +225,7 @@ onUnmounted(() => {
 useAppEvent('process', async (e) => {
 	if (e.instance_id !== instanceId.value) return
 	if (e.event === 'launched') {
-		liveConsole.clear()
+		resetLive()
 		invalidate()
 		void historicalLogsQuery.refetch()
 		selectedLogIndex.value = 0

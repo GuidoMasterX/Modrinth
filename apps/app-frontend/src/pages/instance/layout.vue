@@ -918,6 +918,7 @@ useAppEvent('process', (event) => {
 		void queryClient.invalidateQueries({ queryKey: instanceKeys.logs(event.instance_id) })
 	} else if (event.event === 'launched') {
 		queryClient.setQueryData(instanceKeys.processes(event.instance_id), [true])
+		useInstanceConsole(event.instance_id).resetLive()
 	}
 })
 

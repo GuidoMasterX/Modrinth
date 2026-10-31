@@ -32,33 +32,130 @@ const LOG_BUFFER_CAPACITY: usize = 250_000;
 
 struct LogRingBuffer {
     lines: VecDeque<String>,
+    total: u64,
+    capacity: usize,
+    generation: u64,
 }
 
 impl LogRingBuffer {
     fn new() -> Self {
         Self {
             lines: VecDeque::new(),
+            total: 0,
+            capacity: LOG_BUFFER_CAPACITY,
+            generation: 0,
         }
     }
 
     fn push(&mut self, line: String) {
-        if self.lines.len() >= LOG_BUFFER_CAPACITY {
+        if self.lines.len() >= self.capacity {
             self.lines.pop_front();
         }
         self.lines.push_back(line);
+        self.total += 1;
     }
 
     fn get_all(&self) -> Vec<String> {
         self.lines.iter().cloned().collect()
     }
 
+    /// Returns the lines written after `cursor`, the new cursor, the buffer
+    /// generation, and whether the cursor fell outside the retained window
+    /// (wrap). The generation changes when the buffer is cleared.
+    fn get_since(&self, cursor: u64) -> (Vec<String>, u64, u64, bool) {
+        let len = self.lines.len() as u64;
+        let start = self.total.saturating_sub(len);
+        if cursor < start || cursor > self.total {
+            return (self.get_all(), self.total, self.generation, true);
+        }
+        let skip = (cursor - start) as usize;
+        (
+            self.lines.iter().skip(skip).cloned().collect(),
+            self.total,
+            self.generation,
+            false,
+        )
+    }
+
+    /// Returns the lines for the given cursor and generation. A generation
+    /// mismatch means the client missed a clear/restart, so the whole buffer is
+    /// returned with `reset = true`.
+    fn get_for(
+        &self,
+        cursor: u64,
+        generation: u64,
+    ) -> (Vec<String>, u64, u64, bool) {
+        if generation != self.generation {
+            return (self.get_all(), self.total, self.generation, true);
+        }
+        self.get_since(cursor)
+    }
+
     fn clear(&mut self) {
         self.lines.clear();
+        self.total = 0;
+        self.generation += 1;
     }
 }
 
 static LOG_BUFFERS: LazyLock<DashMap<String, LogRingBuffer>> =
     LazyLock::new(DashMap::new);
+
+#[cfg(test)]
+mod ring_buffer_tests {
+    use super::*;
+
+    fn buffer(capacity: usize) -> LogRingBuffer {
+        LogRingBuffer {
+            lines: VecDeque::new(),
+            total: 0,
+            capacity,
+            generation: 0,
+        }
+    }
+
+    #[test]
+    fn get_since_returns_only_new_lines() {
+        let mut buf = buffer(4);
+        buf.push("a".to_string());
+        buf.push("b".to_string());
+        assert_eq!(
+            buf.get_since(0),
+            (vec!["a".to_string(), "b".to_string()], 2, 0, false)
+        );
+        assert_eq!(buf.get_since(2), (Vec::new(), 2, 0, false));
+    }
+
+    #[test]
+    fn get_since_signals_reset_when_wrapped() {
+        let mut buf = buffer(2);
+        buf.push("a".to_string());
+        buf.push("b".to_string());
+        buf.push("c".to_string());
+        assert_eq!(
+            buf.get_since(0),
+            (vec!["b".to_string(), "c".to_string()], 3, 0, true)
+        );
+        assert_eq!(
+            buf.get_since(2),
+            (vec!["c".to_string()], 3, 0, false)
+        );
+    }
+
+    #[test]
+    fn get_since_bumps_generation_after_clear() {
+        let mut buf = buffer(2);
+        buf.push("a".to_string());
+        let generation = buf.get_since(1).2;
+        buf.clear();
+        buf.push("b".to_string());
+        let (lines, cursor, next_generation, reset) = buf.get_for(1, generation);
+        assert_eq!(lines, vec!["b".to_string()]);
+        assert_eq!(cursor, 1);
+        assert_eq!(next_generation, generation + 1);
+        assert!(reset);
+    }
+}
 
 pub fn push_log_line(instance_id: &str, line: String) {
     LOG_BUFFERS
@@ -72,6 +169,17 @@ pub fn get_log_buffer(instance_id: &str) -> Vec<String> {
         .get(instance_id)
         .map(|buf| buf.get_all())
         .unwrap_or_default()
+}
+
+pub fn get_log_buffer_since(
+    instance_id: &str,
+    cursor: u64,
+    generation: u64,
+) -> (Vec<String>, u64, u64, bool) {
+    LOG_BUFFERS
+        .get(instance_id)
+        .map(|buf| buf.get_for(cursor, generation))
+        .unwrap_or_else(|| (Vec::new(), 0, 0, true))
 }
 
 pub fn clear_log_buffer(instance_id: &str) {

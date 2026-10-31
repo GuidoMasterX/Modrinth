@@ -17,6 +17,8 @@ import {
 	RefreshCwIcon,
 	SearchIcon,
 	ShareIcon,
+	SortAscIcon,
+	SortDescIcon,
 	TextCursorInputIcon,
 	TrashIcon,
 	UserIcon,
@@ -121,9 +123,29 @@ const messages = defineMessages({
 		id: 'content.page-layout.sort.downloads',
 		defaultMessage: 'Downloads',
 	},
+	sortDownloadsMost: {
+		id: 'content.page-layout.sort.downloads-most',
+		defaultMessage: 'Downloads (most first)',
+	},
+	sortDownloadsLeast: {
+		id: 'content.page-layout.sort.downloads-least',
+		defaultMessage: 'Downloads (least first)',
+	},
 	sortDateUpdated: {
 		id: 'content.page-layout.sort.date-updated',
 		defaultMessage: 'Date updated',
+	},
+	sortDateUpdatedNewest: {
+		id: 'content.page-layout.sort.date-updated-newest',
+		defaultMessage: 'Date updated (newest)',
+	},
+	sortDateUpdatedOldest: {
+		id: 'content.page-layout.sort.date-updated-oldest',
+		defaultMessage: 'Date updated (oldest)',
+	},
+	sortName: {
+		id: 'content.page-layout.sort.name',
+		defaultMessage: 'Name',
 	},
 	filter: {
 		id: 'content.page-layout.filter.add',
@@ -206,122 +228,147 @@ function getItemId(item: ContentItem) {
 	return ctx.getItemId?.(item) ?? item.file_path ?? item.file_name ?? item.id
 }
 
-type SortMode =
-	| 'alphabetical-asc'
-	| 'alphabetical-desc'
-	| 'date-added-newest'
-	| 'date-added-oldest'
-	| 'downloads'
-	| 'date-updated'
-const sortMode = ctx.filterPersistKey
-	? useSessionStorage<SortMode>(`content-sort:${ctx.filterPersistKey}`, 'alphabetical-asc')
-	: ref<SortMode>('alphabetical-asc')
+type SortField = 'name' | 'date-added' | 'downloads' | 'date-updated'
+type SortDirection = 'asc' | 'desc'
 
-const sortLabels: Record<SortMode, () => string> = {
-	'alphabetical-asc': () => formatMessage(messages.sortAlphabeticalAscending),
-	'alphabetical-desc': () => formatMessage(messages.sortAlphabeticalDescending),
-	'date-added-newest': () => formatMessage(messages.sortDateAddedNewest),
-	'date-added-oldest': () => formatMessage(messages.sortDateAddedOldest),
-	downloads: () => formatMessage(messages.sortDownloads),
-	'date-updated': () => formatMessage(messages.sortDateUpdated),
+const DEFAULT_SORT_DIRECTION: Record<SortField, SortDirection> = {
+	name: 'asc',
+	'date-added': 'desc',
+	downloads: 'desc',
+	'date-updated': 'desc',
+}
+
+const sortField = ctx.filterPersistKey
+	? useSessionStorage<SortField>(`content-sort-field:${ctx.filterPersistKey}`, 'name')
+	: ref<SortField>('name')
+const sortDirection = ctx.filterPersistKey
+	? useSessionStorage<SortDirection>(`content-sort-direction:${ctx.filterPersistKey}`, 'asc')
+	: ref<SortDirection>('asc')
+
+const sortLabel = computed(() => {
+	switch (sortField.value) {
+		case 'name':
+			return formatMessage(
+				sortDirection.value === 'asc'
+					? messages.sortAlphabeticalAscending
+					: messages.sortAlphabeticalDescending,
+			)
+		case 'downloads':
+			return formatMessage(
+				sortDirection.value === 'desc' ? messages.sortDownloadsMost : messages.sortDownloadsLeast,
+			)
+		case 'date-updated':
+			return formatMessage(
+				sortDirection.value === 'desc'
+					? messages.sortDateUpdatedNewest
+					: messages.sortDateUpdatedOldest,
+			)
+		default:
+			return formatMessage(
+				sortDirection.value === 'desc'
+					? messages.sortDateAddedNewest
+					: messages.sortDateAddedOldest,
+			)
+	}
+})
+
+const sortIcon = computed(() => {
+	switch (sortField.value) {
+		case 'name':
+			return sortDirection.value === 'asc' ? ArrowDownAZIcon : ArrowUpZAIcon
+		case 'downloads':
+		case 'date-updated':
+			return sortDirection.value === 'desc' ? SortDescIcon : SortAscIcon
+		default:
+			return sortDirection.value === 'desc' ? ClockArrowDownIcon : ClockArrowUpIcon
+	}
+})
+
+function selectSort(field: SortField) {
+	if (sortField.value === field) {
+		sortDirection.value = sortDirection.value === 'asc' ? 'desc' : 'asc'
+	} else {
+		sortField.value = field
+		sortDirection.value = DEFAULT_SORT_DIRECTION[field]
+	}
 }
 
 const sortOptions = computed<ButtonMenuOption[]>(() => [
 	{
-		id: 'alphabetical-asc',
-		label: formatMessage(messages.sortAlphabeticalAscending),
-		icon: ArrowDownAZIcon,
-		action: () => (sortMode.value = 'alphabetical-asc'),
-	},
-	{
-		id: 'alphabetical-desc',
-		label: formatMessage(messages.sortAlphabeticalDescending),
-		icon: ArrowUpZAIcon,
-		action: () => (sortMode.value = 'alphabetical-desc'),
-	},
-	{
-		id: 'date-added-newest',
-		label: formatMessage(messages.sortDateAddedNewest),
-		icon: ClockArrowDownIcon,
-		action: () => (sortMode.value = 'date-added-newest'),
-	},
-	{
-		id: 'date-added-oldest',
-		label: formatMessage(messages.sortDateAddedOldest),
-		icon: ClockArrowUpIcon,
-		action: () => (sortMode.value = 'date-added-oldest'),
+		id: 'name',
+		label: formatMessage(messages.sortName),
+		icon:
+			sortField.value === 'name' && sortDirection.value === 'desc'
+				? ArrowUpZAIcon
+				: ArrowDownAZIcon,
+		action: () => selectSort('name'),
 	},
 	{
 		id: 'downloads',
 		label: formatMessage(messages.sortDownloads),
 		icon: DownloadIcon,
-		action: () => (sortMode.value = 'downloads'),
+		action: () => selectSort('downloads'),
 	},
 	{
 		id: 'date-updated',
 		label: formatMessage(messages.sortDateUpdated),
 		icon: CalendarClockIcon,
-		action: () => (sortMode.value = 'date-updated'),
+		action: () => selectSort('date-updated'),
+	},
+	{
+		id: 'date-added-newest',
+		label: formatMessage(messages.sortDateAddedNewest),
+		icon: ClockArrowDownIcon,
+		action: () => {
+			sortField.value = 'date-added'
+			sortDirection.value = 'desc'
+		},
+	},
+	{
+		id: 'date-added-oldest',
+		label: formatMessage(messages.sortDateAddedOldest),
+		icon: ClockArrowUpIcon,
+		action: () => {
+			sortField.value = 'date-added'
+			sortDirection.value = 'asc'
+		},
 	},
 ])
 
 const sortedItems = computed(() => {
 	const items = [...ctx.items.value]
-	switch (sortMode.value) {
-		case 'alphabetical-desc':
-			return items.sort((a, b) => {
-				const nameA = a.project?.title ?? a.file_name
-				const nameB = b.project?.title ?? b.file_name
-				return (
-					nameB.toLowerCase().localeCompare(nameA.toLowerCase()) ||
-					a.file_name.localeCompare(b.file_name)
-				)
-			})
-		case 'date-added-newest':
-			return items.sort((a, b) => {
-				const dateA = a.date_added ?? ''
-				const dateB = b.date_added ?? ''
-				return dateB.localeCompare(dateA) || a.file_name.localeCompare(b.file_name)
-			})
-		case 'date-added-oldest':
-			return items.sort((a, b) => {
-				const dateA = a.date_added ?? ''
-				const dateB = b.date_added ?? ''
-				return dateA.localeCompare(dateB) || a.file_name.localeCompare(b.file_name)
-			})
+	const multiplier = sortDirection.value === 'asc' ? 1 : -1
+	const nameOf = (item: ContentItem) => (item.project?.title ?? item.file_name).toLowerCase()
+
+	switch (sortField.value) {
 		case 'downloads':
-			return items.sort((a, b) => {
-				const downloadsA = a.project?.downloads ?? 0
-				const downloadsB = b.project?.downloads ?? 0
-				return (
-					downloadsB - downloadsA ||
-					(a.project?.title ?? a.file_name)
-						.toLowerCase()
-						.localeCompare((b.project?.title ?? b.file_name).toLowerCase()) ||
-					a.file_name.localeCompare(b.file_name)
-				)
-			})
+			return items.sort(
+				(a, b) =>
+					((a.project?.downloads ?? 0) - (b.project?.downloads ?? 0)) * multiplier ||
+					nameOf(a).localeCompare(nameOf(b)) ||
+					a.file_name.localeCompare(b.file_name),
+			)
 		case 'date-updated':
-			return items.sort((a, b) => {
-				const dateA = Date.parse(a.project?.updated ?? '') || 0
-				const dateB = Date.parse(b.project?.updated ?? '') || 0
-				return (
-					dateB - dateA ||
-					(a.project?.title ?? a.file_name)
-						.toLowerCase()
-						.localeCompare((b.project?.title ?? b.file_name).toLowerCase()) ||
-					a.file_name.localeCompare(b.file_name)
-				)
-			})
+			return items.sort(
+				(a, b) =>
+					((Date.parse(a.project?.updated ?? '') || 0) -
+						(Date.parse(b.project?.updated ?? '') || 0)) *
+						multiplier ||
+					nameOf(a).localeCompare(nameOf(b)) ||
+					a.file_name.localeCompare(b.file_name),
+			)
+		case 'date-added':
+			return items.sort(
+				(a, b) =>
+					(a.date_added ?? '').localeCompare(b.date_added ?? '') * multiplier ||
+					nameOf(a).localeCompare(nameOf(b)) ||
+					a.file_name.localeCompare(b.file_name),
+			)
 		default:
-			return items.sort((a, b) => {
-				const nameA = a.project?.title ?? a.file_name
-				const nameB = b.project?.title ?? b.file_name
-				return (
-					nameA.toLowerCase().localeCompare(nameB.toLowerCase()) ||
-					a.file_name.localeCompare(b.file_name)
-				)
-			})
+			return items.sort(
+				(a, b) =>
+					nameOf(a).localeCompare(nameOf(b)) * multiplier || a.file_name.localeCompare(b.file_name),
+			)
 	}
 })
 
@@ -1246,14 +1293,11 @@ const confirmUnlinkModal = ref<InstanceType<typeof ConfirmUnlinkModal>>()
 									<TeleportOverflowMenu
 										class="!h-[34px] !text-sm !font-medium"
 										:icon-only="false"
-										:label="formatMessage(messages.sortByLabel, { mode: sortLabels[sortMode]() })"
+										:label="formatMessage(messages.sortByLabel, { mode: sortLabel })"
 										:options="sortOptions"
 									>
-										<ArrowUpZAIcon v-if="sortMode === 'alphabetical-desc'" />
-										<ClockArrowDownIcon v-else-if="sortMode === 'date-added-newest'" />
-										<ClockArrowUpIcon v-else-if="sortMode === 'date-added-oldest'" />
-										<ArrowDownAZIcon v-else />
-										{{ sortLabels[sortMode]() }}
+										<component :is="sortIcon" />
+										{{ sortLabel }}
 										<DropdownIcon />
 									</TeleportOverflowMenu>
 									<div class="h-6 w-px shrink-0 bg-surface-5" />

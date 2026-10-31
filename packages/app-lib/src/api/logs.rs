@@ -476,6 +476,54 @@ pub async fn delete_logs_by_filename(
     Ok(())
 }
 
+#[derive(Serialize, Debug)]
+pub struct LiveLogChunk {
+    pub output: CensoredString,
+    pub cursor: u64,
+    pub generation: u64,
+    pub reset: bool,
+}
+
+#[tracing::instrument]
+pub async fn get_live_log_chunk(
+    instance_id: &str,
+    cursor: u64,
+    generation: u64,
+) -> crate::Result<LiveLogChunk> {
+    let (lines, next_cursor, mode_generation, reset) =
+        crate::state::get_log_buffer_since(instance_id, cursor, generation);
+    if lines.is_empty() {
+        return Ok(LiveLogChunk {
+            output: CensoredString(String::new()),
+            cursor: next_cursor,
+            generation: mode_generation,
+            reset,
+        });
+    }
+
+    let state = State::get().await?;
+    let credentials = Credentials::get_all(&state.pool)
+        .await?
+        .into_iter()
+        .map(|x| x.1)
+        .collect::<Vec<_>>();
+    let joined = lines.join("\n");
+    let output = if cursor == 0 {
+        let compacted = compact_duplicate_lines(&joined);
+        maybe_emit_log_compaction_warning("live log", compacted.stats).await;
+        compacted.output
+    } else {
+        joined
+    };
+
+    Ok(LiveLogChunk {
+        output: CensoredString::censor(output, &credentials),
+        cursor: next_cursor,
+        generation: mode_generation,
+        reset,
+    })
+}
+
 #[tracing::instrument]
 pub async fn get_live_log_buffer(
     instance_id: &str,
@@ -495,7 +543,7 @@ pub async fn get_live_log_buffer(
 }
 
 pub fn clear_live_log_buffer(instance_id: &str) {
-    crate::state::remove_log_buffer(instance_id);
+    crate::state::clear_log_buffer(instance_id);
 }
 
 #[tracing::instrument]

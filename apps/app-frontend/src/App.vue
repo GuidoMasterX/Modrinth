@@ -1730,7 +1730,7 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 			</NavButton>
 			<NavButton
 				v-tooltip.right="formatMessage(commonMessages.discoverContentLabel)"
-				to="/browse/modpack"
+				to="/browse/mod"
 				:is-primary="() => route.path.startsWith('/browse') && !route.query.i && !route.query.sid"
 				:is-subpage="
 					(route) => route.path.startsWith('/project') && !route.query.i && !route.query.sid

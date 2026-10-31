@@ -15,6 +15,7 @@ import {
 	injectNotificationManager,
 	Input,
 	Slider,
+	TeleportOverflowMenu,
 	Toggle,
 	useVIntl,
 } from '@modrinth/ui'
@@ -175,6 +176,26 @@ const messages = defineMessages({
 		id: 'instance.settings.tabs.java.java-arguments',
 		defaultMessage: 'Custom Java arguments',
 	},
+	presets: {
+		id: 'instance.settings.tabs.java.presets',
+		defaultMessage: 'Presets',
+	},
+	presetDefault: {
+		id: 'instance.settings.tabs.java.presets.default',
+		defaultMessage: 'Default (none)',
+	},
+	presetG1gc: {
+		id: 'instance.settings.tabs.java.presets.g1gc',
+		defaultMessage: 'G1GC (recommended)',
+	},
+	presetAikar: {
+		id: 'instance.settings.tabs.java.presets.aikar',
+		defaultMessage: "Aikar's flags",
+	},
+	presetZgc: {
+		id: 'instance.settings.tabs.java.presets.zgc',
+		defaultMessage: 'ZGC (Java 21+)',
+	},
 	enterJavaArguments: {
 		id: 'instance.settings.tabs.java.enter-java-arguments',
 		defaultMessage: 'Enter Java arguments...',
@@ -192,6 +213,38 @@ const messages = defineMessages({
 		defaultMessage: 'Hooks',
 	},
 })
+
+const JAVA_ARGUMENT_PRESETS = [
+	{ id: 'default', message: messages.presetDefault, args: '' },
+	{
+		id: 'g1gc',
+		message: messages.presetG1gc,
+		args: '-XX:+UseG1GC -XX:+ParallelRefProcEnabled -XX:MaxGCPauseMillis=200',
+	},
+	{
+		id: 'aikar',
+		message: messages.presetAikar,
+		args: '-XX:+UseG1GC -XX:+ParallelRefProcEnabled -XX:MaxGCPauseMillis=200 -XX:+UnlockExperimentalVMOptions -XX:+DisableExplicitGC -XX:+AlwaysPreTouch -XX:G1NewSizePercent=30 -XX:G1MaxNewSizePercent=40 -XX:G1HeapRegionSize=8M -XX:G1ReservePercent=20 -XX:G1HeapWastePercent=5 -XX:G1MixedGCCountTarget=4 -XX:InitiatingHeapOccupancyPercent=15 -XX:G1MixedGCLiveThresholdPercent=90 -XX:G1RSetUpdatingPauseTimePercent=5 -XX:SurvivorRatio=32 -XX:+PerfDisableSharedMem -XX:MaxTenuringThreshold=1 -Dusing.aikars.flags=https://mcflags.emc.gs -Daikars.new.flags=true',
+	},
+	{
+		id: 'zgc',
+		message: messages.presetZgc,
+		args: '-XX:+UseZGC -XX:+AlwaysPreTouch',
+	},
+]
+
+function applyJavaArgumentsPreset(args: string) {
+	overrideJavaArgs.value = true
+	javaArgs.value = args
+}
+
+const presetOptions = computed(() =>
+	JAVA_ARGUMENT_PRESETS.map((preset) => ({
+		id: preset.id,
+		label: formatMessage(preset.message),
+		action: () => applyJavaArgumentsPreset(preset.args),
+	})),
+)
 </script>
 
 <template>
@@ -336,7 +389,15 @@ const messages = defineMessages({
 						{{ formatMessage(messages.javaArguments) }}
 					</h2>
 				</div>
-				<Toggle id="override-java-arguments" v-model="overrideJavaArgs" />
+				<div class="flex items-center gap-2">
+					<TeleportOverflowMenu
+						:label="formatMessage(messages.presets)"
+						:options="presetOptions"
+						:icon-only="false"
+						placement="bottom-end"
+					/>
+					<Toggle id="override-java-arguments" v-model="overrideJavaArgs" />
+				</div>
 			</div>
 			<div class="pt-3" :class="{ 'opacity-50': !overrideJavaArgs }">
 				<Input

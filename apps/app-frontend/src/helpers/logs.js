@@ -68,6 +68,11 @@ export async function get_live_log_buffer(instanceId) {
 	return await invoke('plugin:logs|logs_get_live_log_buffer', { instanceId })
 }
 
+/// Get live log lines written after `cursor`, plus the next cursor
+export async function get_live_log_chunk(instanceId, cursor = 0, generation = 0) {
+	return await invoke('plugin:logs|logs_get_live_log_chunk', { instanceId, cursor, generation })
+}
+
 /// Clear the live log buffer for an instance on the Rust side
 export async function clear_log_buffer(instanceId) {
 	return await invoke('plugin:logs|logs_clear_live_log_buffer', { instanceId })
