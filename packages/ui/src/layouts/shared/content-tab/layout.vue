@@ -3,6 +3,7 @@ import type { Labrinth } from '@modrinth/api-client'
 import {
 	ArrowDownAZIcon,
 	ArrowUpZAIcon,
+	CalendarClockIcon,
 	ClockArrowDownIcon,
 	ClockArrowUpIcon,
 	CodeIcon,
@@ -116,6 +117,14 @@ const messages = defineMessages({
 		id: 'content.page-layout.sort.date-added-oldest',
 		defaultMessage: 'Oldest first',
 	},
+	sortDownloads: {
+		id: 'content.page-layout.sort.downloads',
+		defaultMessage: 'Downloads',
+	},
+	sortDateUpdated: {
+		id: 'content.page-layout.sort.date-updated',
+		defaultMessage: 'Date updated',
+	},
 	filter: {
 		id: 'content.page-layout.filter.add',
 		defaultMessage: 'Filter',
@@ -197,7 +206,13 @@ function getItemId(item: ContentItem) {
 	return ctx.getItemId?.(item) ?? item.file_path ?? item.file_name ?? item.id
 }
 
-type SortMode = 'alphabetical-asc' | 'alphabetical-desc' | 'date-added-newest' | 'date-added-oldest'
+type SortMode =
+	| 'alphabetical-asc'
+	| 'alphabetical-desc'
+	| 'date-added-newest'
+	| 'date-added-oldest'
+	| 'downloads'
+	| 'date-updated'
 const sortMode = ctx.filterPersistKey
 	? useSessionStorage<SortMode>(`content-sort:${ctx.filterPersistKey}`, 'alphabetical-asc')
 	: ref<SortMode>('alphabetical-asc')
@@ -207,6 +222,8 @@ const sortLabels: Record<SortMode, () => string> = {
 	'alphabetical-desc': () => formatMessage(messages.sortAlphabeticalDescending),
 	'date-added-newest': () => formatMessage(messages.sortDateAddedNewest),
 	'date-added-oldest': () => formatMessage(messages.sortDateAddedOldest),
+	downloads: () => formatMessage(messages.sortDownloads),
+	'date-updated': () => formatMessage(messages.sortDateUpdated),
 }
 
 const sortOptions = computed<ButtonMenuOption[]>(() => [
@@ -234,6 +251,18 @@ const sortOptions = computed<ButtonMenuOption[]>(() => [
 		icon: ClockArrowUpIcon,
 		action: () => (sortMode.value = 'date-added-oldest'),
 	},
+	{
+		id: 'downloads',
+		label: formatMessage(messages.sortDownloads),
+		icon: DownloadIcon,
+		action: () => (sortMode.value = 'downloads'),
+	},
+	{
+		id: 'date-updated',
+		label: formatMessage(messages.sortDateUpdated),
+		icon: CalendarClockIcon,
+		action: () => (sortMode.value = 'date-updated'),
+	},
 ])
 
 const sortedItems = computed(() => {
@@ -259,6 +288,30 @@ const sortedItems = computed(() => {
 				const dateA = a.date_added ?? ''
 				const dateB = b.date_added ?? ''
 				return dateA.localeCompare(dateB) || a.file_name.localeCompare(b.file_name)
+			})
+		case 'downloads':
+			return items.sort((a, b) => {
+				const downloadsA = a.project?.downloads ?? 0
+				const downloadsB = b.project?.downloads ?? 0
+				return (
+					downloadsB - downloadsA ||
+					(a.project?.title ?? a.file_name)
+						.toLowerCase()
+						.localeCompare((b.project?.title ?? b.file_name).toLowerCase()) ||
+					a.file_name.localeCompare(b.file_name)
+				)
+			})
+		case 'date-updated':
+			return items.sort((a, b) => {
+				const dateA = Date.parse(a.project?.updated ?? '') || 0
+				const dateB = Date.parse(b.project?.updated ?? '') || 0
+				return (
+					dateB - dateA ||
+					(a.project?.title ?? a.file_name)
+						.toLowerCase()
+						.localeCompare((b.project?.title ?? b.file_name).toLowerCase()) ||
+					a.file_name.localeCompare(b.file_name)
+				)
 			})
 		default:
 			return items.sort((a, b) => {

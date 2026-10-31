@@ -573,11 +573,6 @@ const selectableProjectTypes = computed(() => {
 	}
 
 	return [
-		{
-			label: formatMessage(messages.modpacksProjectType),
-			href: `/browse/modpack${suffix}`,
-			shown: modpacks,
-		},
 		{ label: formatMessage(messages.modsProjectType), href: `/browse/mod${suffix}`, shown: mods },
 		{
 			label: formatMessage(messages.resourcePacksProjectType),
@@ -589,6 +584,11 @@ const selectableProjectTypes = computed(() => {
 			shown: dataPacks,
 		},
 		{ label: formatMessage(messages.shadersProjectType), href: `/browse/shader${suffix}` },
+		{
+			label: formatMessage(messages.modpacksProjectType),
+			href: `/browse/modpack${suffix}`,
+			shown: modpacks,
+		},
 		{
 			label: formatMessage(messages.serversProjectType),
 			href: `/browse/server${suffix}`,

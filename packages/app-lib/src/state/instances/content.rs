@@ -68,6 +68,8 @@ pub struct ContentItemProject {
     pub additional_categories: Vec<String>,
     #[serde(default)]
     pub downloads: u64,
+    #[serde(default)]
+    pub updated: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

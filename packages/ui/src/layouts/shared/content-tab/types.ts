@@ -10,7 +10,7 @@ export type ContentCardProject = Pick<
 	Partial<
 		Pick<
 			Labrinth.Projects.v2.Project,
-			'license' | 'categories' | 'additional_categories' | 'downloads'
+			'license' | 'categories' | 'additional_categories' | 'downloads' | 'updated'
 		>
 	>
 

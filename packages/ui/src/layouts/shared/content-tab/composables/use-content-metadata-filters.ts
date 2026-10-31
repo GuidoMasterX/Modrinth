@@ -11,6 +11,7 @@ import {
 	getEnvironmentFilterValue,
 } from '#ui/components/project/settings/environment/environments'
 import { defineMessages, useVIntl } from '#ui/composables/i18n'
+import { formatCategory } from '#ui/utils/tag-messages'
 
 import type { ContentItem } from '../types'
 import { getClientWarningType } from './content-filtering'
@@ -66,6 +67,10 @@ const messages = defineMessages({
 	author: {
 		id: 'content.metadata-filter.author',
 		defaultMessage: 'Author',
+	},
+	category: {
+		id: 'content.metadata-filter.category',
+		defaultMessage: 'Category',
 	},
 	openSource: {
 		id: 'content.metadata-filter.open-source',
@@ -197,6 +202,20 @@ export function useContentMetadataFilters(
 				item.owner
 					? [option(`${item.owner.type}:${item.owner.id}`, item.owner.name, [item.owner.id])]
 					: [],
+		},
+		{
+			key: 'category',
+			label: formatMessage(messages.category),
+			searchable: true,
+			values: (item) => {
+				const categories = [
+					...(item.project?.categories ?? []),
+					...(item.project?.additional_categories ?? []),
+				]
+				return [...new Set(categories)].map((category) =>
+					option(category, formatCategory(formatMessage, category)),
+				)
+			},
 		},
 		{
 			key: 'environment',

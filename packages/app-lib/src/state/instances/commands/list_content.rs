@@ -1452,6 +1452,7 @@ async fn content_files_to_content_items(
                         categories: project.categories.clone(),
                         additional_categories: Vec::new(),
                         downloads: project.downloads,
+                        updated: project.updated.clone(),
                     })
                 }),
                 version: version
@@ -1709,6 +1710,7 @@ fn content_item_project(project: &Project) -> ContentItemProject {
         categories: project.categories.clone(),
         additional_categories: project.additional_categories.clone(),
         downloads: u64::from(project.downloads),
+        updated: Some(project.updated.to_rfc3339()),
     }
 }
 
