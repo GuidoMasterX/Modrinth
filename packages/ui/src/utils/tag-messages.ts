@@ -103,6 +103,10 @@ export const loaderMessages = defineMessages({
 		id: 'tag.loader.rift',
 		defaultMessage: 'Rift',
 	},
+	shader: {
+		id: 'tag.loader.shader',
+		defaultMessage: 'Shader',
+	},
 	spigot: {
 		id: 'tag.loader.spigot',
 		defaultMessage: 'Spigot',

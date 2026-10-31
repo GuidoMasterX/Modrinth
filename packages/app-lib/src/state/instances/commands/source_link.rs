@@ -42,7 +42,7 @@ async fn resolve_counterpart_parts(
 	file_path: &str,
 	state: &State,
 ) -> crate::Result<(ContentScope, InstanceFile, Option<ContentEntry>, FileCounterparts)> {
-	let scope = resolve_content_scope(instance_id, None, state).await?;
+	let scope = resolve_content_scope(instance_id, None, &state.pool).await?;
 	let file = content_rows::get_instance_file_by_relative_path(
 		instance_id,
 		file_path,

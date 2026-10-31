@@ -134,6 +134,7 @@ pub struct SourceVersion {
 impl SourceProject {
     pub fn from_cf(project: CFProject) -> Self {
         let project_type = SourceProjectType::from_cf_class(project.class_id);
+        let loaders = project_loaders(&project);
         Self {
             source: Source::CurseForge,
             id: project.id.to_string(),
@@ -177,24 +178,7 @@ impl SourceProject {
                 versions.sort();
                 versions
             },
-            loaders: match project_type {
-                SourceProjectType::Mod | SourceProjectType::Modpack => {
-                    let mut loaders: Vec<String> = project
-                        .latest_files_indexes
-                        .iter()
-                        .filter_map(|index| {
-                            loader_name(index.mod_loader?).map(String::from)
-                        })
-                        .collect::<std::collections::HashSet<_>>()
-                        .into_iter()
-                        .collect();
-                    loaders.sort();
-                    loaders
-                }
-                SourceProjectType::ShaderPack => vec!["shader".to_string()],
-                SourceProjectType::DataPack => vec!["datapack".to_string()],
-                SourceProjectType::ResourcePack => Vec::new(),
-            },
+            loaders,
             gallery: project
                 .screenshots
                 .iter()
@@ -271,6 +255,29 @@ impl SourceVersion {
             dependencies: file.dependencies.clone(),
             downloads: file.download_count,
         }
+    }
+}
+
+/// Platform tags shown for a project: mod loaders for mods and modpacks,
+/// and the content type tag for resource packs, datapacks, and shaders.
+pub fn project_loaders(project: &CFProject) -> Vec<String> {
+    match SourceProjectType::from_cf_class(project.class_id) {
+        SourceProjectType::Mod | SourceProjectType::Modpack => {
+            let mut loaders: Vec<String> = project
+                .latest_files_indexes
+                .iter()
+                .filter_map(|index| {
+                    loader_name(index.mod_loader?).map(String::from)
+                })
+                .collect::<std::collections::HashSet<_>>()
+                .into_iter()
+                .collect();
+            loaders.sort();
+            loaders
+        }
+        SourceProjectType::ShaderPack => vec!["shader".to_string()],
+        SourceProjectType::DataPack => vec!["datapack".to_string()],
+        SourceProjectType::ResourcePack => vec!["minecraft".to_string()],
     }
 }
 
@@ -495,5 +502,42 @@ mod tests {
         );
         assert_eq!(version.loaders, vec!["minecraft".to_string()]);
         assert_eq!(version.game_versions, vec!["1.21.1".to_string()]);
+    }
+
+    #[test]
+    fn project_loaders_map_platform_tags() {
+        let mod_project: CFProject = serde_json::from_value(serde_json::json!({
+            "id": 1,
+            "classId": 6,
+            "latestFilesIndexes": [
+                { "fileId": 1, "modLoader": 1 },
+                { "fileId": 2, "modLoader": 6 },
+                { "fileId": 3, "modLoader": 4 }
+            ]
+        }))
+        .unwrap();
+        assert_eq!(
+            project_loaders(&mod_project),
+            vec![
+                "fabric".to_string(),
+                "forge".to_string(),
+                "neoforge".to_string()
+            ]
+        );
+
+        for (class_id, expected) in
+            [(12, "minecraft"), (6945, "datapack"), (6552, "shader")]
+        {
+            let project: CFProject =
+                serde_json::from_value(serde_json::json!({
+                    "id": 1,
+                    "classId": class_id
+                }))
+                .unwrap();
+            assert_eq!(
+                project_loaders(&project),
+                vec![expected.to_string()]
+            );
+        }
     }
 }

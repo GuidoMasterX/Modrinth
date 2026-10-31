@@ -2,39 +2,6 @@
   "action.no-permission": {
     "defaultMessage": "Não possuis permissão."
   },
-  "affiliate.create.button": {
-    "defaultMessage": "Criar link de afiliado"
-  },
-  "affiliate.create.header": {
-    "defaultMessage": "Criando novo código de afiliado"
-  },
-  "affiliate.create.title.description": {
-    "defaultMessage": "Dá um nome ao teu link de afiliado para saberes de onde vêm as pessoas!"
-  },
-  "affiliate.create.title.label": {
-    "defaultMessage": "Título do link de afiliado"
-  },
-  "affiliate.create.title.placeholder": {
-    "defaultMessage": "ex: Youtube"
-  },
-  "affiliate.create.user.description": {
-    "defaultMessage": "O nome do utilizador para quem será criado o código de afiliado"
-  },
-  "affiliate.create.user.placeholder": {
-    "defaultMessage": "Inserir nome de utilizador..."
-  },
-  "affiliate.createdBy": {
-    "defaultMessage": "Criado por {user}"
-  },
-  "affiliate.creating.button": {
-    "defaultMessage": "Criar link de afiliado..."
-  },
-  "affiliate.revoke": {
-    "defaultMessage": "Cancelar link de afiliado"
-  },
-  "affiliate.viewAnalytics": {
-    "defaultMessage": "Ver estatísticas"
-  },
   "app.appearance-settings.native-decorations.description": {
     "defaultMessage": "Usa a barra de título do teu sistema operador e controlos de janela. Requer a reinicialização da aplicação."
   },
@@ -62,9 +29,6 @@
   "billing.resubscribe-modal.cancel": {
     "defaultMessage": "Cancelar"
   },
-  "billing.resubscribe-modal.cpus": {
-    "defaultMessage": "{sharedCpus} CPUs Compartilhadas"
-  },
   "billing.resubscribe-modal.description": {
     "defaultMessage": "Você está prestes a renovar a assinatura do <server-name>{serverName}</server-name>. Sua assinatura será reativada e o seu servidor continuará rodando sem interrupção."
   },
@@ -77,23 +41,8 @@
   "billing.resubscribe-modal.failed-load": {
     "defaultMessage": "Falha ao carregar detalhes da assinatura."
   },
-  "billing.resubscribe-modal.interval": {
-    "defaultMessage": "{intervalOption, select, fiveDays {/5 Dias} monthly {/mensal} quarterly {/trimestral} yearly {/anual} other {{interval}}}"
-  },
-  "billing.resubscribe-modal.next-charge": {
-    "defaultMessage": "A sua próxima cobrança será em <charge-date>{date}</charge-date>."
-  },
-  "billing.resubscribe-modal.plan-label": {
-    "defaultMessage": "Plano"
-  },
-  "billing.resubscribe-modal.ram": {
-    "defaultMessage": "{ramGb} GB de RAM"
-  },
   "billing.resubscribe-modal.resubscribe": {
     "defaultMessage": "Reativar"
-  },
-  "billing.resubscribe-modal.storage": {
-    "defaultMessage": "{storageGb} GB de Armazenamento"
   },
   "billing.resubscribe-modal.title": {
     "defaultMessage": "Renovar Servidor"
@@ -151,9 +100,6 @@
   },
   "button.add-server-to-instance": {
     "defaultMessage": "Adicionar servidor à instância"
-  },
-  "button.affiliate-links": {
-    "defaultMessage": "Links de afiliado"
   },
   "button.analytics": {
     "defaultMessage": "Estatísticas"
@@ -2298,21 +2244,6 @@
     "defaultMessage": "+{count, number}"
   },
   "servers.backups.item.auto": {
-    "defaultMessage": "Automático"
-  },
-  "servers.backups.item.backup-schedule": {
-    "defaultMessage": "Horário de Backup"
-  },
-  "servers.backups.item.manual-backup": {
-    "defaultMessage": "Fazer backup manual"
-  },
-  "servers.backups.item.rename": {
-    "defaultMessage": "Renomear"
-  },
-  "servers.backups.item.restore": {
-    "defaultMessage": "Restaurar"
-  },
-  "servers.backups.toolbar.filter-auto": {
     "defaultMessage": "Automático"
   },
   "servers.listing.new-label": {

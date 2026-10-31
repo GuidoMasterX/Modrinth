@@ -1622,6 +1622,7 @@ async function handleModpackUpdateConfirm() {
 
 	const version = pendingModpackUpdateVersion.value
 	pendingModpackUpdateVersion.value = null
+	const requestId = activeUpdateRequestId.value
 
 	contentUpdaterModal.value?.hide()
 	isModpackUpdating.value = true
@@ -1630,7 +1631,9 @@ async function handleModpackUpdateConfirm() {
 		await initProjects()
 	} finally {
 		isModpackUpdating.value = false
-		resetUpdateState()
+		if (isActiveUpdateRequest(requestId)) {
+			resetUpdateState()
+		}
 	}
 }
 
@@ -1651,6 +1654,7 @@ async function handleModalUpdate(
 		}
 	} else if (updatingProject.value) {
 		const mod = updatingProject.value
+		const requestId = activeUpdateRequestId.value
 
 		try {
 			if (mod.has_update && mod.update_version_id === selectedVersion.id) {
@@ -1659,7 +1663,9 @@ async function handleModalUpdate(
 				await switchProjectVersion(mod, selectedVersion)
 			}
 		} finally {
-			resetUpdateState()
+			if (isActiveUpdateRequest(requestId)) {
+				resetUpdateState()
+			}
 		}
 	}
 }
@@ -1948,6 +1954,7 @@ provideContentManager({
 	}),
 	showSharedContentFilter,
 	filterPersistKey: instance.value.id,
+	searchQueryParam: 'q',
 })
 
 type UnlistenFn = () => void

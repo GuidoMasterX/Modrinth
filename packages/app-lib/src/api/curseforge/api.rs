@@ -64,10 +64,9 @@ pub async fn settings_api_key(
 ) -> crate::Result<String> {
     let settings = Settings::get(exec).await?;
     settings.curseforge_api_key.ok_or_else(|| {
-        crate::ErrorKind::OtherError(String::from(
+        crate::Error::from(crate::ErrorKind::InputError(String::from(
             "CurseForge API key not configured",
-        ))
-        .as_error()
+        )))
     })
 }
 
@@ -234,10 +233,9 @@ pub async fn get_mod_file(
         .into_iter()
         .next()
         .ok_or_else(|| {
-            crate::ErrorKind::OtherError(format!(
+            crate::Error::from(crate::ErrorKind::InputError(format!(
                 "CurseForge file {file_id} not found"
-            ))
-            .as_error()
+            )))
         })
 }
 

@@ -73,9 +73,7 @@ async fn check_content_updates_with_cache_behaviours(
 ) -> crate::Result<Vec<ContentUpdate>> {
     let instance = instance_rows::get_instance_by_id(instance_id, &state.pool)
         .await?
-        .ok_or_else(|| {
-            crate::ErrorKind::InputError("Unknown instance".to_string())
-        })?;
+        .ok_or(crate::ErrorKind::InputError("unknown instance".to_string()))?;
     let content_set =
         content_rows::get_applied_content_set(&instance.id, &state.pool)
             .await?
@@ -497,9 +495,7 @@ async fn check_curseforge_content_updates(
         return Ok(Vec::new());
     }
 
-    let Some(loader_code) = curseforge_loader_code(loader) else {
-        return Ok(Vec::new());
-    };
+    let loader_code = curseforge_loader_code(loader).unwrap_or(0);
 
     let cf_project_ids = project_entries
         .keys()

@@ -380,9 +380,6 @@
   "app.download-manager.title": {
     "message": "Trình quản lý tải xuống"
   },
-  "app.download-manager.verifying": {
-    "message": "Đang xác minh"
-  },
   "app.error.state-init.open-backups-folder": {
     "message": "Mở thư mục sao lưu"
   },
@@ -1289,6 +1286,9 @@
   "app.modal.install-to-play.shared-instance-unknown-files-description": {
     "message": "Bản cài đặt được chia sẻ này chứa các tệp chưa được xuất bản trên Modrinth. Chúng tôi đặc biệt khuyên bạn chỉ cài tệp từ những nguồn mà bạn tin tưởng."
   },
+  "app.modal.install-to-play.unavailable-header": {
+    "message": "Modpack của máy chủ này hiện không khả dụng"
+  },
   "app.modal.install-to-play.unknown-files-description": {
     "message": "Modpack của máy chủ này chứa các tệp chưa được xuất bản trên Modrinth. Chúng tôi đặc biệt khuyên bạn chỉ cài tệp từ những nguồn mà bạn tin tưởng."
   },
@@ -1628,9 +1628,6 @@
   "app.settings.default-instance-options.height.title": {
     "message": "Chiều cao"
   },
-  "app.settings.default-instance-options.java-and-memory.title": {
-    "message": "Java và bộ nhớ"
-  },
   "app.settings.default-instance-options.java-arguments.description": {
     "message": "Các đối số được truyền cho Java khi khởi chạy một bản cài đặt."
   },
@@ -1639,9 +1636,6 @@
   },
   "app.settings.default-instance-options.java-arguments.title": {
     "message": "Đối số Java"
-  },
-  "app.settings.default-instance-options.launch-hooks.title": {
-    "message": "Hook khởi chạy"
   },
   "app.settings.default-instance-options.memory-allocation.description": {
     "message": "Dung lượng bộ nhớ tối đa dành cho mỗi bản cài đặt."
@@ -1675,9 +1669,6 @@
   },
   "app.settings.default-instance-options.width.title": {
     "message": "Chiều rộng"
-  },
-  "app.settings.default-instance-options.window.title": {
-    "message": "Cửa sổ"
   },
   "app.settings.default-instance-options.wrapper-hook.description": {
     "message": "Lệnh dùng để bọc tiến trình khởi chạy Minecraft."
@@ -2732,14 +2723,8 @@
   "app.settings.resource-management.app-cache.confirm.description": {
     "message": "Ứng dụng có thể tải chậm hơn cho tới khi bộ nhớ đệm được tạo lại."
   },
-  "app.settings.resource-management.app-cache.confirm.title": {
-    "message": "Xóa bộ nhớ đệm ứng dụng?"
-  },
   "app.settings.resource-management.app-cache.description": {
     "message": "Xóa dữ liệu đã lưu trong bộ nhớ đệm và tải lại từ Modrinth. Ứng dụng có thể tải chậm hơn cho tới khi bộ nhớ đệm được tạo lại."
-  },
-  "app.settings.resource-management.app-cache.purge": {
-    "message": "Xóa bộ nhớ đệm"
   },
   "app.settings.resource-management.app-cache.title": {
     "message": "Bộ nhớ đệm ứng dụng"
@@ -2786,9 +2771,6 @@
   "app.settings.resource-management.maximum-concurrent-writes.title": {
     "message": "Số lượt ghi đồng thời tối đa"
   },
-  "app.settings.resource-management.store.attention": {
-    "message": "Một số tệp vẫn cần xử lý"
-  },
   "app.settings.resource-management.store.cache-limit.description": {
     "message": "Giữ tối đa lượng nội dung không dùng này cho các lần cài sau. Giữ nhiều hơn có thể tiết kiệm thời gian tải xuống."
   },
@@ -2816,26 +2798,8 @@
   "app.settings.resource-management.store.description": {
     "message": "Tiết kiệm dung lượng bằng cách tái sử dụng tệp trò chơi, mod và gói giữa các bản cài đặt."
   },
-  "app.settings.resource-management.store.empty": {
-    "message": "Cài mod hoặc gói để xem mức sử dụng dung lượng tại đây."
-  },
-  "app.settings.resource-management.store.issues": {
-    "message": "Xem {count, plural, one {# vấn đề} other {# vấn đề}}"
-  },
   "app.settings.resource-management.store.nothing-to-clear": {
     "message": "Không có nội dung không dùng để xóa."
-  },
-  "app.settings.resource-management.store.repair": {
-    "message": "Xác minh và sửa chữa"
-  },
-  "app.settings.resource-management.store.repair.running-description": {
-    "message": "Thao tác này sẽ đóng mọi bản cài đặt đang chạy."
-  },
-  "app.settings.resource-management.store.repair.verify-description": {
-    "message": "Kiểm tra các tệp bị thiếu hoặc hỏng và sửa chúng."
-  },
-  "app.settings.resource-management.store.repairing": {
-    "message": "Đang xác minh và sửa chữa…"
   },
   "app.settings.resource-management.store.shared.label": {
     "message": "Dùng chung"
@@ -2851,15 +2815,6 @@
   },
   "app.settings.resource-management.store.unused.label": {
     "message": "Không còn được sử dụng"
-  },
-  "app.settings.resource-management.store.verification-result": {
-    "message": "Đã kiểm tra {checked, plural, one {# tệp} other {# tệp}} và thực hiện {repaired, plural, one {# lần sửa} other {# lần sửa}}."
-  },
-  "app.settings.resource-management.store.verified": {
-    "message": "Xác minh hoàn tất"
-  },
-  "app.settings.sidebar.label.instances": {
-    "message": "Bản cài đặt"
   },
   "app.settings.synced-options.choose-sync-source.command-history-description": {
     "message": "Chọn bản cài đặt để sao chép lịch sử lệnh. Lịch sử này chỉ được dùng cho lần đồng bộ đầu tiên và sau đó bạn có thể chỉnh sửa từ bất kỳ bản cài đặt nào."
@@ -3100,12 +3055,6 @@
   },
   "app.settings.tabs.privacy": {
     "message": "Quyền riêng tư"
-  },
-  "app.settings.tabs.resource-management": {
-    "message": "Quản lý tài nguyên"
-  },
-  "app.settings.tabs.synced-options": {
-    "message": "Cài đặt đồng bộ"
   },
   "app.sidebar.playing-as": {
     "message": "Đang chơi với tên"
@@ -3710,219 +3659,6 @@
   "instance.files.save-as": {
     "message": "Lưu thành..."
   },
-  "instance.icon-editor.background": {
-    "message": "Nền"
-  },
-  "instance.icon-editor.background.blue": {
-    "message": "Xanh dương"
-  },
-  "instance.icon-editor.background.dark-gray": {
-    "message": "Xám đậm"
-  },
-  "instance.icon-editor.background.dark-green": {
-    "message": "Xanh lá đậm"
-  },
-  "instance.icon-editor.background.gray": {
-    "message": "Xám"
-  },
-  "instance.icon-editor.background.green": {
-    "message": "Xanh lá"
-  },
-  "instance.icon-editor.background.indigo": {
-    "message": "Chàm"
-  },
-  "instance.icon-editor.background.lavender": {
-    "message": "Oải hương"
-  },
-  "instance.icon-editor.background.light-gray": {
-    "message": "Xám nhạt"
-  },
-  "instance.icon-editor.background.lime": {
-    "message": "Xanh chanh"
-  },
-  "instance.icon-editor.background.orange": {
-    "message": "Cam"
-  },
-  "instance.icon-editor.background.pink": {
-    "message": "Hồng"
-  },
-  "instance.icon-editor.background.purple": {
-    "message": "Tím"
-  },
-  "instance.icon-editor.background.red": {
-    "message": "Đỏ"
-  },
-  "instance.icon-editor.background.rose": {
-    "message": "Hồng đỏ"
-  },
-  "instance.icon-editor.background.yellow": {
-    "message": "Vàng"
-  },
-  "instance.icon-editor.description": {
-    "message": "Kết hợp các thành phần để tạo biểu tượng tùy chỉnh."
-  },
-  "instance.icon-editor.recents": {
-    "message": "Gần đây"
-  },
-  "instance.icon-editor.save": {
-    "message": "Lưu biểu tượng"
-  },
-  "instance.icon-editor.surprise-me": {
-    "message": "Ngẫu nhiên"
-  },
-  "instance.icon-editor.symbol": {
-    "message": "Biểu tượng"
-  },
-  "instance.icon-editor.symbol.backpack": {
-    "message": "Ba lô"
-  },
-  "instance.icon-editor.symbol.beacon": {
-    "message": "Đèn hiệu"
-  },
-  "instance.icon-editor.symbol.blue-shark": {
-    "message": "Cá mập xanh"
-  },
-  "instance.icon-editor.symbol.bookshelf": {
-    "message": "Kệ sách"
-  },
-  "instance.icon-editor.symbol.brown-bear": {
-    "message": "Gấu nâu"
-  },
-  "instance.icon-editor.symbol.cake": {
-    "message": "Bánh kem"
-  },
-  "instance.icon-editor.symbol.campfire": {
-    "message": "Lửa trại"
-  },
-  "instance.icon-editor.symbol.chest": {
-    "message": "Rương"
-  },
-  "instance.icon-editor.symbol.cogwheel": {
-    "message": "Bánh răng"
-  },
-  "instance.icon-editor.symbol.command-block": {
-    "message": "Khối lệnh"
-  },
-  "instance.icon-editor.symbol.cooking-pot": {
-    "message": "Nồi nấu"
-  },
-  "instance.icon-editor.symbol.couch": {
-    "message": "Ghế sofa"
-  },
-  "instance.icon-editor.symbol.crafting-table": {
-    "message": "Bàn chế tạo"
-  },
-  "instance.icon-editor.symbol.create-wrench": {
-    "message": "Cờ lê"
-  },
-  "instance.icon-editor.symbol.creeper": {
-    "message": "Creeper"
-  },
-  "instance.icon-editor.symbol.enchanting-table": {
-    "message": "Bàn phù phép"
-  },
-  "instance.icon-editor.symbol.ender-chest": {
-    "message": "Rương Ender"
-  },
-  "instance.icon-editor.symbol.ender-dragon": {
-    "message": "Rồng Ender"
-  },
-  "instance.icon-editor.symbol.engine": {
-    "message": "Động cơ"
-  },
-  "instance.icon-editor.symbol.fabric": {
-    "message": "Fabric"
-  },
-  "instance.icon-editor.symbol.forge": {
-    "message": "Forge"
-  },
-  "instance.icon-editor.symbol.furnace": {
-    "message": "Lò nung"
-  },
-  "instance.icon-editor.symbol.gizmo": {
-    "message": "Gizmo"
-  },
-  "instance.icon-editor.symbol.globe": {
-    "message": "Quả địa cầu"
-  },
-  "instance.icon-editor.symbol.grass-block": {
-    "message": "Khối cỏ"
-  },
-  "instance.icon-editor.symbol.lantern": {
-    "message": "Đèn lồng"
-  },
-  "instance.icon-editor.symbol.moobloom": {
-    "message": "Moobloom"
-  },
-  "instance.icon-editor.symbol.mr-pack": {
-    "message": "Mr Pack"
-  },
-  "instance.icon-editor.symbol.neoforge": {
-    "message": "NeoForge"
-  },
-  "instance.icon-editor.symbol.orb": {
-    "message": "Quả cầu"
-  },
-  "instance.icon-editor.symbol.oxygen-distributor": {
-    "message": "Máy phân phối oxy"
-  },
-  "instance.icon-editor.symbol.pancakes": {
-    "message": "Bánh pancake"
-  },
-  "instance.icon-editor.symbol.pickaxe": {
-    "message": "Cuốc chim"
-  },
-  "instance.icon-editor.symbol.poke-ball": {
-    "message": "Poké Ball"
-  },
-  "instance.icon-editor.symbol.quilt": {
-    "message": "Quilt"
-  },
-  "instance.icon-editor.symbol.redstone-block": {
-    "message": "Khối Redstone"
-  },
-  "instance.icon-editor.symbol.sculk-sensor": {
-    "message": "Cảm biến Sculk"
-  },
-  "instance.icon-editor.symbol.skeleton": {
-    "message": "Bộ xương"
-  },
-  "instance.icon-editor.symbol.skillet": {
-    "message": "Chảo"
-  },
-  "instance.icon-editor.symbol.slime-block": {
-    "message": "Khối slime"
-  },
-  "instance.icon-editor.symbol.space-helmet": {
-    "message": "Mũ phi hành gia"
-  },
-  "instance.icon-editor.symbol.sticky-piston": {
-    "message": "Piston dính"
-  },
-  "instance.icon-editor.symbol.sword": {
-    "message": "Kiếm"
-  },
-  "instance.icon-editor.symbol.terminal": {
-    "message": "Terminal"
-  },
-  "instance.icon-editor.symbol.tiny-potato": {
-    "message": "Khoai tây tí hon"
-  },
-  "instance.icon-editor.symbol.tire": {
-    "message": "Lốp xe"
-  },
-  "instance.icon-editor.symbol.tnt": {
-    "message": "TNT"
-  },
-  "instance.icon-editor.symbol.wrenth-rinth": {
-    "message": "Cờ lê Modrinth"
-  },
-  "instance.icon-editor.symbol.zombie": {
-    "message": "Zombie"
-  },
-  "instance.icon-editor.title": {
-    "message": "Trình chỉnh sửa biểu tượng"
-  },
   "instance.last-played": {
     "message": "Lần chơi gần nhất"
   },
@@ -4103,9 +3839,6 @@
   "instance.settings.tabs.general.update-channel.select": {
     "message": "Chọn kênh cập nhật"
   },
-  "instance.settings.tabs.hooks.description": {
-    "message": "Chạy các lệnh hệ thống riêng cho bản cài đặt trước và sau khi khởi chạy trò chơi."
-  },
   "instance.settings.tabs.hooks.post-exit": {
     "message": "Sau khi thoát"
   },
@@ -4166,18 +3899,6 @@
   "instance.settings.tabs.installation.locked": {
     "message": "Các tùy chọn cài đặt không khả dụng khi bản cài đặt này đang bị khóa."
   },
-  "instance.settings.tabs.java.custom-environment-variables": {
-    "message": "Thiết lập biến môi trường riêng cho bản cài đặt này."
-  },
-  "instance.settings.tabs.java.custom-java-arguments": {
-    "message": "Thiết lập đối số Java riêng cho bản cài đặt này."
-  },
-  "instance.settings.tabs.java.custom-java-installation": {
-    "message": "Chọn bản cài đặt Java khác cho bản cài đặt này."
-  },
-  "instance.settings.tabs.java.custom-memory-allocation": {
-    "message": "Thiết lập phân bổ bộ nhớ riêng cho bản cài đặt này."
-  },
   "instance.settings.tabs.java.enter-environment-variables": {
     "message": "Nhập biến môi trường..."
   },
@@ -4201,9 +3922,6 @@
   },
   "instance.settings.tabs.java.java-path-placeholder": {
     "message": "/đường/dẫn/đến/java"
-  },
-  "instance.settings.tabs.settings-overrides": {
-    "message": "Ghi đè đồng bộ"
   },
   "instance.settings.tabs.sharing": {
     "message": "Chia sẻ"
@@ -4268,9 +3986,6 @@
   "instance.settings.tabs.window": {
     "message": "Cài đặt cửa sổ tùy chỉnh"
   },
-  "instance.settings.tabs.window.custom-window-settings": {
-    "message": "Thiết lập chế độ toàn màn hình và độ phân giải khởi chạy riêng cho bản cài đặt này."
-  },
   "instance.settings.tabs.window.fullscreen": {
     "message": "Toàn màn hình"
   },
@@ -4310,17 +4025,11 @@
   "instance.shared-instance.publish-review.added-label": {
     "message": "Đã thêm"
   },
-  "instance.shared-instance.publish-review.admonition-header": {
-    "message": "Gửi bản cập nhật tới người chơi"
+  "instance.shared-instance.publish-review.changes-tab": {
+    "message": "Những thay đổi"
   },
-  "instance.shared-instance.publish-review.config-title-v2": {
-    "message": "Chọn tệp cấu hình"
-  },
-  "instance.shared-instance.publish-review.description": {
-    "message": "Xem lại các thay đổi nội dung và chọn các tệp cấu hình cần đưa vào bản cập nhật này."
-  },
-  "instance.shared-instance.publish-review.header": {
-    "message": "Xem lại thay đổi"
+  "instance.shared-instance.publish-review.file-type-not-allowed": {
+    "message": "Bạn không được phép đẩy loại file này."
   },
   "instance.shared-instance.publish-review.publish-button": {
     "message": "Gửi bản cập nhật"

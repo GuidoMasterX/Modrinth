@@ -317,6 +317,7 @@ fn main() {
                         "instance_share_remove_users",
                         "instance_share_get_publish_preview",
                         "instance_share_publish",
+                        "instance_share_publish_support_details",
                         "instance_share_unlink",
                         "instance_share_unpublish",
                         "instance_export_mrpack",
@@ -335,7 +336,6 @@ fn main() {
                         "store_usage",
                         "store_cleanup",
                         "store_set_cache_limit",
-                        "store_verify",
                         "cancel_directory_change",
                     ])
                     .default_permission(
@@ -419,7 +419,13 @@ fn main() {
                         "file_rename",
                         "file_delete",
                         "file_save_as",
+                        "files_select_external",
+                        "files_save_external",
+                        "files_release_external",
                         "file_read_dragged_file",
+                        "file_local_info",
+                        "file_upload_local",
+                        "file_cancel_local_upload",
                     ])
                     .default_permission(
                         DefaultPermissionRule::AllowAllCommands,

@@ -2,39 +2,6 @@
   "action.no-permission": {
     "defaultMessage": "ليس لديك صلاحية."
   },
-  "affiliate.create.button": {
-    "defaultMessage": "إنشاء رابط تسويق بالعمولة"
-  },
-  "affiliate.create.header": {
-    "defaultMessage": "إنشاء رمز تسويق بالعمولة جديد"
-  },
-  "affiliate.create.title.description": {
-    "defaultMessage": "أعطِ رابط الإحالة الخاص بك اسمًا حتى تعرف من أين يأتي الناس!"
-  },
-  "affiliate.create.title.label": {
-    "defaultMessage": "عنوان رابط الإحالة"
-  },
-  "affiliate.create.title.placeholder": {
-    "defaultMessage": "مثل اليوتيوب"
-  },
-  "affiliate.create.user.description": {
-    "defaultMessage": "اسم المستخدم الذي سيتم من خلاله إنشاء رمز الإحالة الخاص بـ"
-  },
-  "affiliate.create.user.placeholder": {
-    "defaultMessage": "أدخل اسم المستخدم..."
-  },
-  "affiliate.createdBy": {
-    "defaultMessage": "صنعت من قبل {user}"
-  },
-  "affiliate.creating.button": {
-    "defaultMessage": "إنشاء رابط تسويق بالعمولة..."
-  },
-  "affiliate.revoke": {
-    "defaultMessage": "إلغاء رابط الإحالة"
-  },
-  "affiliate.viewAnalytics": {
-    "defaultMessage": "عرض التحليلات"
-  },
   "app.appearance-settings.native-decorations.description": {
     "defaultMessage": "استخدام شريط العنوان وعناصر التحكم في النافذة الخاصة بنظام التشغيل. يتطلب إعادة تشغيل التطبيق."
   },
@@ -62,9 +29,6 @@
   "billing.resubscribe-modal.cancel": {
     "defaultMessage": "إلغاء"
   },
-  "billing.resubscribe-modal.cpus": {
-    "defaultMessage": "{sharedCpus} وحدات المعالجة المركزية المشتركة"
-  },
   "billing.resubscribe-modal.description": {
     "defaultMessage": "أنت على وشك إعادة الاشتراك في <server-name>{serverName}</server-name>. سيتم إعادة تنشيط اشتراكك وسيستمر الخادم الخاص بك في العمل دون انقطاع."
   },
@@ -77,23 +41,8 @@
   "billing.resubscribe-modal.failed-load": {
     "defaultMessage": "فشل تحميل تفاصيل الاشتراك."
   },
-  "billing.resubscribe-modal.interval": {
-    "defaultMessage": "{intervalOption, select, fiveDays {/5 أيام} monthly {/شهر} quarterly {/ربع سنة} yearly {/سنة} other {{interval}}}"
-  },
-  "billing.resubscribe-modal.next-charge": {
-    "defaultMessage": "سيتم تحصيل الرسوم التالية في <charge-date>{date}</charge-date>."
-  },
-  "billing.resubscribe-modal.plan-label": {
-    "defaultMessage": "خطة"
-  },
-  "billing.resubscribe-modal.ram": {
-    "defaultMessage": "{ramGb} جيجا بايت رام"
-  },
   "billing.resubscribe-modal.resubscribe": {
     "defaultMessage": "إعادة الاشتراك"
-  },
-  "billing.resubscribe-modal.storage": {
-    "defaultMessage": "{storageGb} GB مساحة تخزين"
   },
   "billing.resubscribe-modal.title": {
     "defaultMessage": "إعادة الاشتراك في الخادم"
@@ -151,9 +100,6 @@
   },
   "button.add-server-to-instance": {
     "defaultMessage": "أضف الخادم للنسخة"
-  },
-  "button.affiliate-links": {
-    "defaultMessage": "روابط تابعة"
   },
   "button.analytics": {
     "defaultMessage": "تحليل"
@@ -487,9 +433,6 @@
   },
   "content.diff-modal.added-count": {
     "defaultMessage": "تمت إضافة {count}"
-  },
-  "content.diff-modal.config-files-updated": {
-    "defaultMessage": "ملفات الإعدادات التي تم تعديلها"
   },
   "content.diff-modal.diff-type.added": {
     "defaultMessage": "تمت الإضافة (تَبعية)"

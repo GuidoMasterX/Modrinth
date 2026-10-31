@@ -243,7 +243,9 @@ export function useCurseforgeSearch(opts: {
 			.filter((option) => option && 'value' in option)
 			.map((option) => (option as { value: string }).value)
 		if (categoryIds.length > 0) {
-			params.push(`categoryIds=${categoryIds.join(',')}`)
+			for (const categoryId of categoryIds) {
+				params.push(`categoryId=${encodeURIComponent(categoryId)}`)
+			}
 		}
 
 		let gameVersion: string | undefined

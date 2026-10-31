@@ -158,6 +158,7 @@ pub async fn import_curseforge(
                 &game_version,
                 mod_loader,
                 loader_version.as_deref(),
+                &state.directories,
             )
             .await?
         } else {
@@ -216,12 +217,11 @@ pub async fn import_curseforge(
     }
 
     // Copy in contained folders as overrides
-    let state = State::get().await?;
     finish_import(
         instance_id,
         curseforge_instance_folder,
         selected_paths,
-        &state.io_semaphore,
+        &state,
         reporter,
         details,
     )

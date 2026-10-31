@@ -1,13 +1,15 @@
+use crate::ErrorKind;
 use crate::state::instances::{
     ContentRequirement, ContentSourceKind, Instance, InstanceFile,
     adapters::sqlite::{content_rows, instance_rows},
 };
 use crate::state::{
-    CacheBehaviour, CachedEntry, Dependency, DependencyType, ModLoader,
-    ProjectType, ReleaseChannel, State, Version,
+    CacheBehaviour, CachedEntry, Dependency, DependencyType, DirectoryInfo,
+    ModLoader, ProjectType, ReleaseChannel, State, Version,
 };
 use crate::util::fetch::{self, DownloadMeta, DownloadReason};
 use crate::util::io;
+use anyhow::bail;
 use async_trait::async_trait;
 use bytes::Bytes;
 use modrinth_content_management::{
@@ -15,6 +17,7 @@ use modrinth_content_management::{
     ResolutionPreferences, ResolveContentPlan, ResolveContentRequest,
     ResolvedContent, SkippedContent, SkippedReason,
 };
+use sqlx::SqlitePool;
 use std::collections::{HashSet, VecDeque};
 use std::path::{Path, PathBuf};
 
@@ -198,11 +201,9 @@ pub(crate) async fn resolve_install_plan(
     let content_set =
         content_rows::get_applied_content_set(instance_id, &state.pool)
             .await?
-            .ok_or_else(|| {
-                crate::ErrorKind::InputError(format!(
-                    "Instance {instance_id} has no applied content set"
-                ))
-            })?;
+            .ok_or(ErrorKind::InputError(format!(
+                "instance {instance_id} has no applied content set"
+            )))?;
     let existing_project_ids =
         crate::state::get_installed_project_ids_for_instance(
             instance_id,
@@ -345,14 +346,22 @@ pub(crate) async fn switch_project_version_with_dependencies(
         &state.api_semaphore,
     )
     .await?
-    .ok_or_else(|| {
-        crate::ErrorKind::InputError(format!(
-            "Unable to install version id {version_id}. Not found."
-        ))
-    })?;
-    let content_type = ProjectType::get_from_loaders(version.loaders.clone())
-        .map(ContentType::from)
-        .unwrap_or(ContentType::Mod);
+    .ok_or(ErrorKind::InputError(format!(
+        "unable to install version id {version_id}, not found"
+    )))?;
+    let primary_file_name = version
+        .files
+        .iter()
+        .find(|file| file.primary)
+        .or_else(|| version.files.first())
+        .map(|file| file.filename.as_str())
+        .unwrap_or_default();
+    let content_type = ProjectType::get_from_version_file(
+        version.loaders.clone(),
+        primary_file_name,
+    )
+    .map(ContentType::from)
+    .unwrap_or(ContentType::Mod);
     let plan = resolve_install_plan(
         instance_id,
         InstanceInstallProjectRequest {
@@ -426,21 +435,19 @@ async fn add_resolved_content(
 pub(crate) async fn resolve_content_scope(
     instance_id: &str,
     content_set_id: Option<&str>,
-    state: &State,
+    pool: &SqlitePool,
 ) -> crate::Result<ContentScope> {
-    let instance = instance_rows::get_instance_by_id(instance_id, &state.pool)
+    let instance = instance_rows::get_instance_by_id(instance_id, pool)
         .await?
-        .ok_or_else(|| {
-            crate::ErrorKind::InputError("Unknown instance".to_string())
-        })?;
+        .ok_or(ErrorKind::InputError("unknown instance".to_string()))?;
     let content_set_id = match content_set_id {
         Some(id) => id.to_string(),
-        None => instance.applied_content_set_id.clone().ok_or_else(|| {
-            crate::ErrorKind::InputError(format!(
-                "Instance {} has no applied content set",
+        None => instance.applied_content_set_id.clone().ok_or(
+            ErrorKind::InputError(format!(
+                "instance {} has no applied content set",
                 instance.id
-            ))
-        })?,
+            )),
+        )?,
     };
 
     Ok(ContentScope {
@@ -496,16 +503,14 @@ pub(crate) async fn download_project_version_with_progress(
     state: &State,
     progress: Option<&mut fetch::FetchProgressFn<'_>>,
 ) -> crate::Result<DownloadedProjectVersion> {
-    let scope = resolve_content_scope(instance_id, None, state).await?;
+    let scope = resolve_content_scope(instance_id, None, &state.pool).await?;
     let content_set =
         content_rows::get_content_set(&scope.content_set_id, &state.pool)
             .await?
-            .ok_or_else(|| {
-                crate::ErrorKind::InputError(format!(
-                    "Unknown content set {}",
-                    scope.content_set_id
-                ))
-            })?;
+            .ok_or(ErrorKind::InputError(format!(
+                "unknown content set {}",
+                scope.content_set_id
+            )))?;
     let version = CachedEntry::get_version(
         version_id,
         None,
@@ -513,21 +518,17 @@ pub(crate) async fn download_project_version_with_progress(
         &state.api_semaphore,
     )
     .await?
-    .ok_or_else(|| {
-        crate::ErrorKind::InputError(format!(
-            "Unable to install version id {version_id}. Not found."
-        ))
-    })?;
+    .ok_or(ErrorKind::InputError(format!(
+        "unable to install version id {version_id}, not found"
+    )))?;
     let file = version
         .files
         .iter()
         .find(|file| file.primary)
         .or_else(|| version.files.first())
-        .ok_or_else(|| {
-            crate::ErrorKind::InputError(
-                "No files for input version present!".to_string(),
-            )
-        })?;
+        .ok_or(ErrorKind::InputError(
+            "no files for input version present".to_string(),
+        ))?;
     let download_meta = DownloadMeta {
         reason,
         game_version: content_set.game_version,
@@ -543,12 +544,13 @@ pub(crate) async fn download_project_version_with_progress(
         progress,
     )
     .await?;
-    let project_type = ProjectType::get_from_loaders(version.loaders.clone())
-        .ok_or_else(|| {
-        crate::ErrorKind::InputError(format!(
-            "Unable to infer project type for version {version_id}"
-        ))
-    })?;
+    let project_type = ProjectType::get_from_version_file(
+        version.loaders.clone(),
+        &file.filename,
+    )
+    .ok_or(ErrorKind::InputError(format!(
+        "unable to infer project type for version {version_id}"
+    )))?;
     let project_id = version.project_id.clone();
     let version_id = version.id.clone();
 
@@ -587,11 +589,11 @@ pub(crate) async fn add_downloaded_project_version_with_enabled(
     state: &State,
 ) -> crate::Result<String> {
     if !path_util::is_safe_file_name(&downloaded.file_name) {
-        return Err(crate::state::content_store::input(
-            "Invalid project filename",
+        bail!(ErrorKind::InputError(
+            "invalid project filename".to_string()
         ));
     }
-    let stored_file = downloaded.file.store_file(state).await?;
+    let stored_file = downloaded.file.store_file(&state.content_store).await?;
     install_stored_file(
         instance_id,
         InstallContent {
@@ -621,15 +623,12 @@ pub(crate) async fn add_project_from_path(
     project_type: Option<ProjectType>,
     state: &State,
 ) -> crate::Result<String> {
-    let file_name = path
-        .file_name()
-        .and_then(|name| name.to_str())
-        .ok_or_else(|| {
-            crate::state::content_store::input("Invalid project filename")
-        })?;
+    let file_name = path.file_name().and_then(|name| name.to_str()).ok_or(
+        ErrorKind::InputError("invalid project filename".to_string()),
+    )?;
     if !path_util::is_safe_file_name(file_name) {
-        return Err(crate::state::content_store::input(
-            "Invalid project filename",
+        bail!(ErrorKind::InputError(
+            "invalid project filename".to_string()
         ));
     }
     let project_type = match project_type {
@@ -669,7 +668,7 @@ pub(crate) async fn add_project_from_curseforge_file(
     enabled_override: Option<bool>,
     state: &State,
 ) -> crate::Result<String> {
-    let scope = resolve_content_scope(instance_id, None, state).await?;
+    let scope = resolve_content_scope(instance_id, None, &state.pool).await?;
     let content_set =
         content_rows::get_content_set(&scope.content_set_id, &state.pool)
             .await?
@@ -787,7 +786,7 @@ pub(crate) async fn download_curseforge_file_bytes(
     reason: DownloadReason,
     state: &State,
 ) -> crate::Result<(crate::api::curseforge::structs::CFFile, Bytes)> {
-    let scope = resolve_content_scope(instance_id, None, state).await?;
+    let scope = resolve_content_scope(instance_id, None, &state.pool).await?;
     let content_set =
         content_rows::get_content_set(&scope.content_set_id, &state.pool)
             .await?
@@ -852,7 +851,7 @@ pub(crate) async fn resolve_and_install_curseforge_project(
     cf_file_id: Option<i64>,
     state: &State,
 ) -> crate::Result<Vec<String>> {
-    let scope = resolve_content_scope(instance_id, None, state).await?;
+    let scope = resolve_content_scope(instance_id, None, &state.pool).await?;
     let content_set =
         content_rows::get_content_set(&scope.content_set_id, &state.pool)
             .await?
@@ -1124,8 +1123,8 @@ pub(crate) async fn add_project_bytes(
     state: &State,
 ) -> crate::Result<String> {
     if !path_util::is_safe_file_name(file_name) {
-        return Err(crate::state::content_store::input(
-            "Invalid project filename",
+        bail!(ErrorKind::InputError(
+            "invalid project filename".to_string()
         ));
     }
     let project_type = match project_type {
@@ -1137,8 +1136,8 @@ pub(crate) async fn add_project_bytes(
     if let Some(expected) = hash {
         crate::state::content_store::validate_digest(expected, 40)?;
         if sha1_smol::Sha1::from(&bytes[..]).hexdigest() != expected {
-            return Err(crate::state::content_store::input(
-                "Content bytes do not match the expected hash",
+            bail!(ErrorKind::InputError(
+                "content bytes do not match the expected hash".to_string(),
             ));
         }
     }
@@ -1197,28 +1196,12 @@ pub(crate) async fn add_project_bytes(
     Ok(format!("{}/{}", project_type.get_folder(), file_name))
 }
 
-pub(crate) async fn require_stopped_for_content(
-    instance_id: &str,
-    project_type: ProjectType,
-    state: &State,
-) -> crate::Result<()> {
-    if project_type == ProjectType::Mod
-        && crate::state::instance_has_running_process(instance_id, state)
-            .await?
-    {
-        return Err(crate::state::content_store::input(
-            "Stop this instance before changing its mods",
-        ));
-    }
-    Ok(())
-}
-
 pub(crate) async fn content_source_kind_for_project_path(
     instance_id: &str,
     project_path: &str,
     state: &State,
 ) -> crate::Result<Option<ContentSourceKind>> {
-    let scope = resolve_content_scope(instance_id, None, state).await?;
+    let scope = resolve_content_scope(instance_id, None, &state.pool).await?;
     let Some(file) = content_rows::get_instance_file_by_relative_path(
         &scope.instance.id,
         project_path,
@@ -1243,7 +1226,7 @@ pub(crate) async fn is_project_locked(
     project_path: &str,
     state: &State,
 ) -> crate::Result<bool> {
-    let scope = resolve_content_scope(instance_id, None, state).await?;
+    let scope = resolve_content_scope(instance_id, None, &state.pool).await?;
     content_rows::is_instance_file_locked(
         &scope.instance.id,
         project_path,
@@ -1258,8 +1241,8 @@ pub(crate) async fn set_project_locked(
     locked: bool,
     state: &State,
 ) -> crate::Result<()> {
-    let _content_lock = state.lock_instance_content(instance_id).await;
-    let scope = resolve_content_scope(instance_id, None, state).await?;
+    let _content_lock = state.instance_locks.lock_content(instance_id).await;
+    let scope = resolve_content_scope(instance_id, None, &state.pool).await?;
     content_rows::set_instance_file_locked(
         &scope.instance.id,
         project_path,
@@ -1275,8 +1258,8 @@ pub(crate) async fn set_project_updates_ignored(
     ignored: bool,
     state: &State,
 ) -> crate::Result<()> {
-    let _content_lock = state.lock_instance_content(instance_id).await;
-    let scope = resolve_content_scope(instance_id, None, state).await?;
+    let _content_lock = state.instance_locks.lock_content(instance_id).await;
+    let scope = resolve_content_scope(instance_id, None, &state.pool).await?;
     content_rows::set_content_entry_updates_ignored(
         &scope.instance.id,
         &scope.content_set_id,
@@ -1293,8 +1276,8 @@ pub(crate) async fn set_project_skipped_update_version(
     skipped_version_id: Option<String>,
     state: &State,
 ) -> crate::Result<()> {
-    let _content_lock = state.lock_instance_content(instance_id).await;
-    let scope = resolve_content_scope(instance_id, None, state).await?;
+    let _content_lock = state.instance_locks.lock_content(instance_id).await;
+    let scope = resolve_content_scope(instance_id, None, &state.pool).await?;
     content_rows::set_content_update_check_skipped_version(
         &scope.instance.id,
         &scope.content_set_id,
@@ -1313,8 +1296,9 @@ pub(crate) async fn rename_project_companion_file(
 ) -> crate::Result<()> {
     let project_type = ProjectType::get_from_parent_folder(new_project_path);
     if project_type == Some(ProjectType::ShaderPack) {
-        let scope = resolve_content_scope(instance_id, None, state).await?;
-        let base = instance_full_path(state, &scope.instance);
+        let scope =
+            resolve_content_scope(instance_id, None, &state.pool).await?;
+        let base = instance_full_path(&state.directories, &scope.instance);
 
         let old_txt_path = base.join(format!(
             "{}.txt",
@@ -1345,7 +1329,7 @@ pub(crate) async fn list_project_files(
     instance_id: &str,
     state: &State,
 ) -> crate::Result<Vec<InstalledContentFile>> {
-    let scope = resolve_content_scope(instance_id, None, state).await?;
+    let scope = resolve_content_scope(instance_id, None, &state.pool).await?;
     let entries =
         content_rows::get_content_entries(&scope.content_set_id, &state.pool)
             .await?;
@@ -1370,10 +1354,10 @@ pub(crate) async fn list_project_files(
 }
 
 pub(crate) fn instance_full_path(
-    state: &State,
+    directories: &DirectoryInfo,
     instance: &Instance,
 ) -> PathBuf {
-    state.directories.instances_dir().join(&instance.path)
+    directories.instances_dir().join(&instance.path)
 }
 
 pub(super) async fn upsert_entry_for_file(
@@ -1424,8 +1408,8 @@ pub(crate) async fn retag_entry_curseforge(
     cf_file_id: i64,
     state: &State,
 ) -> crate::Result<()> {
-    let _content_lock = state.lock_instance_content(instance_id).await;
-    let scope = resolve_content_scope(instance_id, None, state).await?;
+    let _content_lock = state.instance_locks.lock_content(instance_id).await;
+    let scope = resolve_content_scope(instance_id, None, &state.pool).await?;
     let file = content_rows::get_instance_file_by_relative_path(
         &scope.instance.id,
         relative_path,
@@ -1519,8 +1503,8 @@ pub(crate) async fn track_matched_files(
         return Ok(0);
     }
 
-    let _content_lock = state.lock_instance_content(instance_id).await;
-    let scope = resolve_content_scope(instance_id, None, state).await?;
+    let _content_lock = state.instance_locks.lock_content(instance_id).await;
+    let scope = resolve_content_scope(instance_id, None, &state.pool).await?;
 
     // Re-read under the lock so a concurrent listing or check cannot flip the
     // source of a file that was tracked while this pass was computing matches.

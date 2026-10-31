@@ -569,9 +569,9 @@ function getBadgeClasses(version: Labrinth.Versions.v2.Version): string {
 		case 'release':
 			return 'bg-highlight-green border-green text-green'
 		case 'beta':
-			return 'bg-highlight-blue border-brand-blue text-brand-blue'
+			return 'bg-highlight-orange border-brand-orange text-brand-orange'
 		case 'alpha':
-			return 'bg-highlight-purple border-brand-purple text-brand-purple'
+			return 'bg-highlight-red border-brand-red text-brand-red'
 		default:
 			return 'bg-surface-4 border-surface-5 text-primary'
 	}
@@ -582,9 +582,9 @@ function getVersionTypeBadgeClasses(version: Labrinth.Versions.v2.Version): stri
 		case 'release':
 			return 'bg-highlight-green border-green text-green'
 		case 'beta':
-			return 'bg-highlight-blue border-brand-blue text-brand-blue'
+			return 'bg-highlight-orange border-brand-orange text-brand-orange'
 		case 'alpha':
-			return 'bg-highlight-purple border-brand-purple text-brand-purple'
+			return 'bg-highlight-red border-brand-red text-brand-red'
 		default:
 			return 'bg-surface-4 border-surface-5 text-primary'
 	}

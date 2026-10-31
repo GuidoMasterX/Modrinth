@@ -4,9 +4,10 @@
 )]
 #![recursion_limit = "256"]
 
+use anyhow::Context;
 use native_dialog::{DialogBuilder, MessageLevel};
 use std::env;
-use std::sync::atomic::Ordering;
+use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::{Listener, Manager};
 use tauri_plugin_fs::FsExt;
 use theseus::prelude::*;
@@ -88,11 +89,9 @@ pub use updater_impl_noop::*;
 // Toggles decorations
 #[tauri::command]
 async fn toggle_decorations(b: bool, window: tauri::Window) -> api::Result<()> {
-    window.set_decorations(b).map_err(|e| {
-        theseus::Error::from(theseus::ErrorKind::OtherError(format!(
-            "Failed to toggle decorations: {e}"
-        )))
-    })?;
+    window
+        .set_decorations(b)
+        .context("failed to toggle decorations")?;
     Ok(())
 }
 
@@ -101,20 +100,23 @@ fn restart_app(app: tauri::AppHandle) {
     app.restart();
 }
 
+#[derive(Default)]
+struct RestartAfterPendingUpdate(AtomicBool);
+
 #[tauri::command]
 async fn set_restart_after_pending_update(
     should_restart: bool,
+    restart: tauri::State<'_, RestartAfterPendingUpdate>,
 ) -> api::Result<()> {
-    let state = State::get().await?;
-    state
-        .restart_after_pending_update
-        .store(should_restart, Ordering::Relaxed);
+    restart.0.store(should_restart, Ordering::Relaxed);
     Ok(())
 }
 
 // if Tauri app is called with arguments, then those arguments will be treated as commands
 // ie: deep links or filepaths for .mrpacks
 fn main() {
+    theseus::install_crypto_provider();
+
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()
@@ -327,6 +329,7 @@ fn main() {
         .plugin(api::friends::init())
         .plugin(api::worlds::init())
         .manage(PendingUpdateData::default())
+        .manage(RestartAfterPendingUpdate::default())
         .invoke_handler(tauri::generate_handler![
             initialize_state,
             is_dev,
@@ -362,11 +365,10 @@ fn main() {
                 #[cfg(feature = "updater")]
                 if matches!(&event, tauri::RunEvent::Exit) {
                     let update_data = app.state::<PendingUpdateData>().inner();
-                    let should_restart = State::get_if_initialized()
-                        .map(|s| {
-                            s.restart_after_pending_update.load(Ordering::Relaxed)
-                        })
-                        .unwrap_or(false);
+                    let should_restart = app
+                        .state::<RestartAfterPendingUpdate>()
+                        .0
+                        .load(Ordering::Relaxed);
                     if let Some((update, data)) = &*update_data.0.lock().unwrap()
                     {
                         fn set_changelog_toast(version: Option<String>) {
@@ -488,5 +490,18 @@ fn main() {
 
             panic!("{1}: {:?}", e, "error while running tauri application")
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    /// Builds a TLS config the way crates relying on rustls's process-level
+    /// provider do (e.g. async-tungstenite for the friends socket), with the
+    /// app's full dependency graph. This only fails here, not in app-lib's
+    /// own tests, because a conflicting provider feature can come from
+    /// unifying app-lib's dependencies with the Tauri plugins'.
+    #[test]
+    fn rustls_process_provider_is_resolvable() {
+        let _ = rustls::ClientConfig::builder();
     }
 }

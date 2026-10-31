@@ -2,6 +2,7 @@ use crate::api::curseforge::normalize::Source;
 use crate::state::{
     InstanceInstallStage, LauncherFeatureVersion, ReleaseChannel,
 };
+use anyhow::Context;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
@@ -104,10 +105,7 @@ pub(crate) fn playtime_to_storage(
     value: u64,
     column: &str,
 ) -> crate::Result<i64> {
-    i64::try_from(value).map_err(|_| {
-        crate::ErrorKind::InputError(format!(
-            "Expected {column} to fit in SQLite INTEGER"
-        ))
-        .into()
-    })
+    i64::try_from(value).context(crate::ErrorKind::InputError(format!(
+        "expected {column} to fit in SQLite INTEGER"
+    )))
 }

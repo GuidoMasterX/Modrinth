@@ -259,7 +259,7 @@ pub fn project_to_search_hit(project: &CFProject) -> Value {
         "gallery": [],
         "featured_gallery": Value::Null,
         "color": Value::Null,
-        "loaders": [],
+        "loaders": super::normalize::project_loaders(project),
         "disclosure_types": [],
     })
 }

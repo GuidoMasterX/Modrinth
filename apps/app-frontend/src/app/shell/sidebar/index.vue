@@ -99,7 +99,7 @@ const messages = defineMessages({
 					@login-minecraft="accounts?.login()"
 					@login-modrinth="emit('login-modrinth')"
 				/>
-				<div id="sidebar-teleport-target" class="sidebar-teleport-content contents"></div>
+				<div id="sidebar-teleport-target" class="sidebar-teleport-content empty:hidden"></div>
 				<div class="sidebar-default-content hidden" :class="{ 'sidebar-enabled': visible }">
 					<div
 						v-show="hasLoggedIntoMinecraft"
