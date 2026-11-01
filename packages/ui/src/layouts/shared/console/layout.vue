@@ -27,31 +27,30 @@
 					@keydown.shift.enter.exact.prevent="findPrevious"
 				>
 					<Input
+						ref="findInputRef"
 						v-model="searchQuery"
 						:icon="SearchIcon"
-						placeholder="Find in logs"
+						placeholder="Find in logs (Ctrl+F)"
 						wrapper-class="w-full"
 						size="medium"
 						clearable
 					/>
 				</div>
-				<template v-if="searchQuery.trim()">
-					<span class="whitespace-nowrap text-xs tabular-nums text-secondary">
-						{{
-							searchResultCount > 0
-								? searchResultIndex >= 0
-									? `${searchResultIndex + 1} / ${searchResultCount}`
-									: `${searchResultCount}+ matches`
-								: '0 / 0'
-						}}
-					</span>
-					<IconButton label="Previous match" @click="findPrevious">
-						<ChevronUpIcon />
-					</IconButton>
-					<IconButton label="Next match" @click="findNext">
-						<ChevronDownIcon />
-					</IconButton>
-				</template>
+				<span class="whitespace-nowrap text-xs tabular-nums text-secondary">
+					{{
+						searchResultCount > 0
+							? searchResultIndex >= 0
+								? `${searchResultIndex + 1} / ${searchResultCount}`
+								: `${searchResultCount}+ matches`
+							: '0 / 0'
+					}}
+				</span>
+				<IconButton label="Previous match" :disabled="!searchQuery.trim()" @click="findPrevious">
+					<ChevronUpIcon />
+				</IconButton>
+				<IconButton label="Next match" :disabled="!searchQuery.trim()" @click="findNext">
+					<ChevronDownIcon />
+				</IconButton>
 				<div v-if="ctx.logSources?.value && ctx.activeLogSourceIndex" class="w-[220px]">
 					<Combobox
 						:model-value="ctx.activeLogSourceIndex.value"
@@ -127,7 +126,7 @@
 
 <script setup lang="ts">
 import { ChevronDownIcon, ChevronUpIcon, SearchIcon, TrashIcon, XIcon } from '@modrinth/assets'
-import type { SearchAddon } from '@xterm/addon-search'
+import { SearchAddon } from '@xterm/addon-search'
 import type { Terminal } from '@xterm/xterm'
 import { computed, isRef, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
@@ -186,6 +185,7 @@ const shareModal = ref<InstanceType<typeof ShareModal> | null>(null)
 const deleteModal = ref<InstanceType<typeof NewModal> | null>(null)
 const isDeleting = ref(false)
 const searchQuery = ref('')
+const findInputRef = ref<InstanceType<typeof Input> | null>(null)
 const searchAddon = ref<SearchAddon | null>(null)
 const searchResultIndex = ref(0)
 const searchResultCount = ref(0)
@@ -340,14 +340,17 @@ const resolvedClearDisabledTooltip = computed(() =>
 )
 
 function handleTerminalReady(_terminal: Terminal) {
-	const addon = terminalRef.value?.searchAddon
-	if (addon) {
-		addon.onDidChangeResults(({ resultIndex, resultCount }) => {
-			searchResultIndex.value = resultIndex
-			searchResultCount.value = resultCount
-		})
-		searchAddon.value = addon
+	const term = terminalRef.value?.terminal
+	let addon = terminalRef.value?.searchAddon ?? null
+	if (!addon || typeof addon.findNext !== 'function') {
+		addon = new SearchAddon()
+		term?.loadAddon(addon)
 	}
+	addon.onDidChangeResults(({ resultIndex, resultCount }) => {
+		searchResultIndex.value = resultIndex
+		searchResultCount.value = resultCount
+	})
+	searchAddon.value = addon
 	rewriteFiltered()
 }
 
@@ -452,6 +455,11 @@ function appendNewLines() {
 }
 
 function handleWindowKeyDown(event: KeyboardEvent) {
+	if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'f') {
+		event.preventDefault()
+		findInputRef.value?.focus()
+		return
+	}
 	if (event.key !== 'Escape' || !isFullscreen.value || hasModal.value) return
 	event.preventDefault()
 	toggleFullscreen()

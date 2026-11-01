@@ -188,10 +188,6 @@ pub fn clear_log_buffer(instance_id: &str) {
     }
 }
 
-pub fn remove_log_buffer(instance_id: &str) {
-    LOG_BUFFERS.remove(instance_id);
-}
-
 async fn clear_persisted_process(
     pool: &SqlitePool,
     process: Option<(i64, i64)>,

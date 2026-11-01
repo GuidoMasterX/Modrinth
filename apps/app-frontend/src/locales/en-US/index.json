@@ -4052,17 +4052,23 @@
   "instance.settings.tabs.java.presets": {
     "message": "Presets"
   },
-  "instance.settings.tabs.java.presets.aikar": {
-    "message": "Aikar's flags"
+  "instance.settings.tabs.java.presets.cancel": {
+    "message": "Cancel"
   },
-  "instance.settings.tabs.java.presets.default": {
-    "message": "Default (none)"
+  "instance.settings.tabs.java.presets.confirm-save": {
+    "message": "Save"
   },
-  "instance.settings.tabs.java.presets.g1gc": {
-    "message": "G1GC (recommended)"
+  "instance.settings.tabs.java.presets.delete": {
+    "message": "Delete preset"
   },
-  "instance.settings.tabs.java.presets.zgc": {
-    "message": "ZGC (Java 21+)"
+  "instance.settings.tabs.java.presets.name-placeholder": {
+    "message": "Preset name"
+  },
+  "instance.settings.tabs.java.presets.save": {
+    "message": "Save current arguments as preset"
+  },
+  "instance.settings.tabs.java.presets.save-title": {
+    "message": "Save Java arguments preset"
   },
   "instance.settings.tabs.sharing": {
     "message": "Sharing"

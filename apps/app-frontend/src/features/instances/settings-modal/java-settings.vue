@@ -3,23 +3,28 @@ import {
 	CheckCircleIcon,
 	CoffeeIcon,
 	FolderSearchIcon,
+	PlusIcon,
 	RefreshCwIcon,
 	SearchIcon,
 	SpinnerIcon,
+	TrashIcon,
 	XCircleIcon,
 } from '@modrinth/assets'
 import {
 	Button,
 	commonMessages,
 	defineMessages,
+	IconButton,
 	injectNotificationManager,
 	Input,
+	NewModal,
 	Slider,
 	TeleportOverflowMenu,
 	Toggle,
 	useVIntl,
 } from '@modrinth/ui'
 import { open } from '@tauri-apps/plugin-dialog'
+import { useLocalStorage } from '@vueuse/core'
 import { computed, readonly, ref, watch } from 'vue'
 
 import JavaDetectionModal from '@/components/ui/JavaDetectionModal.vue'
@@ -180,21 +185,29 @@ const messages = defineMessages({
 		id: 'instance.settings.tabs.java.presets',
 		defaultMessage: 'Presets',
 	},
-	presetDefault: {
-		id: 'instance.settings.tabs.java.presets.default',
-		defaultMessage: 'Default (none)',
+	savePreset: {
+		id: 'instance.settings.tabs.java.presets.save',
+		defaultMessage: 'Save current arguments as preset',
 	},
-	presetG1gc: {
-		id: 'instance.settings.tabs.java.presets.g1gc',
-		defaultMessage: 'G1GC (recommended)',
+	savePresetTitle: {
+		id: 'instance.settings.tabs.java.presets.save-title',
+		defaultMessage: 'Save Java arguments preset',
 	},
-	presetAikar: {
-		id: 'instance.settings.tabs.java.presets.aikar',
-		defaultMessage: "Aikar's flags",
+	presetNamePlaceholder: {
+		id: 'instance.settings.tabs.java.presets.name-placeholder',
+		defaultMessage: 'Preset name',
 	},
-	presetZgc: {
-		id: 'instance.settings.tabs.java.presets.zgc',
-		defaultMessage: 'ZGC (Java 21+)',
+	deletePreset: {
+		id: 'instance.settings.tabs.java.presets.delete',
+		defaultMessage: 'Delete preset',
+	},
+	save: {
+		id: 'instance.settings.tabs.java.presets.confirm-save',
+		defaultMessage: 'Save',
+	},
+	cancel: {
+		id: 'instance.settings.tabs.java.presets.cancel',
+		defaultMessage: 'Cancel',
 	},
 	enterJavaArguments: {
 		id: 'instance.settings.tabs.java.enter-java-arguments',
@@ -214,37 +227,56 @@ const messages = defineMessages({
 	},
 })
 
-const JAVA_ARGUMENT_PRESETS = [
-	{ id: 'default', message: messages.presetDefault, args: '' },
-	{
-		id: 'g1gc',
-		message: messages.presetG1gc,
-		args: '-XX:+UseG1GC -XX:+ParallelRefProcEnabled -XX:MaxGCPauseMillis=200',
-	},
-	{
-		id: 'aikar',
-		message: messages.presetAikar,
-		args: '-XX:+UseG1GC -XX:+ParallelRefProcEnabled -XX:MaxGCPauseMillis=200 -XX:+UnlockExperimentalVMOptions -XX:+DisableExplicitGC -XX:+AlwaysPreTouch -XX:G1NewSizePercent=30 -XX:G1MaxNewSizePercent=40 -XX:G1HeapRegionSize=8M -XX:G1ReservePercent=20 -XX:G1HeapWastePercent=5 -XX:G1MixedGCCountTarget=4 -XX:InitiatingHeapOccupancyPercent=15 -XX:G1MixedGCLiveThresholdPercent=90 -XX:G1RSetUpdatingPauseTimePercent=5 -XX:SurvivorRatio=32 -XX:+PerfDisableSharedMem -XX:MaxTenuringThreshold=1 -Dusing.aikars.flags=https://mcflags.emc.gs -Daikars.new.flags=true',
-	},
-	{
-		id: 'zgc',
-		message: messages.presetZgc,
-		args: '-XX:+UseZGC -XX:+AlwaysPreTouch',
-	},
-]
-
-function applyJavaArgumentsPreset(args: string) {
-	overrideJavaArgs.value = true
-	javaArgs.value = args
+interface JavaArgumentsPreset {
+	id: string
+	name: string
+	args: string
 }
 
+const presets = useLocalStorage<JavaArgumentsPreset[]>('java-arguments-presets', [])
+const presetModal = ref<InstanceType<typeof NewModal> | null>(null)
+const presetName = ref('')
+const selectedPresetId = ref<string | null>(null)
+
 const presetOptions = computed(() =>
-	JAVA_ARGUMENT_PRESETS.map((preset) => ({
+	presets.value.map((preset) => ({
 		id: preset.id,
-		label: formatMessage(preset.message),
-		action: () => applyJavaArgumentsPreset(preset.args),
+		label: preset.name,
+		action: () => applyJavaArgumentsPreset(preset),
 	})),
 )
+
+function applyJavaArgumentsPreset(preset: JavaArgumentsPreset) {
+	overrideJavaArgs.value = true
+	javaArgs.value = preset.args
+	selectedPresetId.value = preset.id
+}
+
+function openPresetModal() {
+	presetName.value = ''
+	presetModal.value?.show()
+}
+
+function savePreset() {
+	const name = presetName.value.trim()
+	if (!name) return
+	const existing = presets.value.find((preset) => preset.name === name)
+	if (existing) {
+		existing.args = javaArgs.value
+		selectedPresetId.value = existing.id
+	} else {
+		const preset = { id: crypto.randomUUID(), name, args: javaArgs.value }
+		presets.value = [...presets.value, preset]
+		selectedPresetId.value = preset.id
+	}
+	presetModal.value?.hide()
+}
+
+function deleteSelectedPreset() {
+	if (!selectedPresetId.value) return
+	presets.value = presets.value.filter((preset) => preset.id !== selectedPresetId.value)
+	selectedPresetId.value = null
+}
 </script>
 
 <template>
@@ -391,11 +423,22 @@ const presetOptions = computed(() =>
 				</div>
 				<div class="flex items-center gap-2">
 					<TeleportOverflowMenu
+						v-if="presets.length > 0"
 						:label="formatMessage(messages.presets)"
 						:options="presetOptions"
 						:icon-only="false"
 						placement="bottom-end"
 					/>
+					<IconButton :label="formatMessage(messages.savePreset)" @click="openPresetModal">
+						<PlusIcon />
+					</IconButton>
+					<IconButton
+						v-if="selectedPresetId"
+						:label="formatMessage(messages.deletePreset)"
+						@click="deleteSelectedPreset"
+					>
+						<TrashIcon />
+					</IconButton>
 					<Toggle id="override-java-arguments" v-model="overrideJavaArgs" />
 				</div>
 			</div>
@@ -432,4 +475,20 @@ const presetOptions = computed(() =>
 			</div>
 		</section>
 	</div>
+
+	<NewModal ref="presetModal" :header="formatMessage(messages.savePresetTitle)" max-width="420px">
+		<Input
+			v-model="presetName"
+			:placeholder="formatMessage(messages.presetNamePlaceholder)"
+			@keydown.enter.prevent="savePreset"
+		/>
+		<template #actions>
+			<div class="flex justify-end gap-2">
+				<Button @click="presetModal?.hide()">{{ formatMessage(messages.cancel) }}</Button>
+				<Button type="colored" color="brand" :disabled="!presetName.trim()" @click="savePreset">
+					{{ formatMessage(messages.save) }}
+				</Button>
+			</div>
+		</template>
+	</NewModal>
 </template>
