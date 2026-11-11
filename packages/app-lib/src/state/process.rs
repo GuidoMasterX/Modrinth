@@ -136,10 +136,7 @@ mod ring_buffer_tests {
             buf.get_since(0),
             (vec!["b".to_string(), "c".to_string()], 3, 0, true)
         );
-        assert_eq!(
-            buf.get_since(2),
-            (vec!["c".to_string()], 3, 0, false)
-        );
+        assert_eq!(buf.get_since(2), (vec!["c".to_string()], 3, 0, false));
     }
 
     #[test]
@@ -149,7 +146,8 @@ mod ring_buffer_tests {
         let generation = buf.get_since(1).2;
         buf.clear();
         buf.push("b".to_string());
-        let (lines, cursor, next_generation, reset) = buf.get_for(1, generation);
+        let (lines, cursor, next_generation, reset) =
+            buf.get_for(1, generation);
         assert_eq!(lines, vec!["b".to_string()]);
         assert_eq!(cursor, 1);
         assert_eq!(next_generation, generation + 1);

@@ -21,10 +21,10 @@ use sqlx::SqlitePool;
 use std::collections::{HashSet, VecDeque};
 use std::path::{Path, PathBuf};
 
-use crate::api::curseforge::normalize::Source;
 use super::content_mutation::{
     ContentOrigin, InstallContent, install_stored_file,
 };
+use crate::api::curseforge::normalize::Source;
 pub(crate) struct ContentScope {
     pub instance: Instance,
     pub content_set_id: String,
@@ -118,20 +118,20 @@ fn resolve_provider_error(error: crate::Error) -> ResolveError {
 }
 
 fn resolver_error(error: ResolveError) -> crate::Error {
-	crate::ErrorKind::InputError(error.to_string()).into()
+    crate::ErrorKind::InputError(error.to_string()).into()
 }
 
 /// Identity key for cross-source matching: lowercase ASCII-alphanumeric only
 fn normalized_identity_key(value: &str) -> String {
-	value
-		.chars()
-		.filter(|c| c.is_ascii_alphanumeric())
-		.map(|c| c.to_ascii_lowercase())
-		.collect()
+    value
+        .chars()
+        .filter(|c| c.is_ascii_alphanumeric())
+        .map(|c| c.to_ascii_lowercase())
+        .collect()
 }
 
 pub(crate) fn normalized_identity_key_pub(value: &str) -> String {
-	normalized_identity_key(value)
+    normalized_identity_key(value)
 }
 
 fn version_to_resolver(
@@ -141,6 +141,9 @@ fn version_to_resolver(
         id: version.id,
         project_id: version.project_id,
         date_published: version.date_published,
+        version_type: release_channel_to_resolver(
+            ReleaseChannel::from_version_type(&version.version_type),
+        ),
         dependencies: version
             .dependencies
             .into_iter()
@@ -148,6 +151,20 @@ fn version_to_resolver(
             .collect(),
         game_versions: version.game_versions,
         loaders: version.loaders,
+    }
+}
+
+fn release_channel_to_resolver(
+    channel: ReleaseChannel,
+) -> modrinth_content_management::VersionType {
+    match channel {
+        ReleaseChannel::Release => {
+            modrinth_content_management::VersionType::Release
+        }
+        ReleaseChannel::Beta => modrinth_content_management::VersionType::Beta,
+        ReleaseChannel::Alpha => {
+            modrinth_content_management::VersionType::Alpha
+        }
     }
 }
 
@@ -198,6 +215,9 @@ pub(crate) async fn resolve_install_plan(
     request: InstanceInstallProjectRequest,
     state: &State,
 ) -> crate::Result<ResolveContentPlan> {
+    let instance = instance_rows::get_instance_by_id(instance_id, &state.pool)
+        .await?
+        .ok_or(ErrorKind::InputError("unknown instance".to_string()))?;
     let content_set =
         content_rows::get_applied_content_set(instance_id, &state.pool)
             .await?
@@ -227,81 +247,84 @@ pub(crate) async fn resolve_install_plan(
             content_type,
         ),
         existing_project_ids,
+        update_channel: Some(release_channel_to_resolver(
+            instance.update_channel,
+        )),
     };
 
-	let mut plan = modrinth_content_management::resolve_content(
-		provider,
-		request,
-	)
-	.await
-	.map_err(resolver_error)?;
+    let mut plan =
+        modrinth_content_management::resolve_content(provider, request)
+            .await
+            .map_err(resolver_error)?;
 
-	if !plan.dependencies.is_empty() {
-		let installed = super::source_link::installed_cross_source(
-			instance_id,
-			&content_set.id,
-			state,
-		)
-		.await;
-		if !installed.is_empty() {
-			let dependency_ids = plan
-				.dependencies
-				.iter()
-				.map(|dependency| dependency.project_id.clone())
-				.collect::<Vec<_>>();
-			let dependency_id_refs =
-				dependency_ids.iter().map(String::as_str).collect::<Vec<_>>();
-			let dependency_projects = CachedEntry::get_project_many(
-				&dependency_id_refs,
-				Some(CacheBehaviour::MustRevalidate),
-				&state.pool,
-				&state.api_semaphore,
-			)
-			.await
-			.unwrap_or_default()
-			.into_iter()
-			.map(|project| (project.id.clone(), project))
-			.collect::<std::collections::HashMap<_, _>>();
+    if !plan.dependencies.is_empty() {
+        let installed = super::source_link::installed_cross_source(
+            instance_id,
+            &content_set.id,
+            state,
+        )
+        .await;
+        if !installed.is_empty() {
+            let dependency_ids = plan
+                .dependencies
+                .iter()
+                .map(|dependency| dependency.project_id.clone())
+                .collect::<Vec<_>>();
+            let dependency_id_refs = dependency_ids
+                .iter()
+                .map(String::as_str)
+                .collect::<Vec<_>>();
+            let dependency_projects = CachedEntry::get_project_many(
+                &dependency_id_refs,
+                Some(CacheBehaviour::MustRevalidate),
+                &state.pool,
+                &state.api_semaphore,
+            )
+            .await
+            .unwrap_or_default()
+            .into_iter()
+            .map(|project| (project.id.clone(), project))
+            .collect::<std::collections::HashMap<_, _>>();
 
-			let mut dependencies = Vec::new();
-			for dependency in plan.dependencies {
-				let skip = dependency_projects
-					.get(&dependency.project_id)
-					.is_some_and(|project| {
-						let project_type =
-							ProjectType::from_name(&project.project_type)
-								.unwrap_or(ProjectType::Mod);
-						super::source_link::project_already_installed(
-							project_type,
-							Some(&dependency.project_id),
-							None,
-							project.slug.as_deref(),
-							&project.title,
-							&installed,
-						)
-					});
-				if skip {
-					tracing::info!(
-						"Skipping Modrinth dependency {}: already \
+            let mut dependencies = Vec::new();
+            for dependency in plan.dependencies {
+                let skip = dependency_projects
+                    .get(&dependency.project_id)
+                    .is_some_and(|project| {
+                        let project_type =
+                            ProjectType::from_name(&project.project_type)
+                                .unwrap_or(ProjectType::Mod);
+                        super::source_link::project_already_installed(
+                            project_type,
+                            Some(&dependency.project_id),
+                            None,
+                            project.slug.as_deref(),
+                            &project.title,
+                            &installed,
+                        )
+                    });
+                if skip {
+                    tracing::info!(
+                        "Skipping Modrinth dependency {}: already \
 						 installed from the other source",
-						dependency.project_id
-					);
-					plan.skipped.push(SkippedContent {
-						project_id: dependency.project_id.clone(),
-						version_id: Some(dependency.version_id),
-						dependent_on_version_id: dependency
-							.dependent_on_version_id,
-						reason: SkippedReason::AlreadyInstalled,
-					});
-				} else {
-					dependencies.push(dependency);
-				}
-			}
-			plan.dependencies = dependencies;
-		}
-	}
+                        dependency.project_id
+                    );
+                    plan.skipped.push(SkippedContent {
+                        project_id: dependency.project_id.clone(),
+                        version_id: Some(dependency.version_id),
+                        dependent_on_version_id: dependency
+                            .dependent_on_version_id,
+                        reason: SkippedReason::AlreadyInstalled,
+                    });
+                } else {
+                    dependencies.push(dependency);
+                }
+            }
+            plan.dependencies = dependencies;
+        }
+    }
 
-	Ok(plan)
+    Ok(plan)
 }
 
 pub(crate) async fn install_resolved_content_plan(
@@ -867,7 +890,6 @@ pub(crate) async fn resolve_and_install_curseforge_project(
     let cross_source = super::source_link::installed_cross_source(
         instance_id,
         &scope.content_set_id,
-
         state,
     )
     .await;
@@ -1508,14 +1530,12 @@ pub(crate) async fn track_matched_files(
 
     // Re-read under the lock so a concurrent listing or check cannot flip the
     // source of a file that was tracked while this pass was computing matches.
-    let already_tracked = content_rows::get_content_entries(
-        &scope.content_set_id,
-        &state.pool,
-    )
-    .await?
-    .into_iter()
-    .filter_map(|entry| entry.file_id)
-    .collect::<HashSet<_>>();
+    let already_tracked =
+        content_rows::get_content_entries(&scope.content_set_id, &state.pool)
+            .await?
+            .into_iter()
+            .filter_map(|entry| entry.file_id)
+            .collect::<HashSet<_>>();
     let matched = matched
         .into_iter()
         .filter(|(file, ..)| !already_tracked.contains(&file.id))

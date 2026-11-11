@@ -34,14 +34,12 @@ pub async fn get_importable_instance_contents(
     base_path: PathBuf,
     instance_folder: String,
 ) -> Result<Vec<import::ImportableInstanceContent>> {
-    Ok(
-        import::get_importable_instance_contents(
-            launcher_type,
-            base_path,
-            instance_folder,
-        )
-        .await?,
+    Ok(import::get_importable_instance_contents(
+        launcher_type,
+        base_path,
+        instance_folder,
     )
+    .await?)
 }
 
 /// Checks if this instance is valid for importing, given a certain launcher type

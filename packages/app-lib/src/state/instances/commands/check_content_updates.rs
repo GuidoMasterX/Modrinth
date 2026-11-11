@@ -129,9 +129,7 @@ async fn check_content_updates_with_cache_behaviours(
     // hash win is tracked as Modrinth, a CurseForge fingerprint only when the
     // Modrinth lookup succeeded (otherwise a throttled lookup would mislabel
     // Modrinth files as CurseForge-exclusive).
-    if instance.install_stage
-        == crate::state::InstanceInstallStage::Installed
-    {
+    if instance.install_stage == crate::state::InstanceInstallStage::Installed {
         let cf_metadata_by_hash =
             match super::list_content::detect_curseforge_metadata(
                 state,
@@ -171,18 +169,13 @@ async fn check_content_updates_with_cache_behaviours(
                 entries_by_file_id = entries
                     .iter()
                     .filter_map(|entry| {
-                        entry
-                            .file_id
-                            .as_deref()
-                            .map(|file_id| (file_id, entry))
+                        entry.file_id.as_deref().map(|file_id| (file_id, entry))
                     })
                     .collect();
             }
             Ok(_) => {}
             Err(err) => {
-                tracing::warn!(
-                    "Unable to track matched content files: {err}"
-                );
+                tracing::warn!("Unable to track matched content files: {err}");
             }
         }
     }
@@ -208,10 +201,8 @@ async fn check_content_updates_with_cache_behaviours(
         .filter_map(|file| {
             let project_type = project_type_for_file(&file)?;
             let metadata = file_info_by_hash.get(&file.sha1)?;
-            let entry = entries_by_file_id
-                .get(file.id.as_str())
-                .copied()
-                .cloned();
+            let entry =
+                entries_by_file_id.get(file.id.as_str()).copied().cloned();
             if entry.as_ref().is_some_and(|entry| {
                 entry.source
                     == crate::api::curseforge::normalize::Source::CurseForge
@@ -281,17 +272,18 @@ async fn check_content_updates_with_cache_behaviours(
             })
             .map(|version| version.id);
 
-        let suppressed = update_version_id.as_deref().is_some_and(
-            |update_version_id| {
-                candidate.entry.as_ref().is_some_and(|entry| {
-                    entry.updates_ignored
-                        || skips_by_entry_id
-                            .get(entry.id.as_str())
-                            .and_then(|skipped| skipped.as_deref())
-                            == Some(update_version_id)
-                })
-            },
-        );
+        let suppressed =
+            update_version_id
+                .as_deref()
+                .is_some_and(|update_version_id| {
+                    candidate.entry.as_ref().is_some_and(|entry| {
+                        entry.updates_ignored
+                            || skips_by_entry_id
+                                .get(entry.id.as_str())
+                                .and_then(|skipped| skipped.as_deref())
+                                == Some(update_version_id)
+                    })
+                });
 
         if let Some(entry) = &candidate.entry {
             content_rows::upsert_content_update_check(
@@ -552,15 +544,16 @@ async fn check_curseforge_content_updates(
                     Some(format!("cf-{}", latest.id))
                 }
             });
-            let suppressed = update_version_id.as_deref().is_some_and(
-                |update_version_id| {
-                    entry.updates_ignored
-                        || skips_by_entry_id
-                            .get(entry.id.as_str())
-                            .and_then(|skipped| skipped.as_deref())
-                            == Some(update_version_id)
-                },
-            );
+            let suppressed =
+                update_version_id
+                    .as_deref()
+                    .is_some_and(|update_version_id| {
+                        entry.updates_ignored
+                            || skips_by_entry_id
+                                .get(entry.id.as_str())
+                                .and_then(|skipped| skipped.as_deref())
+                                == Some(update_version_id)
+                    });
             content_rows::upsert_content_update_check(
                 &entry.id,
                 update_channel,

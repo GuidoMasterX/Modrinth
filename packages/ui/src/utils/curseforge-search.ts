@@ -1,6 +1,6 @@
 import { getLoaderIcon } from '@modrinth/assets'
 import type { Ref } from 'vue'
-import { computed, h, markRaw, ref, shallowRef } from 'vue'
+import { computed, h, markRaw, ref, shallowRef, watch } from 'vue'
 import { useRoute } from 'vue-router'
 
 import { defineMessage, useVIntl } from '../composables/i18n'
@@ -248,7 +248,6 @@ export function useCurseforgeSearch(opts: {
 			}
 		}
 
-		let gameVersion: string | undefined
 		for (const filterType of curseforgeFilterTypes.value) {
 			const matched = included.find((f) => f.type === filterType.id)
 			if (!matched) continue
@@ -256,9 +255,8 @@ export function useCurseforgeSearch(opts: {
 			if (!option || !('value' in option)) continue
 
 			if (filterType.id === 'cf_game_version') {
-				gameVersion = option.value
 				params.push(`gameVersion=${encodeURIComponent(option.value)}`)
-			} else if (filterType.id === 'cf_loader' && gameVersion !== undefined) {
+			} else if (filterType.id === 'cf_loader') {
 				params.push(`modLoaderType=${option.value}`)
 			}
 		}
@@ -296,7 +294,15 @@ export function useCurseforgeSearch(opts: {
 				const isNegative = value.startsWith('!')
 				const cleanValue = isNegative ? value.slice(1) : value
 				const option = findFilterOption(filterType.options, cleanValue)
-				if (option) {
+				if (
+					option &&
+					!curseforgeCurrentFilters.value.some(
+						(filter) =>
+							filter.type === filterType.id &&
+							filter.option === option.id &&
+							!!filter.negative === isNegative,
+					)
+				) {
 					curseforgeCurrentFilters.value.push({
 						type: filterType.id,
 						option: option.id,
@@ -341,7 +347,11 @@ export function useCurseforgeSearch(opts: {
 		return items
 	}
 
-	readCurseforgeQueryParams()
+	watch(
+		() => curseforgeFilterTypes.value.map((filter) => filter.id).join(','),
+		() => readCurseforgeQueryParams(),
+		{ immediate: true },
+	)
 
 	return {
 		curseforgeCurrentSortType,

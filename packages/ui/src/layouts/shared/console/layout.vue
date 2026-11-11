@@ -1,9 +1,10 @@
 <template>
 	<div
-		class="flex min-h-0 flex-1 flex-col gap-4"
-		:class="
-			isFullscreen ? `fixed inset-0 z-[15] bg-surface-1 p-6 py-8 ${isApp ? 'pt-12' : ''}` : ''
-		"
+		class="flex flex-1 flex-col gap-2"
+		:class="[
+			minLogHeight && !isFullscreen ? 'min-h-min' : 'min-h-0',
+			isFullscreen ? `fixed inset-0 z-[15] bg-surface-1 p-6 py-8 ${isApp ? 'pt-12' : ''}` : '',
+		]"
 	>
 		<div
 			v-if="isApp && isFullscreen"
@@ -12,6 +13,7 @@
 		/>
 		<CollapsibleAdmonition
 			v-if="ctx.crashAnalysis?.value && !isFullscreen"
+			class="mb-2 shrink-0"
 			type="critical"
 			:header="crashHeader"
 			:items="crashItems"
@@ -19,7 +21,7 @@
 			@dismiss="ctx.onDismissCrash?.()"
 		/>
 
-		<div class="flex flex-col gap-2">
+		<div class="flex shrink-0 flex-col gap-2">
 			<div class="flex items-center gap-2">
 				<div
 					class="min-w-0 flex-1"
@@ -90,7 +92,8 @@
 
 		<BaseTerminal
 			ref="terminalRef"
-			class="min-h-0 flex-1"
+			class="flex-1"
+			:min-log-height="isFullscreen ? undefined : minLogHeight"
 			:show-input="resolvedShowInput"
 			:disable-input="resolvedInputDisabled"
 			:disable-input-tooltip="resolvedInputDisabledTooltip"
@@ -158,6 +161,10 @@ import {
 import type { ConditionalLevel } from './composables/console-filtering'
 import { injectConsoleManager } from './providers'
 import type { LogLevel, LogLine } from './types'
+
+defineProps<{
+	minLogHeight?: string
+}>()
 
 const ctx = injectConsoleManager()
 const client = injectModrinthClient()
@@ -231,6 +238,10 @@ onBeforeUnmount(() => {
 		clearTimeout(searchDebounce)
 		searchDebounce = null
 	}
+	if (liveFindDebounce) {
+		clearTimeout(liveFindDebounce)
+		liveFindDebounce = null
+	}
 	if (isFullscreen.value) {
 		document.body.style.overflow = ''
 		document.body.classList.remove(fullscreenBodyClass)
@@ -244,6 +255,7 @@ onBeforeUnmount(() => {
 
 let lastWrittenIndex = 0
 let searchDebounce: ReturnType<typeof setTimeout> | null = null
+let liveFindDebounce: ReturnType<typeof setTimeout> | null = null
 let isRewriting = false
 let pendingAppend = false
 
@@ -392,6 +404,15 @@ function findPrevious() {
 	searchAddon.value.findPrevious(query, { decorations: SEARCH_DECORATIONS })
 }
 
+function scheduleLiveFindRefresh() {
+	if (!searchQuery.value.trim()) return
+	if (liveFindDebounce) clearTimeout(liveFindDebounce)
+	liveFindDebounce = setTimeout(() => {
+		liveFindDebounce = null
+		runFind(true)
+	}, 150)
+}
+
 function handleFilterToggle(value: LogLevel | 'all') {
 	toggleFilter(value)
 	rewriteFiltered()
@@ -449,6 +470,7 @@ function appendNewLines() {
 		const version = getHighlightVersion(term)
 		term.write(data, () => {
 			highlightAppendedRange(term, fromRow, version)
+			scheduleLiveFindRefresh()
 		})
 	}
 	lastWrittenIndex = lines.length
@@ -456,6 +478,15 @@ function appendNewLines() {
 
 function handleWindowKeyDown(event: KeyboardEvent) {
 	if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'f') {
+		if (hasModal.value) return
+		const target = event.target as HTMLElement | null
+		const findInputElement = findInputRef.value?.$el as HTMLElement | undefined
+		if (
+			target?.closest('input, textarea, select, [contenteditable="true"]') &&
+			!findInputElement?.contains(target)
+		) {
+			return
+		}
 		event.preventDefault()
 		findInputRef.value?.focus()
 		return

@@ -363,7 +363,7 @@ pub async fn generate_pack_from_curseforge(
     )
     .await?;
 
-    if let Some(icon_url) = &icon_url {
+    let icon = if let Some(icon_url) = &icon_url {
         let icon_bytes = fetch(
             icon_url,
             None,
@@ -373,15 +373,15 @@ pub async fn generate_pack_from_curseforge(
             &state.pool,
         )
         .await?;
-        let icon = crate::api::instance::cache_icon(icon_bytes, &state).await?;
-        let _ =
-            crate::api::instance::edit_icon(&instance_id, Some(&icon)).await;
-    }
+        Some(crate::api::instance::cache_icon(icon_bytes, &state).await?)
+    } else {
+        None
+    };
 
     Ok(CreatePack {
         file: CreatePackFile::Bytes(bytes),
         description: CreatePackDescription {
-            icon: None,
+            icon,
             override_title: Some(title),
             project_id: None,
             version_id: Some(format!("cf-{cf_file_id}")),

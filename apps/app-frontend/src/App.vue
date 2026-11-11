@@ -26,6 +26,8 @@ import {
 	commonSettingsMessages,
 	ContentInstallModal,
 	ContentUpdaterModal,
+	createServerInviteHandoff,
+	createServerOnboardingFlow,
 	CreationFlowModal,
 	defineMessages,
 	I18nDebugPanel,
@@ -34,12 +36,17 @@ import {
 	NotificationPanel,
 	PopupNotificationPanel,
 	provideFileDownload,
+	provideIconCache,
 	provideLoadingState,
 	provideModalBehavior,
 	provideModrinthClient,
 	provideNotificationManager,
 	providePageContext,
 	providePopupNotificationManager,
+	provideServerInviteHandoff,
+	provideServerOnboardingFlow,
+	provideServerPlay,
+	ServerOnboardingModal,
 	TeleportOverflowMenu,
 	TooltipDirective,
 	useDebugLogger,
@@ -61,6 +68,7 @@ import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { RouterView, useRoute, useRouter } from 'vue-router'
 
 import { useRouteLoading } from '@/app/runtime/use-route-loading'
+import { useSharedInstanceLockSync } from '@/app/runtime/use-shared-instance-lock-sync'
 import AppSidebar from '@/app/shell/sidebar/index.vue'
 import AppTitleBar from '@/app/shell/title-bar/index.vue'
 import { trackExternalFileDownload } from '@/components/ui/download-manager/external-file-downloads'
@@ -88,6 +96,14 @@ import { useInstanceMetadataRefresh } from '@/composables/use-instance-metadata-
 import { useQuickInstanceLimit } from '@/composables/use-quick-instance-limit.ts'
 import { isDarkTheme, useTheme } from '@/composables/use-theme.ts'
 import { config } from '@/config'
+import InstanceActionModals from '@/features/instances/instance-actions/instance-action-modals.vue'
+import {
+	createInstanceLaunchState,
+	provideInstanceLaunchState,
+} from '@/features/instances/launch-state'
+import { maxMemoryQueryOptions } from '@/features/java/queries'
+import SharedInstanceLockNotice from '@/features/library/shared-instances/shared-instance-lock-notice.vue'
+import SharedInstanceModals from '@/features/library/shared-instances/shared-instance-modals.vue'
 import { provideMinecraftAccounts } from '@/features/minecraft-accounts/context'
 import AppSettingsModal from '@/features/settings/app-settings-modal/index.vue'
 import { provideSettingsActions } from '@/features/settings/settings-actions'
@@ -104,7 +120,6 @@ import {
 	run,
 	set_global_synced_option,
 } from '@/helpers/instance'
-import { maxMemoryQueryOptions } from '@/helpers/jre.js'
 import {
 	get as getCreds,
 	getAll as getAllCreds,
@@ -150,6 +165,7 @@ import {
 	screenshotKeys,
 } from '@/pages/instance/query-options'
 import { createFileDownload } from '@/platform/adapters/file-download'
+import { createIconCache } from '@/platform/adapters/icon-cache'
 import { createAppClient } from '@/platform/modrinth-client'
 import {
 	appUpdateState,
@@ -234,7 +250,20 @@ const { addPopupNotification } = popupNotificationManager
 
 const tauriApiClient = createAppClient()
 provideModrinthClient(tauriApiClient)
+provideServerOnboardingFlow(createServerOnboardingFlow())
+provideServerInviteHandoff(createServerInviteHandoff())
 provideFileDownload(createFileDownload(tauriApiClient, trackExternalFileDownload))
+const iconCache = createIconCache()
+provideIconCache(iconCache)
+provideInstanceLaunchState(createInstanceLaunchState())
+const serverPlayHandler = ref()
+const serverPlay = {
+	async play(target) {
+		if (!serverPlayHandler.value) throw new Error('Server play handler is not ready.')
+		await serverPlayHandler.value.play(target)
+	},
+}
+provideServerPlay(serverPlay)
 const { data: authenticatedModrinthUser } = useQuery({
 	queryKey: computed(() => ['authenticated-user', 'campaigns', credentials.value?.user?.id]),
 	queryFn: () => tauriApiClient.labrinth.users_v3.getAuthenticated(),
@@ -660,8 +689,15 @@ async function setupApp() {
 }
 
 const stateFailed = ref(false)
-const { loading, canNavigateBack, canNavigateForward, onSuspensePending, onSuspenseResolve } =
-	useRouteLoading({ stateInitialized, stateFailed })
+const {
+	loading,
+	canNavigateBack,
+	canNavigateForward,
+	onboardingPageReady,
+	onSuspensePending,
+	onSuspenseResolve,
+} = useRouteLoading({ stateInitialized, stateFailed })
+useSharedInstanceLockSync()
 provideLoadingState(loading)
 
 traceStartupStep('Initialize backend state', () => initialize_state(appEventChannel))
@@ -790,6 +826,7 @@ const addServerToInstanceModal = ref()
 const incompatibilityWarningModal = ref()
 const installToPlayModal = ref()
 const sharedInstanceInviteHandler = ref()
+const sharedInstanceLockNotice = ref()
 const updateToPlayModal = ref()
 
 const modrinthLoginModal = ref()
@@ -1200,11 +1237,13 @@ useAppEvent('notification', handleLiveNotification, appEvents)
 async function handleLiveNotification(notification) {
 	if (!liveNotificationsEnabled || !notification?.body || notification.read) return
 	if (await sharedInstanceInviteHandler.value?.handleNotification(notification)) return
+	if (await sharedInstanceLockNotice.value?.handleNotification(notification)) return
 }
 
 function clearLiveNotifications() {
 	liveNotificationsEnabled = false
 	sharedInstanceInviteHandler.value?.clearNotifications()
+	sharedInstanceLockNotice.value?.clearNotifications()
 }
 
 async function handleCommand(e) {
@@ -1232,7 +1271,7 @@ async function handleCommand(e) {
 		}
 	} else if (e.event === 'LaunchInstance') {
 		const instance = await getInstance(e.id).catch(handleError)
-		if (!instance || instance.quarantined) return
+		if (!instance || instance.launch_blocked) return
 
 		if (e.server) {
 			await start_join_server(e.id, e.server).catch(handleError)
@@ -1241,6 +1280,8 @@ async function handleCommand(e) {
 		} else {
 			await run(e.id).catch(handleError)
 		}
+	} else if (e.event === 'PlayHostingServer') {
+		await serverPlay.play({ serverId: e.server_id, worldId: e.world_id }).catch(handleError)
 	} else if (e.event === 'InstallSharedInstanceInvite') {
 		await sharedInstanceInviteHandler.value?.installFromInviteId(e.invite_id)
 	} else if (e.event === 'InstallServer') {
@@ -1707,6 +1748,12 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 			@create="handleCreate"
 			@browse-modpacks="handleBrowseModpacks"
 		/>
+		<ServerOnboardingModal
+			browse-path="/browse/modpack"
+			:get-loader-manifest="getLoaderManifest"
+			:navigate="(to) => router.push(to)"
+			:page-ready="onboardingPageReady"
+		/>
 		<IconEditorModal
 			ref="creationIconEditorModal"
 			:config="creationGeneratedIcon?.config"
@@ -1714,6 +1761,8 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 		/>
 		<UnknownPackWarningModal ref="unknownPackWarningModal" />
 		<BlockedFilesModal ref="blockedFilesModal" />
+		<InstanceActionModals ref="instanceActionModals" />
+		<SharedInstanceModals ref="sharedInstanceModals" />
 		<div
 			class="app-grid-navbar bg-bg-raised flex flex-col p-[0.5rem] pt-0 gap-[0.25rem] w-[--left-bar-width]"
 		>
@@ -1965,6 +2014,7 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 		@go-to-instance="handleContentInstallModpackDuplicateGoToInstance"
 	/>
 	<SharedInstanceInviteHandler ref="sharedInstanceInviteHandler" />
+	<SharedInstanceLockNotice ref="sharedInstanceLockNotice" />
 	<InstallToPlayModal ref="installToPlayModal" :show-external-warnings="false" />
 	<UpdateToPlayModal ref="updateToPlayModal" :show-external-warnings="false" />
 </template>

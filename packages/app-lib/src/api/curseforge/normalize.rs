@@ -232,7 +232,8 @@ impl SourceVersion {
         }
         if loaders.is_empty() {
             match project_type {
-                SourceProjectType::ResourcePack | SourceProjectType::ShaderPack => {
+                SourceProjectType::ResourcePack
+                | SourceProjectType::ShaderPack => {
                     loaders.push("minecraft".to_string());
                 }
                 SourceProjectType::DataPack => {
@@ -296,7 +297,13 @@ pub fn split_file_game_data(
         let lower = version.to_ascii_lowercase();
         if matches!(
             lower.as_str(),
-            "forge" | "neoforge" | "fabric" | "quilt" | "iris" | "optifine"
+            "forge"
+                | "neoforge"
+                | "fabric"
+                | "quilt"
+                | "iris"
+                | "optifine"
+                | "canvas"
         ) {
             loaders.push(lower);
         } else if !matches!(lower.as_str(), "client" | "server")
@@ -428,11 +435,8 @@ mod tests {
             "dependencies": [{ "modId": 789, "relationType": 3 }]
         }))
         .unwrap();
-        let version = SourceVersion::from_cf(
-            file,
-            None,
-            SourceProjectType::Mod,
-        );
+        let version =
+            SourceVersion::from_cf(file, None, SourceProjectType::Mod);
         assert_eq!(version.id, "456");
         assert_eq!(version.version_type, "release");
         assert_eq!(version.files.len(), 1);
@@ -495,27 +499,25 @@ mod tests {
             "gameVersions": ["Client", "1.21.1"]
         }))
         .unwrap();
-        let version = SourceVersion::from_cf(
-            file,
-            None,
-            SourceProjectType::ResourcePack,
-        );
+        let version =
+            SourceVersion::from_cf(file, None, SourceProjectType::ResourcePack);
         assert_eq!(version.loaders, vec!["minecraft".to_string()]);
         assert_eq!(version.game_versions, vec!["1.21.1".to_string()]);
     }
 
     #[test]
     fn project_loaders_map_platform_tags() {
-        let mod_project: CFProject = serde_json::from_value(serde_json::json!({
-            "id": 1,
-            "classId": 6,
-            "latestFilesIndexes": [
-                { "fileId": 1, "modLoader": 1 },
-                { "fileId": 2, "modLoader": 6 },
-                { "fileId": 3, "modLoader": 4 }
-            ]
-        }))
-        .unwrap();
+        let mod_project: CFProject =
+            serde_json::from_value(serde_json::json!({
+                "id": 1,
+                "classId": 6,
+                "latestFilesIndexes": [
+                    { "fileId": 1, "modLoader": 1 },
+                    { "fileId": 2, "modLoader": 6 },
+                    { "fileId": 3, "modLoader": 4 }
+                ]
+            }))
+            .unwrap();
         assert_eq!(
             project_loaders(&mod_project),
             vec![
@@ -534,10 +536,7 @@ mod tests {
                     "classId": class_id
                 }))
                 .unwrap();
-            assert_eq!(
-                project_loaders(&project),
-                vec![expected.to_string()]
-            );
+            assert_eq!(project_loaders(&project), vec![expected.to_string()]);
         }
     }
 }

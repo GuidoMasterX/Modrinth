@@ -126,7 +126,9 @@ async fn cached_or_empty<T>(
     match fetch.await {
         Ok(values) => values,
         Err(err) => {
-            tracing::warn!("Unable to fetch {what}: {err}; continuing without it");
+            tracing::warn!(
+                "Unable to fetch {what}: {err}; continuing without it"
+            );
             Vec::new()
         }
     }
@@ -167,6 +169,7 @@ struct InstanceInstallCandidateRow {
     icon_path: Option<String>,
     game_version: String,
     loader: String,
+    update_channel: String,
     installed: i64,
     content_set_id: String,
 }
@@ -189,6 +192,7 @@ pub(crate) async fn get_instance_install_candidates(
 			i.icon_path,
 			cs.game_version,
 			cs.loader,
+			i.update_channel,
 			CASE
 				WHEN EXISTS (
 					SELECT 1
@@ -268,9 +272,10 @@ pub(crate) async fn get_instance_install_candidates(
             )
             .await
             {
-                let counterpart =
-                    super::source_link::get_source_counterpart(&row.id, &path, state)
-                        .await;
+                let counterpart = super::source_link::get_source_counterpart(
+                    &row.id, &path, state,
+                )
+                .await;
                 let is_viewed_project = if viewing_is_curseforge {
                     counterpart.curseforge_project_id == cf_project_id
                 } else {
@@ -290,6 +295,7 @@ pub(crate) async fn get_instance_install_candidates(
             icon_path: row.icon_path,
             game_version: row.game_version,
             loader,
+            update_channel: ReleaseChannel::from_key(&row.update_channel),
             installed,
             compatible,
             switchable: switchable_path.is_some(),
@@ -894,11 +900,12 @@ async fn content_projects_for_scope_inner(
             &state.pool,
         )
         .await?;
-    let update_skips = sqlite::content_rows::get_content_update_skips_for_content_set(
-        &resolved.content_set.id,
-        &state.pool,
-    )
-    .await?;
+    let update_skips =
+        sqlite::content_rows::get_content_update_skips_for_content_set(
+            &resolved.content_set.id,
+            &state.pool,
+        )
+        .await?;
     let entries_by_file_id = entries
         .iter()
         .filter_map(|entry| {
@@ -915,7 +922,12 @@ async fn content_projects_for_scope_inner(
         .map(|file| file.sha1.as_str())
         .collect::<Vec<_>>();
     let (file_info, file_info_live) = cached_or_stale(
-        CachedEntry::get_file_many(&hashes, cache_behaviour, &state.pool, &state.api_semaphore),
+        CachedEntry::get_file_many(
+            &hashes,
+            cache_behaviour,
+            &state.pool,
+            &state.api_semaphore,
+        ),
         CachedEntry::get_file_many(
             &hashes,
             Some(CacheBehaviour::StaleWhileRevalidateSkipOffline),
@@ -1097,9 +1109,8 @@ async fn content_projects_for_scope_inner(
                     if metadata.project_id != project_id {
                         return None;
                     }
-                    let versions = updates_by_hash
-                        .remove(&file.sha1)
-                        .unwrap_or_default();
+                    let versions =
+                        updates_by_hash.remove(&file.sha1).unwrap_or_default();
                     if versions
                         .iter()
                         .any(|version| version.id == metadata.version_id)
@@ -1130,10 +1141,9 @@ async fn content_projects_for_scope_inner(
             if entry.updates_ignored
                 || skipped.is_some() && skipped == update_version_id.as_deref()
             {
-                update_skipped = skipped
-                    .is_some_and(|skipped| {
-                        update_version_id.as_deref() == Some(skipped)
-                    });
+                update_skipped = skipped.is_some_and(|skipped| {
+                    update_version_id.as_deref() == Some(skipped)
+                });
                 update_version_id = None;
             }
         }
@@ -1143,7 +1153,8 @@ async fn content_projects_for_scope_inner(
             ContentFile {
                 on_disk_path: content_file_path(&file),
                 update_version_id,
-                updates_ignored: entry.is_some_and(|entry| entry.updates_ignored),
+                updates_ignored: entry
+                    .is_some_and(|entry| entry.updates_ignored),
                 update_skipped,
                 hash: file.sha1,
                 file_name: file.file_name,
@@ -1287,62 +1298,63 @@ async fn content_files_to_content_items(
         .iter()
         .map(String::as_str)
         .collect::<Vec<_>>();
-    let (cf_projects_by_id, cf_files_by_id) =
-        if !project_keys.is_empty() || !file_keys.is_empty() {
-            let joined = tokio::try_join!(
-                async {
-                    if project_keys.is_empty() {
-                        Ok(Vec::new())
-                    } else {
-                        CachedEntry::get_curseforge_project_many(
-                            &project_keys,
-                            cache_behaviour,
-                            &state.pool,
-                            &state.api_semaphore,
-                        )
-                        .await
-                    }
-                },
-                async {
-                    if file_keys.is_empty() {
-                        Ok(Vec::new())
-                    } else {
-                        CachedEntry::get_curseforge_file_many(
-                            &file_keys,
-                            cache_behaviour,
-                            &state.pool,
-                            &state.api_semaphore,
-                        )
-                        .await
-                    }
+    let (cf_projects_by_id, cf_files_by_id) = if !project_keys.is_empty()
+        || !file_keys.is_empty()
+    {
+        let joined = tokio::try_join!(
+            async {
+                if project_keys.is_empty() {
+                    Ok(Vec::new())
+                } else {
+                    CachedEntry::get_curseforge_project_many(
+                        &project_keys,
+                        cache_behaviour,
+                        &state.pool,
+                        &state.api_semaphore,
+                    )
+                    .await
                 }
-            );
-            let (cf_projects, cf_files) = match joined {
-                Ok(pair) => pair,
-                Err(err) => {
-                    tracing::warn!(
-                        "Unable to fetch CurseForge project/file metadata: {err}; continuing without it"
-                    );
-                    (Vec::new(), Vec::new())
+            },
+            async {
+                if file_keys.is_empty() {
+                    Ok(Vec::new())
+                } else {
+                    CachedEntry::get_curseforge_file_many(
+                        &file_keys,
+                        cache_behaviour,
+                        &state.pool,
+                        &state.api_semaphore,
+                    )
+                    .await
                 }
-            };
-            (
-                cf_projects
-                    .into_iter()
-                    .filter_map(|project| {
-                        project.id.parse::<i64>().ok().map(|id| (id, project))
-                    })
-                    .collect::<HashMap<i64, SourceProject>>(),
-                cf_files
-                    .into_iter()
-                    .filter_map(|file| {
-                        file.id.parse::<i64>().ok().map(|id| (id, file))
-                    })
-                    .collect::<HashMap<i64, SourceVersionFile>>(),
-            )
-        } else {
-            (HashMap::new(), HashMap::new())
+            }
+        );
+        let (cf_projects, cf_files) = match joined {
+            Ok(pair) => pair,
+            Err(err) => {
+                tracing::warn!(
+                    "Unable to fetch CurseForge project/file metadata: {err}; continuing without it"
+                );
+                (Vec::new(), Vec::new())
+            }
         };
+        (
+            cf_projects
+                .into_iter()
+                .filter_map(|project| {
+                    project.id.parse::<i64>().ok().map(|id| (id, project))
+                })
+                .collect::<HashMap<i64, SourceProject>>(),
+            cf_files
+                .into_iter()
+                .filter_map(|file| {
+                    file.id.parse::<i64>().ok().map(|id| (id, file))
+                })
+                .collect::<HashMap<i64, SourceVersionFile>>(),
+        )
+    } else {
+        (HashMap::new(), HashMap::new())
+    };
     let meta = resolve_metadata(
         &project_ids,
         &version_ids,
@@ -1505,38 +1517,48 @@ async fn content_files_to_content_items(
 }
 
 fn merge_cross_source_authors(items: &mut [ContentItem]) {
-	let modrinth_owners: HashMap<String, (String, String, Option<String>)> = items
-		.iter()
-		.filter_map(|item| {
-			let owner = item.owner.as_ref()?;
-			if owner.owner_type != OwnerType::User || owner.id.starts_with("cf-author-") {
-				return None;
-			}
-			Some((
-				owner.name.trim().to_lowercase(),
-				(owner.id.clone(), owner.name.clone(), owner.avatar_url.clone()),
-			))
-		})
-		.collect();
+    let modrinth_owners: HashMap<String, (String, String, Option<String>)> =
+        items
+            .iter()
+            .filter_map(|item| {
+                let owner = item.owner.as_ref()?;
+                if owner.owner_type != OwnerType::User
+                    || owner.id.starts_with("cf-author-")
+                {
+                    return None;
+                }
+                Some((
+                    owner.name.trim().to_lowercase(),
+                    (
+                        owner.id.clone(),
+                        owner.name.clone(),
+                        owner.avatar_url.clone(),
+                    ),
+                ))
+            })
+            .collect();
 
-	for item in items.iter_mut() {
-		let Some(owner) = item.owner.as_mut() else {
-			continue;
-		};
-		if owner.owner_type != OwnerType::User || !owner.id.starts_with("cf-author-") {
-			continue;
-		}
-		let Some((id, name, avatar_url)) = modrinth_owners.get(&owner.name.trim().to_lowercase())
-		else {
-			continue;
-		};
-		*owner = ContentItemOwner {
-			id: id.clone(),
-			name: name.clone(),
-			avatar_url: avatar_url.clone().or_else(|| owner.avatar_url.clone()),
-			owner_type: OwnerType::User,
-		};
-	}
+    for item in items.iter_mut() {
+        let Some(owner) = item.owner.as_mut() else {
+            continue;
+        };
+        if owner.owner_type != OwnerType::User
+            || !owner.id.starts_with("cf-author-")
+        {
+            continue;
+        }
+        let Some((id, name, avatar_url)) =
+            modrinth_owners.get(&owner.name.trim().to_lowercase())
+        else {
+            continue;
+        };
+        *owner = ContentItemOwner {
+            id: id.clone(),
+            name: name.clone(),
+            avatar_url: avatar_url.clone().or_else(|| owner.avatar_url.clone()),
+            owner_type: OwnerType::User,
+        };
+    }
 }
 
 struct ResolvedMetadata {

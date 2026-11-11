@@ -23,6 +23,7 @@ import {
 	defineMessages,
 	formatProjectTypeSentence,
 	getLatestMatchingInstallVersion,
+	getProjectVersionFilterQuery,
 	getSelectedInstallPreferences,
 	getTargetInstallPreferences,
 	injectNotificationManager,
@@ -240,6 +241,7 @@ async function refreshInstalledProjectIds() {
 	if (!route.query.i) {
 		const instances = await queryClient
 			.fetchQuery({
+				networkMode: 'always' as const,
 				queryKey: [...instanceKeys.all, 'installed-project-ids'],
 				queryFn: listInstances,
 				staleTime: 0,
@@ -259,6 +261,7 @@ async function refreshInstalledProjectIds() {
 		const targetInstanceId = route.query.i as string
 		const worlds = await queryClient
 			.fetchQuery({
+				networkMode: 'always' as const,
 				queryKey: instanceKeys.installedProjectIds(targetInstanceId, 'worlds'),
 				queryFn: () => get_instance_worlds(targetInstanceId),
 				staleTime: 0,
@@ -277,6 +280,7 @@ async function refreshInstalledProjectIds() {
 	const targetInstanceId = route.query.i as string
 	const ids = await queryClient
 		.fetchQuery({
+			networkMode: 'always' as const,
 			queryKey: instanceKeys.installedProjectIds(targetInstanceId, 'content'),
 			queryFn: () => getInstalledProjectIds(targetInstanceId),
 			staleTime: 0,
@@ -631,11 +635,16 @@ function setProjectInstalling(projectId: string, installing: boolean) {
 }
 
 function getCurrentSelectedInstallPreferences(projectTypeValue: string) {
+	const isCf = searchState.isCfSource.value
 	return getSelectedInstallPreferences({
 		contentType: projectTypeValue,
-		selectedFilters: searchState.currentFilters.value,
+		selectedFilters: isCf
+			? searchState.curseforgeCurrentFilters.value
+			: searchState.currentFilters.value,
 		providedFilters: combinedProvidedFilters.value,
-		overriddenProvidedFilterTypes: searchState.overriddenProvidedFilterTypes.value,
+		overriddenProvidedFilterTypes: isCf
+			? searchState.curseforgeOverriddenProvidedFilterTypes.value
+			: searchState.overriddenProvidedFilterTypes.value,
 	})
 }
 
@@ -678,6 +687,7 @@ async function chooseInstanceInstallVersion(
 	const selectedVersion = getLatestMatchingInstallVersion(
 		await getInstallProjectVersions(project.project_id),
 		selectedPreferences,
+		targetInstance.update_channel,
 	)
 
 	if (!selectedVersion) {
@@ -691,6 +701,7 @@ async function chooseFilterMatchingInstallVersion(
 	project: Labrinth.Search.v3.ResultSearchProject,
 	projectTypeValue: string,
 ) {
+	const isCf = searchState.isCfSource.value
 	const plan = await resolveInstallPlan({
 		project: {
 			project_id: project.project_id,
@@ -698,9 +709,13 @@ async function chooseFilterMatchingInstallVersion(
 			icon_url: project.icon_url,
 		},
 		contentType: projectTypeValue as BrowseInstallContentType,
-		selectedFilters: searchState.currentFilters.value,
+		selectedFilters: isCf
+			? searchState.curseforgeCurrentFilters.value
+			: searchState.currentFilters.value,
 		providedFilters: combinedProvidedFilters.value,
-		overriddenProvidedFilterTypes: searchState.overriddenProvidedFilterTypes.value,
+		overriddenProvidedFilterTypes: isCf
+			? searchState.curseforgeOverriddenProvidedFilterTypes.value
+			: searchState.overriddenProvidedFilterTypes.value,
 		targetPreferences: {},
 		getProjectVersions: getInstallProjectVersions,
 	})
@@ -812,6 +827,7 @@ async function search(requestParams: string) {
 	const isServer = projectType.value === 'server'
 
 	const rawResults = await queryClient.fetchQuery({
+		networkMode: 'always' as const,
 		queryKey: ['search', 'v3', requestParams],
 		queryFn: () =>
 			get_search_results_v3(requestParams, 'must_revalidate') as Promise<{
@@ -892,6 +908,7 @@ async function searchCurseforge(requestParams: string) {
 	debugLog('searching curseforge', requestParams)
 	try {
 		const response = (await queryClient.fetchQuery({
+			networkMode: 'always' as const,
 			queryKey: ['search', 'curseforge', requestParams],
 			queryFn: () => get_curseforge_search_results(requestParams, 'must_revalidate'),
 			staleTime: 30_000,
@@ -1141,7 +1158,17 @@ provideBrowseManager({
 	dismissedPhotosensitivityFilterWarning,
 	getProjectLink: (result: Labrinth.Search.v3.ResultSearchProject) => ({
 		path: `/project/${result.project_id ?? result.slug}`,
-		query: getProjectBrowseQuery(),
+		query: isCfProjectId(result.project_id)
+			? getProjectBrowseQuery()
+			: {
+					...getProjectBrowseQuery(),
+					...getProjectVersionFilterQuery({
+						contentType: projectType.value,
+						selectedFilters: searchState.currentFilters.value,
+						providedFilters: combinedProvidedFilters.value,
+						overriddenProvidedFilterTypes: searchState.overriddenProvidedFilterTypes.value,
+					}),
+				},
 	}),
 	getServerProjectLink: (result: Labrinth.Search.v3.ResultSearchProject) => ({
 		path: `/project/${result.slug ?? result.project_id}`,

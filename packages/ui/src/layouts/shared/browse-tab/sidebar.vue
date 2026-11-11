@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { InfoIcon, XIcon } from '@modrinth/assets'
-import { computed, nextTick, toValue, useTemplateRef, watch } from 'vue'
+import { computed, nextTick, ref, toValue, useTemplateRef, watch } from 'vue'
 
 import { IconButton } from '#ui/components/base/buttons'
 import Toggle from '#ui/components/base/Toggle.vue'
@@ -9,9 +9,11 @@ import SearchSidebarFilter from '#ui/components/search/SearchSidebarFilter.vue'
 import { useVIntl } from '#ui/composables/i18n'
 import { useAdvancedPrefs } from '#ui/utils/advanced-filter-preferences'
 import { commonMessages } from '#ui/utils/common-messages'
+import { LOADER_FILTER_TYPES } from '#ui/utils/search'
 
 import AdvancedFiltersPersistenceNote from './components/AdvancedFiltersPersistenceNote.vue'
 import { mapProvidedFiltersToCf } from './composables/use-browse-search'
+import { useServerEnvironmentFilter } from './composables/use-server-environment-filter'
 import { injectBrowseManager } from './providers/browse-manager'
 
 const PHOTOSENSITIVITY_FILTER_OPTION = 'epilepsy_triggers'
@@ -21,8 +23,22 @@ const { formatMessage } = useVIntl()
 const advancedPrefs = useAdvancedPrefs()
 
 const isApp = computed(() => ctx.variant === 'app')
+
+const { filterType: serverEnvironmentFilterType, selection: serverEnvironmentSelection } =
+	useServerEnvironmentFilter(ctx)
+const serverEnvironmentToggledGroups = ref<string[]>([])
 const lockedMessages = computed(() => toValue(ctx.lockedFilterMessages))
 const hiddenFilterTypes = computed(() => ctx.hiddenFilterTypes?.value ?? [])
+const visibleFilters = computed(() => {
+	const filters = ctx.filters.value.filter(
+		(filter) => filter.display !== 'none' && !hiddenFilterTypes.value.includes(filter.id),
+	)
+	if (!isApp.value) return filters
+
+	const priority = (id: string) =>
+		id === 'game_version' ? 2 : LOADER_FILTER_TYPES.some((type) => type === id) ? 1 : 0
+	return filters.sort((a, b) => priority(b.id) - priority(a.id))
+})
 
 const advancedFiltersCollapsed = computed(() => ctx.advancedFiltersCollapsed?.value ?? true)
 const photosensitivityWarningModal = useTemplateRef('photosensitivityWarningModal')
@@ -209,27 +225,13 @@ function handleModrinthFilterOpen(filterId: string, open: boolean) {
 		</div>
 
 		<div
-			v-if="
-				ctx.showHideInstalled?.value || ctx.showHideSelected?.value || ctx.showServerOnly?.value
-			"
+			v-if="ctx.showHideInstalled?.value || ctx.showHideSelected?.value"
 			:class="
 				isApp
 					? 'flex flex-col gap-3 border-0 border-b-[1px] p-4 last:border-b-0 border-[--brand-gradient-border] border-solid'
 					: 'card-shadow flex flex-col gap-3 rounded-2xl bg-bg-raised border-solid border-surface-4 border p-4'
 			"
 		>
-			<label
-				v-if="ctx.showServerOnly?.value"
-				class="flex cursor-pointer items-center justify-between gap-3 text-contrast font-medium"
-			>
-				{{ ctx.serverOnlyLabel?.value ?? formatMessage(commonMessages.serverOnlyLabel) }}
-				<Toggle
-					v-model="ctx.serverOnly!.value"
-					small
-					class="shrink-0"
-					@update:model-value="ctx.onFilterChange()"
-				/>
-			</label>
 			<label
 				v-if="ctx.showHideInstalled?.value"
 				class="flex cursor-pointer items-center justify-between gap-3 text-contrast font-medium"
@@ -257,6 +259,27 @@ function handleModrinthFilterOpen(filterId: string, open: boolean) {
 				/>
 			</label>
 		</div>
+
+		<SearchSidebarFilter
+			v-if="ctx.showServerEnvironment?.value"
+			v-model:selected-filters="serverEnvironmentSelection"
+			v-model:toggled-groups="serverEnvironmentToggledGroups"
+			:provided-filters="[]"
+			:filter-type="serverEnvironmentFilterType"
+			:project-type="ctx.projectType.value"
+			:class="filterClass"
+			:button-class="buttonClass"
+			:content-class="contentClass"
+			:inner-panel-class="innerPanelClass"
+			:selected-project-class="selectedProjectClass"
+			:open-by-default="true"
+		>
+			<template #header>
+				<h3 :class="isApp ? 'text-base m-0' : 'm-0 text-lg font-semibold'">
+					{{ serverEnvironmentFilterType.formatted_name }}
+				</h3>
+			</template>
+		</SearchSidebarFilter>
 
 		<template v-if="ctx.isServerType.value">
 			<SearchSidebarFilter
@@ -301,6 +324,7 @@ function handleModrinthFilterOpen(filterId: string, open: boolean) {
 				:provided-filters="cfProvidedFilters"
 				:filter-type="filterType"
 				:project-type="ctx.projectType.value"
+				:dropdown-direction="isApp ? 'up' : undefined"
 				:class="filterClass"
 				:button-class="buttonClass"
 				:content-class="contentClass"
@@ -319,9 +343,7 @@ function handleModrinthFilterOpen(filterId: string, open: boolean) {
 		</template>
 		<template v-else>
 			<SearchSidebarFilter
-				v-for="filter in ctx.filters.value.filter(
-					(f) => f.display !== 'none' && !hiddenFilterTypes.includes(f.id),
-				)"
+				v-for="filter in visibleFilters"
 				:key="`filter-${filter.id}`"
 				v-model:selected-filters="ctx.currentFilters.value"
 				v-model:toggled-groups="ctx.toggledGroups.value"

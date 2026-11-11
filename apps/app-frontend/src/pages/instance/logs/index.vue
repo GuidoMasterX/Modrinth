@@ -39,6 +39,7 @@ const {
 
 const consoleHydrationQuery = useQuery({
 	queryKey: computed(() => instanceKeys.console(instanceId.value)),
+	networkMode: 'always',
 	queryFn: async () => {
 		await hydrate()
 		return true
@@ -72,6 +73,7 @@ function buildLogList(rawLogs) {
 const logs = ref(buildLogList([]))
 const historicalLogsQuery = useQuery({
 	queryKey: computed(() => instanceKeys.logs(instanceId.value)),
+	networkMode: 'always',
 	queryFn: getHistoricalLogs,
 	staleTime: 0,
 })

@@ -14,6 +14,7 @@ export interface PageContext {
 		horizontalPadding: Ref<number> | ComputedRef<number>
 		requestHorizontalPadding?: (id: symbol, padding: number | null) => void
 		requestVerticalClearance: (id: symbol, clearance: number | null) => void
+		requestHidden?: (id: symbol, hidden: boolean) => void
 	}
 	featureFlags?: {
 		serverRamAsBytesAlwaysOn?: Ref<boolean>

@@ -101,13 +101,15 @@ pub async fn get_curseforge_search_results(
     id: &str,
     cache_behaviour: Option<CacheBehaviour>,
 ) -> Result<Option<BrowseSearchResponse>> {
-    Ok(theseus::cache::get_curseforge_search_results(id, cache_behaviour)
-        .await?
-        .map(|cached| {
-            theseus::data::labrinth_map::search_response_to_browse(
-                &cached.result,
-            )
-        }))
+    Ok(
+        theseus::cache::get_curseforge_search_results(id, cache_behaviour)
+            .await?
+            .map(|cached| {
+                theseus::data::labrinth_map::search_response_to_browse(
+                    &cached.result,
+                )
+            }),
+    )
 }
 
 fn curseforge_project_json(
@@ -117,8 +119,9 @@ fn curseforge_project_json(
         theseus::data::labrinth_map::project_to_labrinth(source),
     )
     .unwrap_or_default();
-    project["website_url"] =
-        serde_json::Value::String(theseus::data::labrinth_map::canonical_project_url(source));
+    project["website_url"] = serde_json::Value::String(
+        theseus::data::labrinth_map::canonical_project_url(source),
+    );
 
     project["cf_members"] = serde_json::Value::Array(
         source
@@ -126,7 +129,10 @@ fn curseforge_project_json(
             .iter()
             .enumerate()
             .map(|(index, author)| {
-                let name = author.name.clone().unwrap_or_else(|| author.id.to_string());
+                let name = author
+                    .name
+                    .clone()
+                    .unwrap_or_else(|| author.id.to_string());
                 serde_json::json!({
                     "team_id": format!("cf-author-{}", author.id),
                     "user": {
@@ -154,7 +160,8 @@ pub async fn get_curseforge_project(
     id: &str,
     cache_behaviour: Option<CacheBehaviour>,
 ) -> Result<Option<serde_json::Value>> {
-    let Some(source) = theseus::cache::get_curseforge_project(id, cache_behaviour).await?
+    let Some(source) =
+        theseus::cache::get_curseforge_project(id, cache_behaviour).await?
     else {
         return Ok(None);
     };
@@ -170,7 +177,8 @@ pub async fn get_curseforge_project_many(
 ) -> Result<Vec<serde_json::Value>> {
     let ids = ids.iter().map(|x| &**x).collect::<Vec<&str>>();
     let sources =
-        theseus::cache::get_curseforge_project_many(&ids, cache_behaviour).await?;
+        theseus::cache::get_curseforge_project_many(&ids, cache_behaviour)
+            .await?;
 
     Ok(sources.iter().map(curseforge_project_json).collect())
 }
@@ -180,17 +188,15 @@ pub async fn get_curseforge_project_versions(
     id: &str,
     cache_behaviour: Option<CacheBehaviour>,
 ) -> Result<Option<Vec<Version>>> {
-    let mut versions = theseus::cache::get_curseforge_project_versions(
-        id,
-        cache_behaviour,
-    )
-    .await?
-    .map(|versions| {
-        versions
-            .iter()
-            .map(theseus::data::labrinth_map::version_to_labrinth)
-            .collect::<Vec<Version>>()
-    });
+    let mut versions =
+        theseus::cache::get_curseforge_project_versions(id, cache_behaviour)
+            .await?
+            .map(|versions| {
+                versions
+                    .iter()
+                    .map(theseus::data::labrinth_map::version_to_labrinth)
+                    .collect::<Vec<Version>>()
+            });
 
     if let Some(versions) = versions.as_mut() {
         versions.sort_by(|a, b| b.date_published.cmp(&a.date_published));
@@ -200,7 +206,10 @@ pub async fn get_curseforge_project_versions(
 }
 
 #[tauri::command]
-pub async fn get_curseforge_file_changelog(mod_id: i64, file_id: i64) -> Result<Option<String>> {
+pub async fn get_curseforge_file_changelog(
+    mod_id: i64,
+    file_id: i64,
+) -> Result<Option<String>> {
     Ok(theseus::cache::get_curseforge_file_changelog(mod_id, file_id).await?)
 }
 
@@ -212,8 +221,6 @@ pub async fn get_curseforge_categories(
 }
 
 #[tauri::command]
-pub async fn get_curseforge_description(
-    id: &str,
-) -> Result<Option<String>> {
+pub async fn get_curseforge_description(id: &str) -> Result<Option<String>> {
     Ok(theseus::cache::get_curseforge_description(id).await?)
 }

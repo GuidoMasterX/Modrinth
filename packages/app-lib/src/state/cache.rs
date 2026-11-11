@@ -9,7 +9,9 @@ use crate::api::curseforge::{
         CFSearchResponse,
     },
 };
-use crate::state::{EmbeddedContentMetadata, ProjectType};
+use crate::state::{
+    EmbeddedContentMetadata, ModLoader, ProjectType, SharedInstanceRole,
+};
 use crate::util::fetch::{FetchSemaphore, fetch_json};
 use anyhow::{Context, bail};
 use chrono::{DateTime, Utc};
@@ -64,6 +66,8 @@ pub enum CacheValueType {
     CurseforgeFileChangelog,
     CurseforgeDescription,
     CurseforgeFingerprints,
+    /// Shared instances the user can access, for showing uninstalled ones in the library
+    SharedInstanceLibrary,
 }
 
 impl CacheValueType {
@@ -101,11 +105,10 @@ impl CacheValueType {
             CacheValueType::CurseforgeProjectLatest => "cf_project_latest_v1",
             CacheValueType::CurseforgeCategories => "cf_categories",
             CacheValueType::CurseforgeFile => "cf_file_v2",
-            CacheValueType::CurseforgeFileChangelog => {
-                "cf_file_changelog_v1"
-            }
+            CacheValueType::CurseforgeFileChangelog => "cf_file_changelog_v1",
             CacheValueType::CurseforgeDescription => "cf_description_v1",
             CacheValueType::CurseforgeFingerprints => "cf_fingerprints",
+            CacheValueType::SharedInstanceLibrary => "shared_instance_library",
         }
     }
 
@@ -146,6 +149,7 @@ impl CacheValueType {
             "cf_file_changelog_v1" => CacheValueType::CurseforgeFileChangelog,
             "cf_description_v1" => CacheValueType::CurseforgeDescription,
             "cf_fingerprints" => CacheValueType::CurseforgeFingerprints,
+            "shared_instance_library" => CacheValueType::SharedInstanceLibrary,
             _ => CacheValueType::Project,
         }
     }
@@ -161,7 +165,8 @@ impl CacheValueType {
             // ModpackFiles never expire - version_id is immutable so hashes never change
             // TODO: There has to be a way to exclude this from the "Purge cache" stuff?
             CacheValueType::ModpackFiles
-            | CacheValueType::EmbeddedContentMetadata => {
+            | CacheValueType::EmbeddedContentMetadata
+            | CacheValueType::SharedInstanceLibrary => {
                 100 * 365 * 24 * 60 * 60 // 100 years (effectively never)
             }
             CacheValueType::SearchResults
@@ -215,7 +220,8 @@ impl CacheValueType {
             | CacheValueType::CurseforgeFile
             | CacheValueType::CurseforgeFileChangelog
             | CacheValueType::CurseforgeDescription
-            | CacheValueType::CurseforgeFingerprints => None,
+            | CacheValueType::CurseforgeFingerprints
+            | CacheValueType::SharedInstanceLibrary => None,
         }
     }
 }
@@ -279,6 +285,23 @@ pub struct CachedCFFingerprints {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct CachedSharedInstanceLibrary {
+    pub user_id: String,
+    pub instances: Vec<CachedSharedInstanceSummary>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct CachedSharedInstanceSummary {
+    pub shared_instance_id: String,
+    pub role: SharedInstanceRole,
+    pub manager_id: Option<String>,
+    pub name: String,
+    pub icon_url: Option<String>,
+    pub game_version: String,
+    pub loader: ModLoader,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct CachedEmbeddedContentMetadata {
     pub cache_key: String,
     pub hash: String,
@@ -333,6 +356,7 @@ pub enum CacheValue {
     CurseforgeFileChangelog(CachedCFChangelog),
     CurseforgeDescription(CachedCFDescription),
     CurseforgeFingerprints(CachedCFFingerprints),
+    SharedInstanceLibrary(CachedSharedInstanceLibrary),
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -523,18 +547,25 @@ pub struct KnownModrinthFile<'a> {
     pub version_id: &'a str,
 }
 
+/// Returns the file's modification time as signed nanoseconds since the Unix
+/// epoch, reinterpreted as `u64` so pre-1970 timestamps stay distinct from one
+/// another and cast back to the correct negative `i64`.
 pub(crate) fn file_modified_at_ns(
     metadata: &std::fs::Metadata,
 ) -> std::io::Result<u64> {
-    let elapsed = metadata
+    let signed_ns = match metadata
         .modified()?
         .duration_since(std::time::UNIX_EPOCH)
-        .map_err(std::io::Error::other)?;
+    {
+        Ok(since_epoch) => {
+            i64::try_from(since_epoch.as_nanos()).unwrap_or(i64::MAX)
+        }
+        Err(before_epoch) => i64::try_from(before_epoch.duration().as_nanos())
+            .map(|ns| -ns)
+            .unwrap_or(i64::MIN),
+    };
 
-    Ok(elapsed
-        .as_secs()
-        .saturating_mul(1_000_000_000)
-        .saturating_add(u64::from(elapsed.subsec_nanos())))
+    Ok(signed_ns as u64)
 }
 
 pub(crate) fn file_hash_cache_key(
@@ -871,6 +902,9 @@ impl CacheValue {
             CacheValue::CurseforgeFingerprints(_) => {
                 CacheValueType::CurseforgeFingerprints
             }
+            CacheValue::SharedInstanceLibrary(_) => {
+                CacheValueType::SharedInstanceLibrary
+            }
         }
     }
 
@@ -937,6 +971,9 @@ impl CacheValue {
             CacheValue::CurseforgeFingerprints(fingerprints) => {
                 fingerprints.fingerprints_key.clone()
             }
+            CacheValue::SharedInstanceLibrary(library) => {
+                library.user_id.clone()
+            }
         }
     }
 
@@ -967,8 +1004,8 @@ impl CacheValue {
             | CacheValue::SearchResultsV3(_)
             | CacheValue::ModpackFiles(_)
             | CacheValue::EmbeddedContentMetadata(_)
-            | CacheValue::ProjectVersions(_) => None,
-            CacheValue::CurseforgeSearchResults(_)
+            | CacheValue::ProjectVersions(_)
+            | CacheValue::CurseforgeSearchResults(_)
             | CacheValue::CurseforgeProject(_)
             | CacheValue::CurseforgeProjectVersions(_)
             | CacheValue::CurseforgeProjectLatest(_)
@@ -976,7 +1013,8 @@ impl CacheValue {
             | CacheValue::CurseforgeFile(_)
             | CacheValue::CurseforgeFileChangelog(_)
             | CacheValue::CurseforgeDescription(_)
-            | CacheValue::CurseforgeFingerprints(_) => None,
+            | CacheValue::CurseforgeFingerprints(_)
+            | CacheValue::SharedInstanceLibrary(_) => None,
         }
     }
 
@@ -1041,6 +1079,9 @@ impl CacheValue {
             CacheValue::CurseforgeFingerprints(fingerprints) => {
                 serde_json::to_value(fingerprints)
             }
+            CacheValue::SharedInstanceLibrary(library) => {
+                serde_json::to_value(library)
+            }
         }
         .context("failed to serialize cache value")?;
 
@@ -1052,7 +1093,8 @@ impl CacheValue {
     Deserialize, Serialize, PartialEq, Eq, Debug, Copy, Clone, Default,
 )]
 #[serde(rename_all = "snake_case")]
-pub enum CacheBehaviour {    /// Serve expired data. If fetch fails / launcher is offline, errors are ignored
+pub enum CacheBehaviour {
+    /// Serve expired data. If fetch fails / launcher is offline, errors are ignored
     /// and expired data is served
     #[default]
     StaleWhileRevalidateSkipOffline,
@@ -2215,6 +2257,7 @@ impl CachedEntry {
                 // Embedded content metadata is populated from local archives.
                 vec![]
             }
+            CacheValueType::SharedInstanceLibrary => vec![],
             CacheValueType::ProjectVersions => {
                 let mut values = vec![];
 
@@ -2428,7 +2471,11 @@ impl CachedEntry {
                                 let mut versions: Vec<SourceVersion> = files
                                     .into_iter()
                                     .map(|file| {
-                                        SourceVersion::from_cf(file, None, project_type)
+                                        SourceVersion::from_cf(
+                                            file,
+                                            None,
+                                            project_type,
+                                        )
                                     })
                                     .collect();
                                 versions.sort_by(|a, b| {
@@ -2579,12 +2626,14 @@ impl CachedEntry {
 
                 let mut files = Vec::new();
                 for chunk in file_ids.chunks(100) {
-                    files.extend(crate::api::curseforge::api::get_files(
-                        chunk,
-                        fetch_semaphore,
-                        pool,
-                    )
-                    .await?);
+                    files.extend(
+                        crate::api::curseforge::api::get_files(
+                            chunk,
+                            fetch_semaphore,
+                            pool,
+                        )
+                        .await?,
+                    );
                 }
 
                 files
@@ -2875,6 +2924,13 @@ impl CachedEntry {
                     "cf_fingerprints",
                 )?)
             }
+            CacheValueType::SharedInstanceLibrary => {
+                CacheValue::SharedInstanceLibrary(parse(
+                    data,
+                    id,
+                    "shared_instance_library",
+                )?)
+            }
         };
 
         Ok(value)
@@ -3044,6 +3100,53 @@ impl CachedEntry {
         }
 
         Ok(None)
+    }
+
+    pub async fn cache_shared_instance_library(
+        user_id: &str,
+        instances: Vec<CachedSharedInstanceSummary>,
+        pool: &SqlitePool,
+    ) -> crate::Result<()> {
+        let entry = CachedEntry {
+            id: user_id.to_string(),
+            alias: None,
+            expires: Utc::now().timestamp()
+                + CacheValueType::SharedInstanceLibrary.expiry(),
+            type_: CacheValueType::SharedInstanceLibrary,
+            data: Some(CacheValue::SharedInstanceLibrary(
+                CachedSharedInstanceLibrary {
+                    user_id: user_id.to_string(),
+                    instances,
+                },
+            )),
+        };
+
+        Self::upsert_many(&[entry], pool).await
+    }
+
+    pub async fn get_shared_instance_library(
+        user_id: &str,
+        pool: &SqlitePool,
+        fetch_semaphore: &FetchSemaphore,
+    ) -> crate::Result<Vec<CachedSharedInstanceSummary>> {
+        let entry = Self::get(
+            CacheValueType::SharedInstanceLibrary,
+            user_id,
+            None,
+            pool,
+            fetch_semaphore,
+        )
+        .await?;
+
+        if let Some(CachedEntry {
+            data: Some(CacheValue::SharedInstanceLibrary(library)),
+            ..
+        }) = entry
+        {
+            return Ok(library.instances);
+        }
+
+        Ok(Vec::new())
     }
 
     /// Get versions for a project (without changelogs for fast loading)

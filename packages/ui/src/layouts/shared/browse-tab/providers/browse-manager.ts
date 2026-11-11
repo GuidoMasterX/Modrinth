@@ -3,7 +3,7 @@ import type { Component, ComputedRef, MaybeRef, Ref, ShallowRef } from 'vue'
 import type { RouteLocationRaw } from 'vue-router'
 
 import { createContext } from '#ui/providers/create-context'
-import type { FilterType, FilterValue, SortType } from '#ui/utils/search'
+import type { FilterType, FilterValue, ServerContentEnvironment, SortType } from '#ui/utils/search'
 
 import type {
 	BrowseInstallContext,
@@ -29,6 +29,8 @@ export interface BrowseManagerContext {
 	curseforgeFilterTypes: ComputedRef<FilterType[]>
 	curseforgeCurrentFilters: Ref<FilterValue[]>
 	curseforgeToggledGroups: Ref<string[]>
+	curseforgeOverriddenProvidedFilterTypes: Ref<string[]>
+	cfProvidedFilters: ComputedRef<FilterValue[]>
 
 	filters: ComputedRef<FilterType[]>
 	currentFilters: Ref<FilterValue[]>
@@ -84,9 +86,8 @@ export interface BrowseManagerContext {
 	hideSelected?: Ref<boolean>
 	showHideSelected?: ComputedRef<boolean>
 	hideSelectedLabel?: ComputedRef<string>
-	serverOnly?: Ref<boolean>
-	showServerOnly?: ComputedRef<boolean>
-	serverOnlyLabel?: ComputedRef<string>
+	serverEnvironment?: Ref<ServerContentEnvironment | null>
+	showServerEnvironment?: ComputedRef<boolean>
 	hiddenFilterTypes?: ComputedRef<string[]>
 	advancedFiltersCollapsed?: Ref<boolean>
 	dismissedPhotosensitivityFilterWarning?: Ref<boolean>

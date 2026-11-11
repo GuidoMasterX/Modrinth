@@ -1,8 +1,7 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import {
 	ArrowLeftRightIcon,
 	DownloadIcon,
-	EyeOffIcon,
 	Link2Icon,
 	LockIcon,
 	MoreVerticalIcon,
@@ -12,7 +11,7 @@ import {
 	TriangleAlertIcon,
 	UploadIcon,
 } from '@modrinth/assets'
-import { capitalizeString } from '@modrinth/utils'
+import { useMagicKeys } from '@vueuse/core'
 import { computed, getCurrentInstance, ref } from 'vue'
 import type { RouteLocationRaw } from 'vue-router'
 
@@ -22,25 +21,27 @@ import BulletDivider from '#ui/components/base/BulletDivider.vue'
 import type { ButtonMenuOption } from '#ui/components/base/buttons'
 import { IconButton, TeleportOverflowMenu } from '#ui/components/base/buttons'
 import Checkbox from '#ui/components/base/Checkbox.vue'
-import FormattedTag from '#ui/components/base/FormattedTag.vue'
 import ProgressSpinner from '#ui/components/base/ProgressSpinner.vue'
 import Toggle from '#ui/components/base/Toggle.vue'
-import { useCompactNumber } from '#ui/composables'
 import { defineMessages, useVIntl } from '#ui/composables/i18n'
-import { commonMessages } from '#ui/utils/common-messages'
-import { useShiftKey } from '#ui/utils/shift-key'
+import { PROJECT_TYPE_ICONS } from '#ui/utils/auto-icons'
+import { commonMessages, getProjectTypeTitleMessage } from '#ui/utils/common-messages'
 import { truncatedTooltip } from '#ui/utils/truncate'
 
 import type {
 	ClientWarningType,
+	ContentCardEmbeddedIcon,
 	ContentCardProject,
 	ContentCardVersion,
+	ContentEnabledForState,
 	ContentOwner,
+	ContentSide,
 	ContentSource,
 } from '../types'
+import ContentCardItemIcon from './ContentCardItemIcon.vue'
+import ContentEnabledFor from './ContentEnabledFor.vue'
 
 const { formatMessage } = useVIntl()
-const { formatCompactNumber } = useCompactNumber()
 
 const messages = defineMessages({
 	selectProject: {
@@ -48,8 +49,16 @@ const messages = defineMessages({
 		defaultMessage: 'Select {project}',
 	},
 	uploaded: {
-		id: 'content.card.uploaded',
-		defaultMessage: 'Uploaded',
+		id: 'content.card.uploaded-file',
+		defaultMessage: 'Uploaded file',
+	},
+	externalFile: {
+		id: 'content.card.external-file',
+		defaultMessage: 'External file',
+	},
+	overrideFile: {
+		id: 'content.card.override-file',
+		defaultMessage: 'Override file',
 	},
 	frozen: {
 		id: 'content.card.frozen',
@@ -80,18 +89,11 @@ const messages = defineMessages({
 		defaultMessage:
 			'Some synced copies are waiting for changes. An instance may be running, have a frozen or incompatible version, or already contain its own copy.',
 	},
-	updateSkippedTooltip: {
-		id: 'content.card.update-skipped-tooltip',
-		defaultMessage: 'The latest version of this project has been ignored',
-	},
-	updatesIgnoredTooltip: {
-		id: 'content.card.updates-ignored-tooltip',
-		defaultMessage: 'Updates are ignored for this project',
-	},
 })
 
 interface Props {
 	project: ContentCardProject
+	projectType?: string
 	projectLink?: string | RouteLocationRaw
 	version?: ContentCardVersion
 	showVersion?: boolean
@@ -99,15 +101,14 @@ interface Props {
 	owner?: ContentOwner
 	source?: ContentSource
 	packageSource?: 'modrinth' | 'curseforge' | null
-	externalUrl?: string
 	external?: boolean
+	externalFile?: boolean
+	overrideFile?: boolean
 	enabled?: boolean
 	locked?: boolean
 	installing?: boolean
 	installProgress?: number | null
 	hasUpdate?: boolean
-	updateSkipped?: boolean
-	updatesIgnored?: boolean
 	isClientOnly?: boolean
 	clientWarning?: ClientWarningType | null
 	synced?: boolean
@@ -123,9 +124,14 @@ interface Props {
 	hideDelete?: boolean
 	hideActions?: boolean
 	inline?: boolean
+	tableLayout?: 'wide' | 'compact' | 'stacked' | 'narrow'
+	enabledForColumn?: boolean
+	enabledFor?: ContentEnabledForState
+	embeddedIcon?: ContentCardEmbeddedIcon
 }
 
 const props = withDefaults(defineProps<Props>(), {
+	projectType: undefined,
 	projectLink: undefined,
 	version: undefined,
 	showVersion: true,
@@ -133,15 +139,14 @@ const props = withDefaults(defineProps<Props>(), {
 	owner: undefined,
 	source: undefined,
 	packageSource: undefined,
-	externalUrl: undefined,
 	external: false,
+	externalFile: false,
+	overrideFile: false,
 	enabled: undefined,
 	locked: false,
 	installing: false,
 	installProgress: undefined,
 	hasUpdate: false,
-	updateSkipped: false,
-	updatesIgnored: false,
 	isClientOnly: false,
 	clientWarning: null,
 	synced: false,
@@ -157,14 +162,31 @@ const props = withDefaults(defineProps<Props>(), {
 	hideDelete: false,
 	hideActions: false,
 	inline: false,
+	tableLayout: undefined,
+	enabledForColumn: false,
+	enabledFor: undefined,
+	embeddedIcon: undefined,
 })
+
+const stacked = computed(() => props.tableLayout === 'stacked' || props.tableLayout === 'narrow')
+const separateVersion = computed(() => props.tableLayout === 'wide')
 
 const selected = defineModel<boolean>('selected')
 
 const projectTitle = computed(() => props.project.title.replace(/§[0-9a-fk-orx]/gi, ''))
+const projectTypeIcon = computed(() => {
+	const type = props.projectType === 'shaderpack' ? 'shader' : props.projectType
+	return type && type in PROJECT_TYPE_ICONS
+		? PROJECT_TYPE_ICONS[type as keyof typeof PROJECT_TYPE_ICONS]
+		: undefined
+})
+const projectTypeLabel = computed(() =>
+	formatMessage(getProjectTypeTitleMessage(props.projectType), { count: 1 }),
+)
 
 const emit = defineEmits<{
 	'update:enabled': [value: boolean]
+	'update:enabled-for': [side: ContentSide, value: boolean]
 	select: [value: boolean, event?: MouseEvent]
 	delete: [event: MouseEvent]
 	update: []
@@ -181,9 +203,12 @@ const hasSwitchVersionListener = computed(
 const hasSwitchSourceListener = computed(
 	() => typeof instance?.vnode.props?.onSwitchSource === 'function',
 )
-const canSwitchSource = computed(() => hasSwitchSourceListener.value && !props.external)
+const canSwitchSource = computed(
+	() => hasSwitchSourceListener.value && !props.external && !props.locked,
+)
 
 const versionNumberRef = ref<HTMLElement | null>(null)
+const compactVersionNumberRef = ref<HTMLElement | null>(null)
 const fileNameRef = ref<HTMLElement | null>(null)
 
 const isDisabled = computed(() => props.disabled || props.installing)
@@ -191,6 +216,11 @@ const isToggleDisabled = computed(() => isDisabled.value || props.toggleDisabled
 const syncStatusLabel = computed(() =>
 	formatMessage(props.syncUpdatePending ? messages.syncUpdatePending : messages.synced),
 )
+const toggleTooltip = computed(() => {
+	if (!isToggleDisabled.value) return undefined
+	return props.toggleDisabledTooltip ?? props.disabledTooltip ?? undefined
+})
+const isContentDisabled = computed(() => props.enabled === false)
 
 const clientWarningMessage = computed(() => {
 	switch (props.clientWarning) {
@@ -203,7 +233,7 @@ const clientWarningMessage = computed(() => {
 	}
 })
 
-const { shift: shiftHeld } = useShiftKey()
+const { shift: shiftHeld } = useMagicKeys()
 const deleteHovered = ref(false)
 const installTooltip = computed(() => {
 	if (!props.installing) return undefined
@@ -230,21 +260,20 @@ const sourcePillMessage = computed(() =>
 <template>
 	<div
 		role="row"
-		class="flex items-center justify-between"
-		:class="{
-			'h-[84px] gap-4 px-3': !inline,
-			'gap-3': inline,
-			'opacity-50 grayscale': disabled && !installing,
-			'opacity-50': installing,
-		}"
+		class="items-center"
+		:class="[
+			tableLayout
+				? [
+						'grid h-[var(--content-row-height)] grid-cols-[var(--content-columns)] gap-x-4 px-3',
+						stacked ? 'gap-y-2 py-3' : '',
+					]
+				: ['flex justify-between', inline ? 'gap-3' : 'h-[74px] gap-4 px-3'],
+			{ 'opacity-50 grayscale': disabled && !installing, 'opacity-50': installing },
+		]"
 	>
 		<div
 			class="flex min-w-0 items-center gap-4"
-			:class="
-				hideActions || !showVersion
-					? 'flex-1'
-					: 'flex-1 @[800px]:w-[45%] @[800px]:shrink-0 @[800px]:flex-none'
-			"
+			:class="tableLayout ? { 'col-span-full': stacked } : 'flex-1'"
 		>
 			<Checkbox
 				v-if="showCheckbox"
@@ -257,16 +286,14 @@ const sourcePillMessage = computed(() =>
 
 			<div
 				class="flex min-w-0 items-center gap-3 transition-[filter,opacity] duration-200"
-				:class="enabled === false && !disabled ? 'grayscale opacity-50' : ''"
+				:class="isContentDisabled && !disabled && !installing ? 'grayscale opacity-50' : ''"
 			>
 				<div v-tooltip="installTooltip" class="relative flex shrink-0 items-center">
-					<Avatar
+					<ContentCardItemIcon
 						:src="project.icon_url"
 						:alt="projectTitle"
-						size="3rem"
-						loading="lazy"
-						no-shadow
-						class="rounded-2xl border border-surface-5"
+						:tint-by="project.id"
+						:embedded-icon="embeddedIcon"
 					/>
 					<div
 						v-if="installing"
@@ -290,30 +317,39 @@ const sourcePillMessage = computed(() =>
 									: undefined
 							"
 							:to="projectLink"
-							class="truncate text-base font-semibold leading-6 text-contrast !decoration-contrast"
+							class="inline-flex min-w-0 items-center gap-1 font-semibold leading-6 text-contrast !decoration-contrast"
 							:class="{ 'hover:underline': projectLink }"
 						>
-							{{ projectTitle }}
+							<component
+								:is="projectTypeIcon"
+								v-if="projectTypeIcon"
+								v-tooltip="projectTypeLabel"
+								class="mx-0.5 size-5 shrink-0 text-icon"
+								aria-hidden="true"
+							/>
+							<span v-if="projectTypeIcon" class="sr-only">{{ projectTypeLabel }}: </span>
+							<span class="min-w-0 truncate">{{ projectTitle }}</span>
 						</AutoLink>
 						<slot name="title-badges" />
-						<AutoLink
-							v-if="packageSource === 'curseforge'"
-							v-tooltip="formatMessage(messages.curseforge)"
-							:to="externalUrl"
-							target="_blank"
-							class="inline-flex shrink-0 items-center gap-1.5 rounded-full px-2 py-1 text-sm font-semibold leading-none @[800px]:hidden"
-							:style="{
-								backgroundColor:
-									'color-mix(in srgb, var(--color-source-curseforge) 18%, transparent)',
-								color: 'var(--color-source-curseforge)',
+						<component
+							:is="canSwitchSource ? 'button' : 'span'"
+							v-if="packageSource"
+							v-tooltip="canSwitchSource ? formatMessage(messages.switchSource) : false"
+							:type="canSwitchSource ? 'button' : undefined"
+							class="inline-flex shrink-0 items-center gap-1.5 rounded-full px-2 py-1 text-sm font-semibold leading-none"
+							:class="{
+								'cursor-pointer transition-[filter] duration-200 hover:brightness-110':
+									canSwitchSource,
 							}"
+							:style="{
+								backgroundColor: `color-mix(in srgb, ${sourcePillColor} 18%, transparent)`,
+								color: sourcePillColor,
+							}"
+							@click="canSwitchSource && emit('switchSource')"
 						>
-							<span
-								class="size-2 rounded-full"
-								:style="{ backgroundColor: 'var(--color-source-curseforge)' }"
-							/>
-							{{ formatMessage(messages.curseforge) }}
-						</AutoLink>
+							<span class="size-2 rounded-full" :style="{ backgroundColor: sourcePillColor }" />
+							{{ formatMessage(sourcePillMessage) }}
+						</component>
 						<span
 							v-if="synced && hideActions"
 							v-tooltip="syncStatusLabel"
@@ -335,6 +371,9 @@ const sourcePillMessage = computed(() =>
 
 					<div class="flex min-w-0 items-center gap-1">
 						<template v-if="source">
+							<span v-if="source.label" class="shrink-0 text-sm leading-5 text-secondary">
+								{{ source.label }}
+							</span>
 							<AutoLink
 								:target="
 									typeof source.link === 'string' && source.link.startsWith('http')
@@ -350,9 +389,8 @@ const sourcePillMessage = computed(() =>
 									:alt="source.project.title"
 									:tint-by="source.project.id"
 									size="1.25rem"
-									loading="lazy"
 									no-shadow
-									class="shrink-0 rounded-md"
+									class="mx-0.5 shrink-0 rounded-md"
 								/>
 								<span class="truncate text-sm leading-5 text-secondary">
 									{{ source.project.title }}
@@ -367,7 +405,7 @@ const sourcePillMessage = computed(() =>
 									: undefined
 							"
 							:to="owner.link"
-							class="flex shrink-0 items-center gap-1 !decoration-secondary"
+							class="flex min-w-0 items-center gap-1 !decoration-secondary"
 							:class="{ 'hover:underline': owner.link }"
 						>
 							<Avatar
@@ -375,18 +413,28 @@ const sourcePillMessage = computed(() =>
 								:alt="owner.name"
 								size="1.5rem"
 								:circle="owner.type === 'user'"
-								loading="lazy"
 								no-shadow
 								class="shrink-0"
 							/>
-							<span class="text-sm leading-5 text-secondary">{{ owner.name }}</span>
+							<span class="truncate text-sm leading-5 text-secondary">{{ owner.name }}</span>
 						</AutoLink>
 						<span v-else-if="external" class="flex items-center gap-1 text-secondary">
-							<UploadIcon class="size-4 shrink-0" />
-							<span class="text-sm leading-5">{{ formatMessage(messages.uploaded) }}</span>
+							<UploadIcon class="mx-1 size-4 shrink-0" />
+							<span class="text-sm leading-5">{{
+								formatMessage(
+									overrideFile
+										? messages.overrideFile
+										: externalFile
+											? messages.externalFile
+											: messages.uploaded,
+								)
+							}}</span>
 						</span>
-						<template v-if="showVersion && version && !external">
-							<BulletDivider class="shrink-0 @[800px]:hidden" />
+						<template v-if="showVersion && version?.version_number && !external">
+							<BulletDivider
+								class="shrink-0"
+								:class="tableLayout ? { hidden: separateVersion } : '@[800px]:hidden'"
+							/>
 							<AutoLink
 								:target="
 									typeof versionLink === 'string' && versionLink.startsWith('http')
@@ -394,123 +442,88 @@ const sourcePillMessage = computed(() =>
 										: undefined
 								"
 								:to="versionLink"
-								class="truncate text-sm leading-5 text-secondary !decoration-secondary @[800px]:hidden"
-								:class="{ 'hover:underline': versionLink }"
+								class="min-w-0 text-sm leading-5 text-secondary !decoration-secondary"
+								:class="[
+									tableLayout ? { hidden: separateVersion } : '@[800px]:hidden',
+									{ 'hover:underline': versionLink },
+								]"
 							>
-								{{ version.version_number }}
-							</AutoLink>
-						</template>
-						<template v-if="project.downloads || project.categories?.length">
-							<BulletDivider class="shrink-0" />
-							<span
-								v-if="project.downloads"
-								v-tooltip="
-									capitalizeString(
-										formatMessage(commonMessages.projectDownloads, {
-											count: project.downloads,
-										}),
-									)
-								"
-								class="flex shrink-0 items-center gap-1 text-sm leading-5 text-secondary"
-							>
-								<DownloadIcon class="size-4 shrink-0" aria-hidden="true" />
-								{{ formatCompactNumber(project.downloads) }}
-							</span>
-							<template v-if="project.categories?.length">
-								<BulletDivider v-if="project.downloads" class="shrink-0" />
 								<span
-									v-for="category in project.categories?.slice(0, 2)"
-									:key="category"
-									class="inline-flex shrink-0 items-center rounded-full border-[1px] border-solid border-surface-5 bg-[--_bg-color,var(--color-button-bg)] px-1.5 py-0.5 text-xs leading-none font-normal text-nowrap text-secondary"
+									ref="compactVersionNumberRef"
+									v-tooltip="truncatedTooltip(compactVersionNumberRef, version.version_number)"
+									class="block truncate"
 								>
-									<FormattedTag :tag="category" />
+									{{ version.version_number }}
 								</span>
-							</template>
+							</AutoLink>
 						</template>
 					</div>
 				</div>
 			</div>
 		</div>
 
+		<div v-if="enabledForColumn || enabledFor" class="min-w-0">
+			<ContentEnabledFor
+				v-if="enabledFor"
+				:reserve-status-space="enabledForColumn"
+				:model-value="enabledFor"
+				:loading="installing"
+				:disabled="isDisabled"
+				:disabled-tooltip="isDisabled ? disabledTooltip : undefined"
+				@update:model-value="(side, value) => emit('update:enabled-for', side, value)"
+			/>
+		</div>
+
 		<div
 			v-if="showVersion"
-			class="hidden flex-col gap-0.5 transition-[filter,opacity] duration-200 @[800px]:flex"
+			class="min-w-0 flex-col gap-0.5 transition-[filter,opacity] duration-200"
 			:class="[
-				hideActions ? 'flex-1' : 'flex-1 min-w-0',
-				enabled === false && !disabled ? 'grayscale opacity-50' : '',
+				tableLayout ? (separateVersion ? 'flex' : 'hidden') : 'hidden flex-1 @[800px]:flex',
+				isContentDisabled && !disabled && !installing ? 'grayscale opacity-50' : '',
 			]"
 		>
 			<template v-if="version">
-				<div class="flex min-w-0 items-center gap-1.5">
-					<AutoLink
-						v-tooltip="truncatedTooltip(versionNumberRef, version.version_number)"
-						:target="
-							typeof versionLink === 'string' && versionLink.startsWith('http')
-								? '_blank'
-								: undefined
-						"
-						:to="versionLink"
-						class="inline-flex min-w-0 font-semibold leading-6 text-contrast !decoration-contrast"
-						:class="{ 'hover:underline': versionLink, 'cursor-pointer': versionLink }"
-					>
-						<span ref="versionNumberRef" class="truncate">{{
-							version.version_number.slice(0, Math.ceil(version.version_number.length / 2))
-						}}</span
-						><span class="shrink-0">{{
-							version.version_number.slice(Math.ceil(version.version_number.length / 2))
-						}}</span>
-					</AutoLink>
-					<span
-						v-if="updateSkipped || updatesIgnored"
-						v-tooltip="
-							formatMessage(
-								updateSkipped ? messages.updateSkippedTooltip : messages.updatesIgnoredTooltip,
-							)
-						"
-						class="inline-flex shrink-0 items-center text-secondary"
-					>
-						<EyeOffIcon class="size-4" aria-hidden="true" />
-					</span>
-				</div>
+				<AutoLink
+					v-if="version.version_number"
+					v-tooltip="truncatedTooltip(versionNumberRef, version.version_number)"
+					:target="
+						typeof versionLink === 'string' && versionLink.startsWith('http') ? '_blank' : undefined
+					"
+					:to="versionLink"
+					class="inline-flex min-w-0 font-semibold leading-6 text-contrast !decoration-contrast"
+					:class="{ 'hover:underline': versionLink, 'cursor-pointer': versionLink }"
+				>
+					<span ref="versionNumberRef" class="min-w-0 truncate">{{
+						version.version_number.slice(0, Math.ceil(version.version_number.length / 2))
+					}}</span
+					><span class="min-w-0 max-w-[50%] truncate">{{
+						version.version_number.slice(Math.ceil(version.version_number.length / 2))
+					}}</span>
+				</AutoLink>
 				<span
 					v-tooltip="truncatedTooltip(fileNameRef, version.file_name)"
 					class="flex min-w-0 leading-6 text-secondary"
 				>
-					<span ref="fileNameRef" class="truncate">{{
+					<span ref="fileNameRef" class="min-w-0 truncate">{{
 						version.file_name.slice(0, Math.ceil(version.file_name.length / 2))
 					}}</span
-					><span class="shrink-0">{{
+					><span class="min-w-0 max-w-[50%] truncate">{{
 						version.file_name.slice(Math.ceil(version.file_name.length / 2))
 					}}</span>
 				</span>
 			</template>
 		</div>
 
-		<div class="hidden w-32 shrink-0 items-center @[800px]:flex">
-			<component
-				:is="canSwitchSource ? 'button' : 'span'"
-				v-tooltip="canSwitchSource ? formatMessage(messages.switchSource) : false"
-				:type="canSwitchSource ? 'button' : undefined"
-				:class="[
-					'inline-flex w-28 shrink-0 items-center justify-center gap-1.5 rounded-full px-2 py-1 text-sm font-semibold leading-none',
-					{
-						'cursor-pointer transition-[filter] duration-200 hover:brightness-110': canSwitchSource,
-					},
-				]"
-				:style="{
-					backgroundColor: `color-mix(in srgb, ${sourcePillColor} 18%, transparent)`,
-					color: sourcePillColor,
-				}"
-				@click="canSwitchSource && emit('switchSource')"
-			>
-				<span class="size-2 rounded-full" :style="{ backgroundColor: sourcePillColor }" />
-				{{ formatMessage(sourcePillMessage) }}
-			</component>
-		</div>
-
 		<div
 			v-if="!hideActions"
-			class="flex min-w-[160px] shrink-0 items-center justify-end gap-2 transition-colors duration-200"
+			class="flex shrink-0 items-center justify-end gap-2 transition-colors duration-200"
+			:class="
+				tableLayout
+					? tableLayout === 'narrow'
+						? 'justify-self-start'
+						: 'justify-self-end'
+					: 'min-w-[160px]'
+			"
 		>
 			<slot name="additionalButtonsLeft" />
 			<span
@@ -530,7 +543,7 @@ const sourcePillMessage = computed(() =>
 					(hasUpdateListener && hasUpdate) ||
 					(hasSwitchVersionListener && version && !hideSwitchVersion)
 				"
-				class="flex w-8 items-center justify-center"
+				class="flex w-9 shrink-0 items-center justify-center"
 			>
 				<IconButton
 					v-if="locked"
@@ -583,12 +596,8 @@ const sourcePillMessage = computed(() =>
 
 			<Toggle
 				v-if="enabled !== undefined && !hideToggle"
-				v-tooltip="
-					isToggleDisabled && (toggleDisabledTooltip || disabledTooltip)
-						? (toggleDisabledTooltip ?? disabledTooltip)
-						: undefined
-				"
-				:model-value="enabled"
+				v-tooltip="toggleTooltip"
+				:model-value="!isContentDisabled"
 				:disabled="isToggleDisabled"
 				:aria-label="projectTitle"
 				class="my-auto"

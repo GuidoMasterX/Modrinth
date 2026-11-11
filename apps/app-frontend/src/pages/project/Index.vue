@@ -273,13 +273,10 @@ import { computed, ref, shallowRef, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import InstanceIndicator from '@/components/ui/InstanceIndicator.vue'
-import {
-	fetchCachedServerStatus,
-	getFreshCachedServerStatus,
-} from '@/composables/instances/use-server-status-query'
 import { useAppEvent } from '@/composables/use-app-event'
 import { useAppSettings } from '@/composables/use-app-settings.ts'
 import { useCurseforgeKey } from '@/composables/use-curseforge-key'
+import { fetchCachedServerStatus, getFreshCachedServerStatus } from '@/features/servers/queries'
 import {
 	get_curseforge_project_many,
 	get_curseforge_search_results,
@@ -533,7 +530,7 @@ function buildProjectHref(path, extraQuery = {}) {
 function buildBrowseHref(path) {
 	const params = new URLSearchParams()
 	for (const [key, val] of Object.entries(route.query)) {
-		if (key === 'b') continue
+		if (key === 'b' || key === 'g' || key === 'l') continue
 		if (Array.isArray(val)) {
 			for (const v of val) params.append(key, v)
 		} else if (val) {
@@ -803,7 +800,7 @@ async function switchSource() {
 			hit.slug,
 		])
 		if (match) {
-			await router.push(`/project/${match.project_id}`)
+			await router.push({ path: `/project/${match.project_id}`, query: route.query })
 		} else {
 			handleError(formatMessage(messages.switchSourceNotFound))
 		}
@@ -826,7 +823,7 @@ async function switchSource() {
 			}
 			const slugHit = slugResults?.projectHits?.[0]
 			if (slugHit) {
-				await router.push(`/project/${slugHit.project_id}`)
+				await router.push({ path: `/project/${slugHit.project_id}`, query: route.query })
 				return
 			}
 		}
@@ -848,7 +845,7 @@ async function switchSource() {
 			hit.slug,
 		])
 		if (match) {
-			await router.push(`/project/${match.project_id}`)
+			await router.push({ path: `/project/${match.project_id}`, query: route.query })
 		} else {
 			handleError(formatMessage(messages.switchSourceNotFound))
 		}

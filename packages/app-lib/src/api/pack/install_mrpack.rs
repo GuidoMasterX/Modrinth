@@ -500,12 +500,16 @@ pub(crate) fn install_zipped_mrpack_files_with_reporter(
     ignore_lock: bool,
     reason: DownloadReason,
     reporter: InstallProgressReporter,
+    ignore_modpack_servers: bool,
+    preserve_icon: bool,
 ) -> impl Future<Output = crate::Result<String>> + Send + 'static {
     Box::pin(install_zipped_mrpack_files_with_reporter_inner(
         create_pack,
         ignore_lock,
         reason,
         reporter,
+        ignore_modpack_servers,
+        preserve_icon,
     ))
 }
 
@@ -514,6 +518,8 @@ async fn install_zipped_mrpack_files_with_reporter_inner(
     ignore_lock: bool,
     reason: DownloadReason,
     reporter: InstallProgressReporter,
+    ignore_modpack_servers: bool,
+    preserve_icon: bool,
 ) -> crate::Result<String> {
     let state = &State::get().await?;
 
@@ -523,7 +529,7 @@ async fn install_zipped_mrpack_files_with_reporter_inner(
     let project_id = create_pack.description.project_id;
     let version_id = create_pack.description.version_id;
     let instance_id = create_pack.description.instance_id;
-    let mut icon_exists = icon.is_some();
+    let mut icon_exists = preserve_icon || icon.is_some();
     let source_path = pack_source_path(&file);
 
     reporter
@@ -707,7 +713,8 @@ async fn install_zipped_mrpack_files_with_reporter_inner(
                 .filter_map(|f| {
                     f.downloads.iter().find_map(|url| {
                         let parts: Vec<&str> = url.split('/').collect();
-                        let data_idx = parts.iter().position(|&p| p == "data")?;
+                        let data_idx =
+                            parts.iter().position(|&p| p == "data")?;
                         parts.get(data_idx + 1).map(|s| s.to_string())
                     })
                 })
@@ -1106,7 +1113,12 @@ async fn install_zipped_mrpack_files_with_reporter_inner(
                         ))
                         && has_override(&format!("client-overrides/{path}"))
                 });
-            (is_override && !shadowed_sync_override)
+            let ignored_servers = ignore_modpack_servers
+                && filename
+                    .strip_prefix("overrides/")
+                    .or_else(|| filename.strip_prefix("client-overrides/"))
+                    .is_some_and(|path| MODPACK_SERVER_PATHS.contains(&path));
+            (is_override && !shadowed_sync_override && !ignored_servers)
                 .then(|| (index, file.clone()))
         })
         .collect::<Vec<_>>();
@@ -1306,11 +1318,19 @@ async fn install_zipped_mrpack_files_with_reporter_inner(
         }
     }
 
-    crate::api::instance::synced_servers::capture_modpack_server_override(
-        &instance_id,
-        servers_override_path,
-    )
-    .await?;
+    if ignore_modpack_servers {
+        crate::api::instance::synced_servers::discard_modpack_servers(
+            &instance_id,
+            state,
+        )
+        .await?;
+    } else {
+        crate::api::instance::synced_servers::capture_modpack_server_override(
+            &instance_id,
+            servers_override_path,
+        )
+        .await?;
+    }
     if let Err(error) = crate::api::instance::capture_game_options_pack_base(
         &instance_id,
         game_options_override_source,
@@ -1368,29 +1388,73 @@ pub(crate) async fn mrpack_instance_paths(
     mrpack_file: &CreatePackFile,
 ) -> crate::Result<Vec<String>> {
     let mut zip_reader = MrpackZipReader::new(mrpack_file).await?;
-    let Some(manifest_idx) = zip_reader
+    if let Some(manifest_idx) = zip_reader
         .entries()
         .iter()
         .position(|f| matches!(f.name.as_str(), "modrinth.index.json"))
+    {
+        let manifest = zip_reader.read_entry_to_string(manifest_idx).await?;
+        let pack: PackFormat = serde_json::from_str(&manifest)?;
+
+        let mut paths = vec!["icon.png".to_string()];
+        paths.extend(pack.files.iter().map(|file| file.path.to_string()));
+        for entry in zip_reader.entries() {
+            let filename = entry.name.as_str();
+            if filename.ends_with('/') {
+                continue;
+            }
+            let Some(relative) = filename
+                .strip_prefix("overrides/")
+                .or_else(|| filename.strip_prefix("client-overrides/"))
+            else {
+                continue;
+            };
+            if let Ok(relative) =
+                SafeRelativeUtf8UnixPathBuf::try_from(relative.to_string())
+            {
+                paths.push(relative.to_string());
+            }
+        }
+
+        return Ok(paths);
+    }
+
+    let Some(manifest_idx) = zip_reader
+        .entries()
+        .iter()
+        .position(|f| matches!(f.name.as_str(), "manifest.json"))
     else {
         return Err(crate::Error::from(crate::ErrorKind::InputError(
             "No pack manifest found in mrpack".to_string(),
         )));
     };
-    let manifest = zip_reader.read_entry_to_string(manifest_idx).await?;
-    let pack: PackFormat = serde_json::from_str(&manifest)?;
+    let manifest: crate::api::pack::install_curseforge::CFManifest =
+        serde_json::from_str(
+            &zip_reader.read_entry_to_string(manifest_idx).await?,
+        )?;
 
-    let mut paths = vec!["icon.png".to_string()];
-    paths.extend(pack.files.iter().map(|file| file.path.to_string()));
+    // CurseForge manifests only list project/file IDs, so resolve them to
+    // folders conservatively: include every content folder plus overrides.
+    let mut paths = vec![
+        "icon.png".to_string(),
+        crate::api::instance::CONFIG_DIRECTORY.to_string(),
+    ];
+    paths.extend(
+        crate::state::ProjectType::iterator()
+            .map(|project_type| project_type.get_folder().to_string()),
+    );
+    let overrides = if manifest.overrides.is_empty() {
+        "overrides"
+    } else {
+        manifest.overrides.trim_matches('/')
+    };
+    let prefix = format!("{overrides}/");
     for entry in zip_reader.entries() {
         let filename = entry.name.as_str();
         if filename.ends_with('/') {
             continue;
         }
-        let Some(relative) = filename
-            .strip_prefix("overrides/")
-            .or_else(|| filename.strip_prefix("client-overrides/"))
-        else {
+        let Some(relative) = filename.strip_prefix(&prefix) else {
             continue;
         };
         if let Ok(relative) =
@@ -1656,6 +1720,31 @@ mod zip_reader_tests {
         );
         assert_eq!(std::fs::read(&destination).unwrap(), b"previous contents");
         assert_eq!(std::fs::read_dir(directory.path()).unwrap().count(), 1);
+    }
+
+    #[tokio::test]
+    async fn resolves_curseforge_manifest_paths() {
+        let mut writer = zip::ZipWriter::new(Cursor::new(Vec::new()));
+        let options = zip::write::SimpleFileOptions::default()
+            .compression_method(zip::CompressionMethod::Stored);
+        writer.start_file("manifest.json", options).unwrap();
+        writer
+            .write_all(
+                br#"{"name":"Pack","version":"1.0","files":[],"minecraft":{"version":"1.20.1","modLoaders":[]},"overrides":"overrides"}"#,
+            )
+            .unwrap();
+        writer
+            .start_file("overrides/config/example.toml", options)
+            .unwrap();
+        writer.write_all(b"key = true").unwrap();
+        let source =
+            CreatePackFile::Bytes(writer.finish().unwrap().into_inner().into());
+
+        let paths = mrpack_instance_paths(&source).await.unwrap();
+
+        assert!(paths.contains(&"icon.png".to_string()));
+        assert!(paths.contains(&"mods".to_string()));
+        assert!(paths.contains(&"config/example.toml".to_string()));
     }
 
     #[tokio::test]

@@ -1,7 +1,6 @@
 use crate::ErrorKind;
 use crate::event::InstancePayloadType;
 use crate::event::emit::emit_instance;
-use crate::state::instances::adapters::sqlite::instance_rows;
 use crate::state::{
     CacheBehaviour, CachedEntry, ContentSourceKind, ProjectType, State,
 };
@@ -13,7 +12,9 @@ use modrinth_content_management::{
 use std::path::Path;
 
 /// The source an installed file came from.
-#[derive(serde::Serialize, serde::Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(
+    serde::Serialize, serde::Deserialize, Clone, Copy, Debug, PartialEq, Eq,
+)]
 #[serde(rename_all = "lowercase")]
 pub enum InstalledSource {
     Modrinth,
@@ -38,21 +39,28 @@ impl SourceCounterpart {
     /// Whether the installed file can be replaced by its counterpart.
     pub fn can_switch(&self) -> bool {
         match self.source {
-            Some(InstalledSource::Modrinth) => self.curseforge_project_id.is_some(),
-            Some(InstalledSource::CurseForge) => self.modrinth_project_id.is_some(),
+            Some(InstalledSource::Modrinth) => {
+                self.curseforge_project_id.is_some()
+            }
+            Some(InstalledSource::CurseForge) => {
+                self.modrinth_project_id.is_some()
+            }
             _ => false,
         }
     }
 
     pub fn target_source(&self) -> Option<InstalledSource> {
         match self.source {
-            Some(InstalledSource::Modrinth) => Some(InstalledSource::CurseForge),
-            Some(InstalledSource::CurseForge) => Some(InstalledSource::Modrinth),
+            Some(InstalledSource::Modrinth) => {
+                Some(InstalledSource::CurseForge)
+            }
+            Some(InstalledSource::CurseForge) => {
+                Some(InstalledSource::Modrinth)
+            }
             _ => None,
         }
     }
 }
-
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct InstallProjectWithDependenciesRequest {
@@ -358,13 +366,12 @@ pub async fn switch_project_source(
     let metadata = super::get::get(instance_id).await?.ok_or_else(|| {
         crate::ErrorKind::InputError("Unknown instance".to_string())
     })?;
-    let path =
-        crate::state::instances::commands::switch_project_source(
-            instance_id,
-            project_path,
-            &state,
-        )
-        .await?;
+    let path = crate::state::instances::commands::switch_project_source(
+        instance_id,
+        project_path,
+        &state,
+    )
+    .await?;
     super::synced_packs::reconcile_after_content_change(instance_id).await;
     emit_instance(&metadata.instance.id, InstancePayloadType::Edited).await?;
 
@@ -381,7 +388,9 @@ pub async fn get_source_counterpart(
 ) -> crate::Result<SourceCounterpart> {
     let state = State::get().await?;
     Ok(crate::state::instances::commands::get_source_counterpart(
-        instance_id, project_path, &state,
+        instance_id,
+        project_path,
+        &state,
     )
     .await)
 }
@@ -754,20 +763,19 @@ async fn ensure_instance_content_unlocked(
     instance_id: &str,
     state: &State,
 ) -> crate::Result<()> {
-    if instance_rows::is_instance_quarantined(instance_id, &state.pool).await? {
-        bail!(quarantined_content_error());
-    }
-
-    let instance = instance_rows::get_instance_by_id(instance_id, &state.pool)
-        .await?
-        .ok_or(ErrorKind::InputError("unknown instance".to_string()))?;
-    ensure_installation_content_unlocked(instance.install_stage)
+    let metadata = crate::state::instances::commands::get_instance_metadata(
+        instance_id,
+        &state.pool,
+    )
+    .await?
+    .ok_or(ErrorKind::InputError("unknown instance".to_string()))?;
+    ensure_metadata_content_unlocked(&metadata)
 }
 
 pub(super) fn ensure_metadata_content_unlocked(
     metadata: &crate::state::InstanceMetadata,
 ) -> crate::Result<()> {
-    if metadata.quarantined {
+    if metadata.content_locked {
         bail!(quarantined_content_error());
     }
 

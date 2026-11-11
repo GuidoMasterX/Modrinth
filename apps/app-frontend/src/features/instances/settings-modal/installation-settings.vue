@@ -39,6 +39,7 @@ import { instanceKeys } from '@/pages/instance/query-options'
 import { injectAppEvents } from '@/providers/app-events'
 import { provideInstanceBackup } from '@/providers/instance-backup'
 
+import AdvancedInstallationSettings from './advanced-installation-settings.vue'
 import { injectInstanceSettings } from './instance-settings-context.ts'
 import SharedInstanceInstallationSettingsControls from './shared-instance-installation-settings-controls.vue'
 
@@ -70,26 +71,32 @@ function getSupportedModpackLoaders() {
 }
 
 const fabricVersionsQuery = useQuery({
+	networkMode: 'always' as const,
 	queryKey: ['instance-settings', 'loader-versions', 'fabric'],
 	queryFn: () => get_loader_versions('fabric') as Promise<Manifest>,
 })
 const forgeVersionsQuery = useQuery({
+	networkMode: 'always' as const,
 	queryKey: ['instance-settings', 'loader-versions', 'forge'],
 	queryFn: () => get_loader_versions('forge') as Promise<Manifest>,
 })
 const quiltVersionsQuery = useQuery({
+	networkMode: 'always' as const,
 	queryKey: ['instance-settings', 'loader-versions', 'quilt'],
 	queryFn: () => get_loader_versions('quilt') as Promise<Manifest>,
 })
 const neoforgeVersionsQuery = useQuery({
+	networkMode: 'always' as const,
 	queryKey: ['instance-settings', 'loader-versions', 'neo'],
 	queryFn: () => get_loader_versions('neo') as Promise<Manifest>,
 })
 const gameVersionsQuery = useQuery({
+	networkMode: 'always' as const,
 	queryKey: ['instance-settings', 'game-versions'],
 	queryFn: () => get_game_versions() as Promise<GameVersionTag[]>,
 })
 const loadersQuery = useQuery({
+	networkMode: 'always' as const,
 	queryKey: ['instance-settings', 'loaders', 'modpack'],
 	queryFn: getSupportedModpackLoaders,
 })
@@ -125,6 +132,7 @@ const isSharedInstanceManagedModpack = managedContentPolicy.isManagedModpack
 const canUnlinkSharedInstance = managedContentPolicy.canUnlink
 
 const modpackInfoQuery = useQuery({
+	networkMode: 'always' as const,
 	queryKey: computed(() => ['linkedModpackInfo', instance.value.id]),
 	queryFn: () => get_linked_modpack_info(instance.value.id, 'must_revalidate'),
 	enabled: computed(
@@ -138,7 +146,7 @@ const reinstalling = ref(false)
 const unlinkingSharedInstance = ref(false)
 const installationSettingsBusy = computed(
 	() =>
-		instance.value.quarantined ||
+		instance.value.content_locked ||
 		instance.value.install_stage !== 'installed' ||
 		repairing.value ||
 		reinstalling.value ||
@@ -146,7 +154,7 @@ const installationSettingsBusy = computed(
 		!!offline,
 )
 const installationSettingsBusyMessage = computed(() =>
-	instance.value.quarantined ? formatMessage(messages.locked) : null,
+	instance.value.content_locked ? formatMessage(messages.locked) : null,
 )
 
 async function unlinkSharedInstance() {
@@ -502,6 +510,7 @@ provideInstallationSettings({
 				:unlinking="unlinkingSharedInstance"
 				:unlink="unlinkSharedInstance"
 			/>
+			<AdvancedInstallationSettings />
 		</template>
 	</InstallationSettingsLayout>
 </template>

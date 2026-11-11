@@ -44,9 +44,6 @@
   "billing.resubscribe-modal.resubscribe": {
     "defaultMessage": "Reativar"
   },
-  "billing.resubscribe-modal.title": {
-    "defaultMessage": "Renovar Servidor"
-  },
   "browse.advanced-filters.apply-saved-preferences": {
     "defaultMessage": "Aplicar preferências guardadas"
   },
@@ -209,9 +206,6 @@
   "button.refresh": {
     "defaultMessage": "Atualizar"
   },
-  "button.reinstall-modpack": {
-    "defaultMessage": "Reinstalar modpack"
-  },
   "button.remove": {
     "defaultMessage": "Excluir"
   },
@@ -331,9 +325,6 @@
   },
   "content.card.synced": {
     "defaultMessage": "Sincronizado entre instâncias"
-  },
-  "content.card.uploaded": {
-    "defaultMessage": "Carregado"
   },
   "content.confirm-bulk-update.admonition-body": {
     "defaultMessage": "Você tem certeza que deseja atualizar {count, plural, one {# projeto} other {# projetos}} para a última versão compatível? É recomendável atualizar o conteúdo um por um."
@@ -2327,9 +2318,6 @@
   "servers.purchase.step.review.title": {
     "defaultMessage": "Revisão"
   },
-  "servers.region.central-europe": {
-    "defaultMessage": "Europa Central"
-  },
   "servers.region.custom.prompt": {
     "defaultMessage": "Quanta RAM queres que o teu servidor tenha?"
   },
@@ -2341,12 +2329,6 @@
   },
   "servers.region.region-unsupported": {
     "defaultMessage": "Região não listada? <link>Deixa-nos saber onde gostarias de ver Modrinth Hosting a seguir!</link>"
-  },
-  "servers.region.southeast-asia": {
-    "defaultMessage": "Sudeste Asiático"
-  },
-  "servers.region.western-europe": {
-    "defaultMessage": "Europa Ocidental"
   },
   "settings.account.title": {
     "defaultMessage": "Conta e segurança"
@@ -2967,3 +2949,4 @@
     "defaultMessage": "Tipo"
   }
 }
+

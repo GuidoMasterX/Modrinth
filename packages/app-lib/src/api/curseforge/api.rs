@@ -13,9 +13,9 @@ use crate::state::Settings;
 use crate::util::fetch::{FetchSemaphore, fetch_advanced};
 
 use super::structs::{
-    CFCategory, CFData, CFDataVec, CFDescriptionResponse, CFFile, CFFileIdsBody,
-    CFFingerprintsBody, CFFingerprintsResponse, CFModFilesResponse,
-    CFModIdsBody, CFProject, CFSearchResponse,
+    CFCategory, CFData, CFDataVec, CFDescriptionResponse, CFFile,
+    CFFileIdsBody, CFFingerprintsBody, CFFingerprintsResponse,
+    CFModFilesResponse, CFModIdsBody, CFProject, CFSearchResponse,
 };
 
 /// CurseForge caps search page size at 50 results per page.
@@ -23,8 +23,7 @@ pub const CF_MAX_PAGE_SIZE: u32 = 50;
 
 /// Sliding-window pacing for all CurseForge API requests, to avoid 429s
 /// when the app issues bursts (import, content listing, updaters).
-const CF_PACE_WINDOW: std::time::Duration =
-    std::time::Duration::from_secs(60);
+const CF_PACE_WINDOW: std::time::Duration = std::time::Duration::from_secs(60);
 /// Kept well under CurseForge's sustained limit: exceeding it burns the
 /// account's error budget, which then blocks every request for minutes.
 const CF_PACE_MAX_REQUESTS: usize = 20;

@@ -3,19 +3,19 @@
 //! Field names mirror the CurseForge API (camelCase JSON), while the Rust
 //! fields stay snake_case.
 
-use serde::{Deserialize, Serialize};
 use serde::de::DeserializeOwned;
+use serde::{Deserialize, Serialize};
 
 /// Deserializes `null` as `T::default()`; serde's `default` attribute only
 /// covers missing fields, but the CF API returns explicit `null`s (e.g.
 /// `unmatchedFingerprints`).
 fn deserialize_null_default<'de, D, T>(deserializer: D) -> Result<T, D::Error>
 where
-	D: serde::Deserializer<'de>,
-	T: DeserializeOwned + Default,
+    D: serde::Deserializer<'de>,
+    T: DeserializeOwned + Default,
 {
-	let value: Option<T> = Option::deserialize(deserializer)?;
-	Ok(value.unwrap_or_default())
+    let value: Option<T> = Option::deserialize(deserializer)?;
+    Ok(value.unwrap_or_default())
 }
 
 pub const CF_CLASS_MOD: i64 = 6;
