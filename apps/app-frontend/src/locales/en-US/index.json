@@ -1640,6 +1640,9 @@
   "app.project.versions.already-installed": {
     "message": "Already installed"
   },
+  "app.project.versions.load-more": {
+    "message": "Load more versions"
+  },
   "app.project.view-on-curseforge": {
     "message": "View on CurseForge"
   },
