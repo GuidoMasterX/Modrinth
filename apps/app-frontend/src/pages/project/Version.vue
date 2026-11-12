@@ -130,7 +130,13 @@ import {
 	get_project_many,
 	get_version_many,
 } from '@/helpers/cache.js'
-import { CF_ID_PREFIX, cfProjectUrl, isCfProjectId, parseCfId } from '@/helpers/curseforge-project'
+import {
+	CF_ID_PREFIX,
+	cfProjectUrl,
+	getCfVersionsPage,
+	isCfProjectId,
+	parseCfId,
+} from '@/helpers/curseforge-project'
 import { useBreadcrumb } from '@/shared/breadcrumbs'
 
 const { formatMessage } = useVIntl()
@@ -178,6 +184,22 @@ const props = defineProps<{
 }>()
 
 const version = ref(props.versions.find((version) => version.id === route.params.version))
+
+async function ensureCfVersion() {
+	if (version.value || !props.project?.id || !isCfProjectId(props.project.id)) return
+	for (let page = 1; ; page++) {
+		const result = await getCfVersionsPage(props.project.id, page).catch(() => null)
+		if (!result?.versions.length) return
+		const found = result.versions.find((v) => v.id === route.params.version)
+		if (found) {
+			version.value = found
+			return
+		}
+		if (result.versions.length < 50) return
+	}
+}
+
+void ensureCfVersion()
 const serverVersionSelected = computed(
 	() => !!version.value && props.serverSelectedVersionId === version.value.id,
 )
@@ -320,6 +342,7 @@ async function refreshChangelog() {
 watch([() => props.versions, () => route.params.version], async () => {
 	if (route.params.version) {
 		version.value = props.versions.find((v) => v.id === route.params.version)
+		if (!version.value) await ensureCfVersion()
 		cfChangelog.value = undefined
 		await Promise.all([refreshEnrichment(), refreshChangelog()])
 	}
