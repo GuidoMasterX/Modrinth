@@ -1488,7 +1488,16 @@ pub(crate) async fn track_matched_files(
     let matched = files
         .iter()
         .filter(|file| !file.missing)
-        .filter(|file| !entries_by_file_id.contains_key(file.id.as_str()))
+        .filter(|file| {
+            entries_by_file_id
+                .get(file.id.as_str())
+                .is_none_or(|entry| {
+                    entry.project_id.is_none()
+                        && entry.version_id.is_none()
+                        && entry.cf_project_id.is_none()
+                        && entry.cf_version_id.is_none()
+                })
+        })
         .filter_map(|file| {
             let project_type =
                 super::sync_content_files::project_type_for_file(file)?;
@@ -1534,6 +1543,12 @@ pub(crate) async fn track_matched_files(
         content_rows::get_content_entries(&scope.content_set_id, &state.pool)
             .await?
             .into_iter()
+            .filter(|entry| {
+                entry.project_id.is_some()
+                    || entry.version_id.is_some()
+                    || entry.cf_project_id.is_some()
+                    || entry.cf_version_id.is_some()
+            })
             .filter_map(|entry| entry.file_id)
             .collect::<HashSet<_>>();
     let matched = matched

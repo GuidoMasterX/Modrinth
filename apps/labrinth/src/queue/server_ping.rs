@@ -9,9 +9,11 @@ use crate::{database::PgPool, util::error::Context};
 use async_minecraft_ping::ServerDescription;
 use chrono::{TimeDelta, Utc};
 use clickhouse::{Client, Row};
+use eyre::bail;
 use futures::future::join;
 use serde::Serialize;
 use sqlx::types::Json;
+use std::net::IpAddr;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::Semaphore;
@@ -300,6 +302,83 @@ impl ServerPingQueue {
     }
 }
 
+fn is_public_ip(ip: IpAddr) -> bool {
+    match ip {
+        IpAddr::V4(ip) => {
+            let [first, second, ..] = ip.octets();
+            !(ip.is_private()
+                || ip.is_loopback()
+                || ip.is_link_local()
+                || ip.is_broadcast()
+                || ip.is_documentation()
+                || ip.is_unspecified()
+                || ip.is_multicast()
+                || (first == 100 && (64..=127).contains(&second))
+                || (first == 198 && (18..=19).contains(&second)))
+        }
+        IpAddr::V6(ip) => {
+            if let Some(ip) = ip.to_ipv4_mapped() {
+                return is_public_ip(IpAddr::V4(ip));
+            }
+            !(ip.is_loopback()
+                || ip.is_unspecified()
+                || ip.is_multicast()
+                || ip.is_unique_local()
+                || ip.is_unicast_link_local())
+        }
+    }
+}
+
+async fn resolve_public_target(
+    address: &str,
+    port: u16,
+) -> eyre::Result<(String, u16)> {
+    use hickory_resolver::{TokioResolver, proto::rr::RData};
+
+    let mut host = address.to_string();
+    let mut port = port;
+
+    if let Ok(Ok(resolver)) =
+        TokioResolver::builder_tokio().map(|builder| builder.build())
+    {
+        if let Ok(Ok(lookup)) = tokio::time::timeout(
+            Duration::from_secs(2),
+            resolver.srv_lookup(format!("_minecraft._tcp.{address}")),
+        )
+        .await
+        {
+            if let Some(record) =
+                lookup
+                    .answers()
+                    .iter()
+                    .find_map(|record| match &record.data {
+                        RData::SRV(srv) => Some(srv),
+                        _ => None,
+                    })
+            {
+                host =
+                    record.target.to_string().trim_end_matches('.').to_string();
+                port = record.port;
+            }
+        }
+    }
+
+    let mut resolved = tokio::net::lookup_host((host.as_str(), port)).await?;
+    let mut chosen = None;
+    for address in resolved.by_ref() {
+        let ip = address.ip().to_canonical();
+        if !is_public_ip(ip) {
+            bail!("server address resolves to a private or local IP");
+        }
+        chosen.get_or_insert(ip);
+    }
+    let Some(ip) = chosen else {
+        bail!("server address did not resolve");
+    };
+
+    Ok((ip.to_string(), port))
+}
+
 pub async fn ping_server(
     address: &str,
     timeout: Option<Duration>,
@@ -318,10 +397,11 @@ pub async fn ping_server(
         None => (address, 25565),
     };
 
+    let (address, port) = resolve_public_target(address, port).await?;
+
     let task = async move {
         let conn = async_minecraft_ping::ConnectionConfig::build(address)
             .with_port(port)
-            .with_srv_lookup()
             .connect()
             .await
             .wrap_err("failed to connect to server")?;

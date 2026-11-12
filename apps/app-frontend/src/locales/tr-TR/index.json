@@ -1421,9 +1421,6 @@
   "app.nav.switch-account": {
     "message": "Hesap değiştir"
   },
-  "app.nav.upgrade-to-modrinth-plus": {
-    "message": "Modrinth+'a yükselt"
-  },
   "app.nav.view-profile": {
     "message": "Profili görüntüle"
   },

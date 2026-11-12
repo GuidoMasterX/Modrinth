@@ -1511,9 +1511,6 @@
   "app.nav.switch-account": {
     "message": "Konto wechseln"
   },
-  "app.nav.upgrade-to-modrinth-plus": {
-    "message": "Auf Modrinth+ upgraden"
-  },
   "app.nav.view-profile": {
     "message": "Profil anzeigen"
   },
@@ -1756,21 +1753,6 @@
   },
   "app.screenshots.sort.oldest": {
     "message": "Älteste"
-  },
-  "app.server-sharing-update.notification.description": {
-    "message": "Lade Freunde ein, mit einer Instanz zu spielen, die von deinem Server verwaltet wird."
-  },
-  "app.server-sharing-update.notification.dismiss": {
-    "message": "Ausblenden"
-  },
-  "app.server-sharing-update.notification.purchase-description": {
-    "message": "Hol dir einen Server und lade Freunde ein, mit einer Instanz zu spielen, die von ihm verwaltet wird."
-  },
-  "app.server-sharing-update.notification.view-update": {
-    "message": "Update anzeigen"
-  },
-  "app.server-sharing-update.title": {
-    "message": "Server mit Freunden teilen"
   },
   "app.settings.app-version": {
     "message": "Modrinth App {version}"
@@ -3721,24 +3703,6 @@
   },
   "friends.sign-in-to-add-friends": {
     "message": "<link>Melde dich bei einem Modrinth-Konto an</link>, um Freunde hinzuzufügen und zu sehen, was sie gerade spielen!"
-  },
-  "hosting.play.account-changed": {
-    "message": "Dein Modrinth-Konto hat sich geändert. Klicke erneut auf „Server spielen“, um fortzufahren."
-  },
-  "hosting.play.no-address": {
-    "message": "Dieser Server hat noch keine Verbindungsadresse."
-  },
-  "hosting.play.not-ready": {
-    "message": "Diese Instanz kann nicht gestartet werden. Überprüfe ihren Installationsstatus in deiner Bibliothek."
-  },
-  "hosting.play.update-description": {
-    "message": "Aktualisiere diese Instanz auf die neuesten geteilten Inhalte des Servers, bevor du beitrittst."
-  },
-  "hosting.play.update-to-play": {
-    "message": "Zum Spielen aktualisieren"
-  },
-  "hosting.play.world-changed": {
-    "message": "Diese Welt ist nicht mehr aktiv oder wurde nicht geteilt. Öffne das Server-Panel und klicke erneut auf „Server spielen“."
   },
   "installation-settings.advanced.title": {
     "message": "Fortgeschritten"

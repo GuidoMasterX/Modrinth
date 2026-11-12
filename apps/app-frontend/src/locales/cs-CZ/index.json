@@ -1508,9 +1508,6 @@
   "app.nav.switch-account": {
     "message": "Změnit účet"
   },
-  "app.nav.upgrade-to-modrinth-plus": {
-    "message": "Upgradovat na Modrinth+"
-  },
   "app.nav.view-profile": {
     "message": "Zobrazit profil"
   },
@@ -1753,21 +1750,6 @@
   },
   "app.screenshots.sort.oldest": {
     "message": "Nejstarší"
-  },
-  "app.server-sharing-update.notification.description": {
-    "message": "Pozvěte přátele do hry s instancí spravovanou serverem."
-  },
-  "app.server-sharing-update.notification.dismiss": {
-    "message": "Zavřít"
-  },
-  "app.server-sharing-update.notification.purchase-description": {
-    "message": "Získejte server a pozvěte přátele, aby hráli s instancí, kterou spravuje."
-  },
-  "app.server-sharing-update.notification.view-update": {
-    "message": "Zobrazit aktualizaci"
-  },
-  "app.server-sharing-update.title": {
-    "message": "Sdílet servery s přáteli"
   },
   "app.settings.app-version": {
     "message": "Modrinth App {version}"

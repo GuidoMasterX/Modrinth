@@ -15,6 +15,8 @@ use actix_web::http::header::{
 use futures::{Future, StreamExt, stream};
 use serde_json::{Value, json};
 
+const MAX_MULTIPART_PART_BYTES: usize = 1024 * 1024 * 1024;
+
 pub async fn extract_ok_json<T>(
     response: HttpResponse,
 ) -> Result<T, HttpResponse>
@@ -74,7 +76,12 @@ where
 
     if let Some(field) = multipart.next().await {
         let mut field = field?;
-        let content_disposition = field.content_disposition().unwrap().clone();
+        let content_disposition =
+            field.content_disposition().cloned().ok_or_else(|| {
+                CreateError::InvalidInput(
+                    "missing Content-Disposition header".to_string(),
+                )
+            })?;
         let field_name = content_disposition.get_name().unwrap_or("");
         let field_filename = content_disposition.get_filename();
         let field_content_type = field.content_type();
@@ -83,6 +90,13 @@ where
         let mut buffer = Vec::new();
         while let Some(chunk) = field.next().await {
             let data = chunk?;
+            if buffer.len().saturating_add(data.len())
+                > MAX_MULTIPART_PART_BYTES
+            {
+                return Err(CreateError::InvalidInput(
+                    "multipart part is too large".to_string(),
+                ));
+            }
             buffer.extend_from_slice(&data);
         }
 
@@ -101,7 +115,12 @@ where
 
     while let Some(field) = multipart.next().await {
         let mut field = field?;
-        let content_disposition = field.content_disposition().unwrap().clone();
+        let content_disposition =
+            field.content_disposition().cloned().ok_or_else(|| {
+                CreateError::InvalidInput(
+                    "missing Content-Disposition header".to_string(),
+                )
+            })?;
         let field_name = content_disposition.get_name().unwrap_or("");
         let field_filename = content_disposition.get_filename();
         let field_content_type = field.content_type();
@@ -110,6 +129,13 @@ where
         let mut buffer = Vec::new();
         while let Some(chunk) = field.next().await {
             let data = chunk?;
+            if buffer.len().saturating_add(data.len())
+                > MAX_MULTIPART_PART_BYTES
+            {
+                return Err(CreateError::InvalidInput(
+                    "multipart part is too large".to_string(),
+                ));
+            }
             buffer.extend_from_slice(&data);
         }
 

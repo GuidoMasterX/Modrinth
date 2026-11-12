@@ -99,6 +99,17 @@ async fn check_content_updates_with_cache_behaviours(
         .await?;
     let files =
         content_rows::get_instance_files(&instance.id, &state.pool).await?;
+    for file in files.iter().filter(|file| file.missing) {
+        if let Some(entry) = entries_by_file_id.get(file.id.as_str()) {
+            content_rows::upsert_content_update_check(
+                &entry.id,
+                instance.update_channel,
+                None,
+                &state.pool,
+            )
+            .await?;
+        }
+    }
     let hashes = files
         .iter()
         .map(|file| file.sha1.as_str())
@@ -137,6 +148,7 @@ async fn check_content_updates_with_cache_behaviours(
                 &files,
                 &entries_by_file_id,
                 &file_info_by_hash,
+                modrinth_lookup_ok,
                 cache_behaviour,
             )
             .await
@@ -199,6 +211,9 @@ async fn check_content_updates_with_cache_behaviours(
     let candidates = files
         .into_iter()
         .filter_map(|file| {
+            if file.missing {
+                return None;
+            }
             let project_type = project_type_for_file(&file)?;
             let metadata = file_info_by_hash.get(&file.sha1)?;
             let entry =
@@ -219,7 +234,7 @@ async fn check_content_updates_with_cache_behaviours(
         .collect::<Vec<_>>();
 
     if candidates.is_empty() {
-        return Ok(Vec::new());
+        return Ok(curseforge_updates);
     }
 
     let installed_channels =
@@ -427,6 +442,21 @@ pub(crate) fn curseforge_loader_code(loader: &str) -> Option<i64> {
 /// reference files that are no longer part of `latest_files` (per-release-type
 /// entries go stale), so the cached value carries resolved metadata for every
 /// index entry.
+fn effective_cf_update_channel(
+    instance_channel: ReleaseChannel,
+    installed_channel: Option<ReleaseChannel>,
+) -> ReleaseChannel {
+    match (instance_channel, installed_channel) {
+        (ReleaseChannel::Alpha, _) | (_, Some(ReleaseChannel::Alpha)) => {
+            ReleaseChannel::Alpha
+        }
+        (ReleaseChannel::Beta, _) | (_, Some(ReleaseChannel::Beta)) => {
+            ReleaseChannel::Beta
+        }
+        _ => ReleaseChannel::Release,
+    }
+}
+
 pub(crate) fn curseforge_latest_compatible_latest<'a>(
     latest: &'a crate::state::CachedCFProjectLatest,
     game_version: &str,
@@ -471,6 +501,9 @@ async fn check_curseforge_content_updates(
     let mut project_entries: HashMap<i64, Vec<(&InstanceFile, &ContentEntry)>> =
         HashMap::new();
     for file in files {
+        if file.missing {
+            continue;
+        }
         if let Some(entry) = entries_by_file_id.get(file.id.as_str()) {
             if entry.source == Source::CurseForge {
                 if let Some(cf_project_id) = entry.cf_project_id {
@@ -488,6 +521,35 @@ async fn check_curseforge_content_updates(
     }
 
     let loader_code = curseforge_loader_code(loader).unwrap_or(0);
+
+    let installed_file_ids = project_entries
+        .values()
+        .flat_map(|pairs| {
+            pairs.iter().filter_map(|(_, entry)| entry.cf_version_id)
+        })
+        .map(|id| id.to_string())
+        .collect::<Vec<_>>();
+    let installed_file_id_refs = installed_file_ids
+        .iter()
+        .map(String::as_str)
+        .collect::<Vec<_>>();
+    let installed_files = CachedEntry::get_curseforge_file_many(
+        &installed_file_id_refs,
+        cache_behaviour,
+        &state.pool,
+        &state.api_semaphore,
+    )
+    .await
+    .unwrap_or_default();
+    let installed_release_types = installed_files
+        .into_iter()
+        .filter_map(|file| {
+            file.id
+                .parse::<i64>()
+                .ok()
+                .map(|id| (id, file.release_type))
+        })
+        .collect::<HashMap<_, _>>();
 
     let cf_project_ids = project_entries
         .keys()
@@ -527,16 +589,24 @@ async fn check_curseforge_content_updates(
             // check alone rather than reporting a false "no update".
             continue;
         };
-        let latest = curseforge_latest_compatible_latest(
-            latest,
-            game_version,
-            loader_code,
-            update_channel,
-        );
         for (file, entry) in pairs {
             let Some(cf_version_id) = entry.cf_version_id else {
                 continue;
             };
+            let installed_channel = installed_release_types
+                .get(&cf_version_id)
+                .copied()
+                .map(|release_type| match release_type {
+                    3 => ReleaseChannel::Alpha,
+                    2 => ReleaseChannel::Beta,
+                    _ => ReleaseChannel::Release,
+                });
+            let latest = curseforge_latest_compatible_latest(
+                latest,
+                game_version,
+                loader_code,
+                effective_cf_update_channel(update_channel, installed_channel),
+            );
             let update_version_id = latest.and_then(|latest| {
                 if latest.id == cf_version_id {
                     None

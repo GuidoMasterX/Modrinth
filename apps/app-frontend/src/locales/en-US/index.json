@@ -1562,9 +1562,6 @@
   "app.nav.switch-account": {
     "message": "Switch account"
   },
-  "app.nav.upgrade-to-modrinth-plus": {
-    "message": "Upgrade to Modrinth+"
-  },
   "app.nav.view-profile": {
     "message": "View profile"
   },
@@ -1822,21 +1819,6 @@
   },
   "app.screenshots.sort.oldest": {
     "message": "Oldest"
-  },
-  "app.server-sharing-update.notification.description": {
-    "message": "Invite friends to play with an instance managed by your server."
-  },
-  "app.server-sharing-update.notification.dismiss": {
-    "message": "Dismiss"
-  },
-  "app.server-sharing-update.notification.purchase-description": {
-    "message": "Get a server and invite friends to play with an instance managed by it."
-  },
-  "app.server-sharing-update.notification.view-update": {
-    "message": "View update"
-  },
-  "app.server-sharing-update.title": {
-    "message": "Share servers with friends"
   },
   "app.settings.app-version": {
     "message": "Modrinth App {version}"
@@ -3883,24 +3865,6 @@
   },
   "friends.sign-in-to-add-friends": {
     "message": "<link>Sign in to a Modrinth account</link> to add friends and see what they're playing!"
-  },
-  "hosting.play.account-changed": {
-    "message": "Your Modrinth account changed. Press Play server again to continue."
-  },
-  "hosting.play.no-address": {
-    "message": "This server does not have a connection address yet."
-  },
-  "hosting.play.not-ready": {
-    "message": "This instance is not available to launch. Check its installation status in your library."
-  },
-  "hosting.play.update-description": {
-    "message": "Update this instance to the server’s latest shared content before joining."
-  },
-  "hosting.play.update-to-play": {
-    "message": "Update to play"
-  },
-  "hosting.play.world-changed": {
-    "message": "This world is no longer active or has not been shared. Open the server panel and press Play server again."
   },
   "installation-settings.advanced.title": {
     "message": "Advanced"

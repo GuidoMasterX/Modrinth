@@ -1460,9 +1460,6 @@
   "app.nav.switch-account": {
     "message": "Zmień konto"
   },
-  "app.nav.upgrade-to-modrinth-plus": {
-    "message": "Ulepsz do Modrinth+"
-  },
   "app.nav.view-profile": {
     "message": "Pokaż profil"
   },
@@ -1705,15 +1702,6 @@
   },
   "app.screenshots.sort.oldest": {
     "message": "Najstarsze"
-  },
-  "app.server-sharing-update.notification.dismiss": {
-    "message": "Odrzuć"
-  },
-  "app.server-sharing-update.notification.view-update": {
-    "message": "Zobacz nowości"
-  },
-  "app.server-sharing-update.title": {
-    "message": "Udostępniaj serwery znajomym"
   },
   "app.settings.app-version": {
     "message": "Modrinth App {version}"
@@ -3658,9 +3646,6 @@
   },
   "friends.sign-in-to-add-friends": {
     "message": "<link>Zaloguj się na konto Modrinth</link> by dodać znajomych i widzieć, w co grają!"
-  },
-  "hosting.play.update-to-play": {
-    "message": "Zaktualizuj, by grać"
   },
   "installation-settings.shared-instance.linked-title": {
     "message": "Powiązana udostępniona instancja"

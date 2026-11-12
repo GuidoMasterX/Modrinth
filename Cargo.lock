@@ -6768,6 +6768,7 @@ dependencies = [
  "futures-util",
  "heck 0.5.0",
  "hex",
+ "hickory-resolver",
  "hmac 0.13.0",
  "humansize",
  "hyper-rustls 0.27.10",
@@ -13796,7 +13797,7 @@ dependencies = [
 
 [[package]]
 name = "theseus"
-version = "0.1.2-local"
+version = "0.2.0-local"
 dependencies = [
  "anyhow",
  "ariadne",
@@ -13891,7 +13892,7 @@ dependencies = [
 
 [[package]]
 name = "theseus_gui"
-version = "0.1.2-local"
+version = "0.2.0-local"
 dependencies = [
  "aes-gcm 0.11.1",
  "anyhow",

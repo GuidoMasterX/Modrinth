@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { injectModrinthClient } from '@modrinth/ui'
 
-import { getAuthUrl } from '~/composables/auth.js'
+import { getAuthLinkCode, getAuthUrl } from '~/composables/auth.js'
 
 definePageMeta({
 	layout: 'empty',
@@ -19,7 +19,8 @@ onMounted(async () => {
 
 	try {
 		if (!auth.value.user?.auth_providers?.includes('discord')) {
-			window.location.href = `${getAuthUrl('discord', '/discord/link')}&token=${auth.value.token}`
+			const linkCode = await getAuthLinkCode()
+			window.location.href = `${getAuthUrl('discord', '/discord/link')}&link_code=${encodeURIComponent(linkCode)}`
 			return
 		}
 

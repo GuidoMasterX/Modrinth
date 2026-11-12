@@ -1,5 +1,7 @@
 import type { Labrinth } from '@modrinth/api-client'
 
+import { normalizeProjectType } from './project-types'
+
 export const PROJECT_DISCLOSURE_TYPES = [
 	'ai_content',
 	'ai_functionality',
@@ -47,10 +49,6 @@ export const DISCLOSURE_SUPPORTED_PROJECT_TYPES: Record<
 	archived: ALL_CONTENT_PROJECT_TYPES,
 	telemetry: ['mod', 'plugin', 'modpack', 'server'],
 	system_interactions: ['mod', 'plugin', 'modpack'],
-}
-
-function normalizeProjectType(type: string): string {
-	return type === 'minecraft_java_server' ? 'server' : type
 }
 
 export function isDisclosureCompatibleWithProjectTypes(

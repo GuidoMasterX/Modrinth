@@ -70,6 +70,7 @@ pub fn config(cfg: &mut actix_web::web::ServiceConfig) {
     cfg.service(
         web::scope("/auth")
             .service(init)
+            .service(link_code)
             .service(auth_callback)
             .service(delete_auth_provider)
             .service(create_oauth_account)
@@ -1138,6 +1139,41 @@ pub struct AuthorizationInit {
     /// this will be set to the user's auth token from the frontend.
     /// Only first-party session tokens may authorize linking.
     pub auth_token: Option<String>,
+    /// Short-lived single-use code returned by `/auth/link-code`.
+    pub link_code: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, utoipa::ToSchema)]
+pub struct LinkCodeResponse {
+    pub code: String,
+}
+
+/// Creates a short-lived single-use code that authorizes linking a provider to
+/// the current account without putting the session token in a URL.
+#[post("/link-code")]
+pub async fn link_code(
+    req: HttpRequest,
+    pool: Data<PgPool>,
+    redis: Data<RedisPool>,
+    session_queue: Data<AuthQueue>,
+) -> Result<web::Json<LinkCodeResponse>, AuthenticationError> {
+    let user = get_user_from_headers(
+        &req,
+        &**pool,
+        &redis,
+        &session_queue,
+        Scopes::USER_AUTH_WRITE,
+    )
+    .await?;
+
+    let code = Uuid::new_v4().simple().to_string();
+    let mut connection = redis.connect().await?;
+    let key = redis.key().with_slot("auth_link_code:v1", &code, &code);
+    connection
+        .set(&key, user.user.id.to_string(), Some(60))
+        .await?;
+
+    Ok(web::Json(LinkCodeResponse { code }))
 }
 #[derive(Serialize, Deserialize, utoipa::ToSchema)]
 pub struct Authorization {
@@ -1154,7 +1190,8 @@ pub struct Authorization {
 		("url" = Url, Query),
 		("provider" = Option<AuthProvider>, Query),
 		("token" = Option<String>, Query),
-		("auth_token" = Option<String>, Query)
+		("auth_token" = Option<String>, Query),
+		("link_code" = Option<String>, Query)
 	),
 	responses((status = TEMPORARY_REDIRECT), (status = OK))
 )]
@@ -1166,12 +1203,28 @@ pub async fn init(
     redis: Data<RedisPool>,
     session_queue: Data<AuthQueue>,
 ) -> Result<HttpResponse, AuthenticationError> {
+    // A link code is single-use and short-lived, so a provider link can be
+    // authorized without putting the session token in a URL.
+    let link_code_user_id = if let Some(code) = &info.link_code {
+        let mut connection = redis.connect().await?;
+        let key = redis.key().with_slot("auth_link_code:v1", code, code);
+        let value = connection.get(&key).await?;
+        connection.delete(&key).await?;
+        value
+            .and_then(|value| parse_base62(&value).ok())
+            .map(|id| crate::database::models::DBUserId(id as i64))
+    } else {
+        None
+    };
+
     // If a user is logging into an OAuth method while already logged in,
     // this may be present.
     //
     // This can happen when linking to a PayPal account (logging in) when already
     // logged in.
-    let existing_user_id = if let Some(auth_token) = &info.auth_token {
+    let existing_user_id = if let Some(user_id) = link_code_user_id {
+        Some(user_id)
+    } else if let Some(auth_token) = &info.auth_token {
         if !auth_token.starts_with("mra_") {
             return Err(AuthenticationError::InvalidCredentials);
         }

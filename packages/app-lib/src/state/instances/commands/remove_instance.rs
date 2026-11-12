@@ -24,6 +24,7 @@ pub(crate) async fn remove_instance(
     crate::api::instance::remove_generated_instance_files(instance_id, state)
         .await?;
 
+    crate::state::remove_log_buffer(&instance.id);
     delete_instance_row_and_locks(&instance.id, state).await?;
     super::super::watcher::unwatch_instance_folder(
         &instance.id,

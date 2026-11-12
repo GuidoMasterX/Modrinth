@@ -80,11 +80,6 @@ function deserialize_APP_EVENT(d) {
             tag: "log",
             value: deserialize_LOG_PAYLOAD(d)
         };
-    case 11:
-        return {
-            tag: "ads_consent_required",
-            value: d.deserialize_bool()
-        };
     default:
         throw "variant not implemented"
     }

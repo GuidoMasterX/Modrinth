@@ -1511,9 +1511,6 @@
   "app.nav.switch-account": {
     "message": "계정 변경"
   },
-  "app.nav.upgrade-to-modrinth-plus": {
-    "message": "Modrinth+ 로 업그레이드"
-  },
   "app.nav.view-profile": {
     "message": "프로필 보기"
   },
@@ -1756,21 +1753,6 @@
   },
   "app.screenshots.sort.oldest": {
     "message": "오래됨"
-  },
-  "app.server-sharing-update.notification.description": {
-    "message": "서버로 관리되는 인스턴스에서 함께 플레이할 친구를 초대하세요."
-  },
-  "app.server-sharing-update.notification.dismiss": {
-    "message": "닫기"
-  },
-  "app.server-sharing-update.notification.purchase-description": {
-    "message": "서버를 얻고 이로 관리되는 인스턴스에서 친구를 초대해 플레이하세요."
-  },
-  "app.server-sharing-update.notification.view-update": {
-    "message": "업데이트 보기"
-  },
-  "app.server-sharing-update.title": {
-    "message": "친구에게 서버 공유"
   },
   "app.settings.app-version": {
     "message": "Modrinth App {version}"
@@ -3709,24 +3691,6 @@
   },
   "friends.sign-in-to-add-friends": {
     "message": "<link>Modrinth 계정으로 로그인</link>하여 친구를 초대하고 무엇을 플레이 중인지 확인하세요!"
-  },
-  "hosting.play.account-changed": {
-    "message": "Modrinth 계정이 변경되었습니다. 서버 플레이를 다시 눌러 계속합니다."
-  },
-  "hosting.play.no-address": {
-    "message": "아직 서버에 연결 주소가 없습니다."
-  },
-  "hosting.play.not-ready": {
-    "message": "인스턴스를 실행할 수 없습니다. 라이브러리에서 설치 상태를 확인해 주세요."
-  },
-  "hosting.play.update-description": {
-    "message": "참여하기 전에 이 인스턴스를 서버의 최신 공유 콘텐츠로 업데이트하세요."
-  },
-  "hosting.play.update-to-play": {
-    "message": "업데이트하여 플레이"
-  },
-  "hosting.play.world-changed": {
-    "message": "세계를 더 이상 사용할 수 없거나 공유되지 않았습니다. 서버 패널을 열고 서버 플레이를 다시 눌러주세요."
   },
   "installation-settings.shared-instance.linked-title": {
     "message": "연동된 공유 인스턴스"

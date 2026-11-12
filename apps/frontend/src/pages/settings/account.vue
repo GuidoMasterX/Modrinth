@@ -364,12 +364,9 @@
 						>
 							<TrashIcon /> {{ formatMessage(commonMessages.removeButton) }}
 						</Button>
-						<ButtonLink
-							v-else
-							:href="`${getAuthUrl(row.id, '/settings/account')}&token=${auth.token}`"
-						>
+						<Button v-else @click="linkAuthProvider(row.id)">
 							<ExternalIcon /> {{ formatMessage(messages.providerAddButton) }}
-						</ButtonLink>
+						</Button>
 					</template>
 				</Table>
 				<div class="self-end">
@@ -566,7 +563,7 @@ import { computed, nextTick, watch } from 'vue'
 import PasskeySettings from '~/components/ui/auth/PasskeySettings.vue'
 import TwoFactorAuthCodeInput from '~/components/ui/auth/TwoFactorAuthCodeInput.vue'
 import { forgetStoredAccount } from '~/composables/accounts.ts'
-import { getAuthUrl, removeAuthProvider } from '~/composables/auth.ts'
+import { getAuthLinkCode, getAuthUrl, removeAuthProvider } from '~/composables/auth.ts'
 import { useAuthCookie } from '~/composables/auth-cookie.ts'
 
 definePageMeta({
@@ -908,6 +905,15 @@ async function saveEmail() {
 async function handleRemoveAuthProvider(provider) {
 	try {
 		await removeAuthProvider(provider)
+	} catch (error) {
+		handleError(error)
+	}
+}
+
+async function linkAuthProvider(provider) {
+	try {
+		const linkCode = await getAuthLinkCode()
+		window.location.href = `${getAuthUrl(provider, '/settings/account')}&link_code=${encodeURIComponent(linkCode)}`
 	} catch (error) {
 		handleError(error)
 	}

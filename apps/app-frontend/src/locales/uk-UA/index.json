@@ -1499,9 +1499,6 @@
   "app.nav.switch-account": {
     "message": "Змінити обліковий запис"
   },
-  "app.nav.upgrade-to-modrinth-plus": {
-    "message": "Покращитися до Modrinth+"
-  },
   "app.nav.view-profile": {
     "message": "Переглянути профіль"
   },
@@ -1744,21 +1741,6 @@
   },
   "app.screenshots.sort.oldest": {
     "message": "Найстаріші"
-  },
-  "app.server-sharing-update.notification.description": {
-    "message": "Запросіть друзів зіграти в примірнику вашого сервера."
-  },
-  "app.server-sharing-update.notification.dismiss": {
-    "message": "Відхилити"
-  },
-  "app.server-sharing-update.notification.purchase-description": {
-    "message": "Отримайте сервер і запросіть друзів до його примірника."
-  },
-  "app.server-sharing-update.notification.view-update": {
-    "message": "Переглянути оновлення"
-  },
-  "app.server-sharing-update.title": {
-    "message": "Поділитися серверами з друзями"
   },
   "app.settings.app-version": {
     "message": "Modrinth App {version}"
@@ -3709,24 +3691,6 @@
   },
   "friends.sign-in-to-add-friends": {
     "message": "<link>Увійдіть в обліковий запис Modrinth</link>, щоб додати друзів і бачити, у що вони грають!"
-  },
-  "hosting.play.account-changed": {
-    "message": "Ваш обліковий запис Modrinth змінився. Натисніть «Грати на сервері» знову, щоб продовжити."
-  },
-  "hosting.play.no-address": {
-    "message": "Сервер ще не має адреси підʼєднання."
-  },
-  "hosting.play.not-ready": {
-    "message": "Цей примірник недоступний для запуску. Перевірте його статус установки у вашій бібліотеці."
-  },
-  "hosting.play.update-description": {
-    "message": "Оновіть цей примірник до останньої версії спільного вмісту сервера, щоб грати."
-  },
-  "hosting.play.update-to-play": {
-    "message": "Оновіть, щоб грати"
-  },
-  "hosting.play.world-changed": {
-    "message": "Цей світ уже не активний або не є спільним. Відкрийте панель сервера та натисніть «Грати на сервері» знову."
   },
   "installation-settings.shared-instance.linked-title": {
     "message": "Пов'язаний спільний примірник"

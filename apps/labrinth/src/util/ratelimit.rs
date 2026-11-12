@@ -225,7 +225,8 @@ pub async fn rate_limit_middleware(
         return Ok(next.call(req).await?.map_into_left_body());
     }
 
-    if let Some(key) = req.headers().get("x-ratelimit-key")
+    if !ENV.RATE_LIMIT_IGNORE_KEY.is_empty()
+        && let Some(key) = req.headers().get("x-ratelimit-key")
         && key.to_str().ok() == Some(&ENV.RATE_LIMIT_IGNORE_KEY)
     {
         return Ok(next.call(req).await?.map_into_left_body());

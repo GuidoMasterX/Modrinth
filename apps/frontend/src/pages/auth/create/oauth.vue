@@ -229,9 +229,13 @@ async function finishSignIn(sessionToken?: string | null, appSessionToken?: stri
 
 	if (route.query.redirect) {
 		const redirect = decodeURIComponent(getQueryString(route.query.redirect) ?? '')
-		await navigateTo(redirect, {
-			replace: true,
-		})
+		const target = new URL(redirect, window.location.origin)
+		await navigateTo(
+			target.origin === window.location.origin
+				? `${target.pathname}${target.search}${target.hash}`
+				: '/',
+			{ replace: true },
+		)
 	} else if (auth.value.user) {
 		await navigateTo(`/user/${auth.value.user.username}`)
 	}

@@ -12,10 +12,12 @@ pub const SUBSCRIPTIONS_KEY_HEADER: &str = "Modrinth-Subscriptions-Key";
 /// Checks that the header `name` matches `key`, comparing in constant time to
 /// avoid leaking the key through timing side channels.
 fn header_matches_key(ctx: &GuardContext, name: &str, key: &str) -> bool {
-    ctx.head()
-        .headers()
-        .get(name)
-        .is_some_and(|it| it.as_bytes().ct_eq(key.as_bytes()).into())
+    if key.is_empty() {
+        return false;
+    }
+    ctx.head().headers().get(name).is_some_and(|it| {
+        !it.as_bytes().is_empty() && it.as_bytes().ct_eq(key.as_bytes()).into()
+    })
 }
 
 pub fn admin_key_guard(ctx: &GuardContext) -> bool {

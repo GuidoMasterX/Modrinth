@@ -93,8 +93,12 @@ export const initAuth = async (
 
 	const oauthCode = normalizeAuthToken(resolvedRoute.query.code)
 	const keepsExistingLauncherSession = isLauncherProtocolV2(resolvedRoute)
+	const isOAuthCallback =
+		resolvedRoute.path === '/auth/sign-in' ||
+		resolvedRoute.path === '/auth/create/oauth'
 	if (
 		oauthCode &&
+		isOAuthCallback &&
 		!keepsExistingLauncherSession &&
 		!resolvedRoute.fullPath.includes('new_account=true')
 	) {
@@ -206,6 +210,20 @@ export const getSignInRouteObj = (route: FullPathRoute, redirectOverride?: strin
 })
 
 export const ADD_ACCOUNT_QUERY_PARAM = 'add_account'
+
+export async function getAuthLinkCode(): Promise<string> {
+	const config = useRuntimeConfig()
+	const token = useAuthCookie().value
+	if (!token) throw new Error('Authentication required')
+	const response = await $fetch<{ code: string }>(
+		`${config.public.apiBaseUrl}auth/link-code`,
+		{
+			method: 'POST',
+			headers: { Authorization: `Bearer ${token}` },
+		},
+	)
+	return response.code
+}
 
 export const getAuthUrl = (provider: string, redirect?: string, includeAppSession = false) => {
 	const config = useRuntimeConfig()

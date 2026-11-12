@@ -69,6 +69,25 @@ pub async fn export_debug_info(
         .await?;
     }
     drop(connection);
+
+    let snapshot_pool = sqlx::sqlite::SqlitePoolOptions::new()
+        .max_connections(1)
+        .connect_with(
+            sqlx::sqlite::SqliteConnectOptions::new()
+                .filename(&database_snapshot),
+        )
+        .await?;
+    for statement in [
+        "UPDATE minecraft_users SET access_token = '', refresh_token = ''",
+        "UPDATE minecraft_device_tokens SET private_key = '', token = ''",
+        "UPDATE modrinth_users SET session_id = ''",
+        "UPDATE settings SET curseforge_api_key = NULL",
+        "VACUUM",
+    ] {
+        sqlx::query(statement).execute(&snapshot_pool).await?;
+    }
+    snapshot_pool.close().await;
+
     if cancel.is_cancelled() {
         return Ok(false);
     }

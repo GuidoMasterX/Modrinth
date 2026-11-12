@@ -1,8 +1,10 @@
+use crate::auth::get_user_from_headers;
 use crate::database::PgPool;
 use crate::database::models::{project_item, version_item};
 use crate::file_hosting::FileHost;
 use crate::models::exp::minecraft::{Environment, ModVersion, MrpackLoader};
 use crate::models::ids::{ImageId, ProjectId, VersionId};
+use crate::models::pats::Scopes;
 use crate::models::projects::{
     Dependency, FileType, Loader, Version, VersionStatus, VersionType,
 };
@@ -130,6 +132,18 @@ pub async fn version_create(
     kafka_client: Data<KafkaClientState>,
     search_state: Data<SearchState>,
 ) -> Result<HttpResponse, CreateError> {
+    get_user_from_headers(
+        &req,
+        &**client,
+        &redis,
+        &session_queue,
+        Scopes::VERSION_WRITE,
+    )
+    .await
+    .map_err(|error| {
+        CreateError::Request(crate::routes::ApiError::Auth(eyre::eyre!(error)))
+    })?;
+
     let payload = v2_reroute::alter_actix_multipart(
         payload,
         req.headers().clone(),

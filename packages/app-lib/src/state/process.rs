@@ -186,6 +186,10 @@ pub fn clear_log_buffer(instance_id: &str) {
     }
 }
 
+pub fn remove_log_buffer(instance_id: &str) {
+    LOG_BUFFERS.remove(instance_id);
+}
+
 async fn clear_persisted_process(
     pool: &SqlitePool,
     process: Option<(i64, i64)>,
@@ -1063,6 +1067,7 @@ impl Process {
         }
 
         state.process_manager.remove(uuid);
+        remove_log_buffer(&instance_id);
         clear_persisted_process(&state.pool, persisted_process).await;
         let sync_instance_id = instance_id.clone();
         tokio::spawn(async move {

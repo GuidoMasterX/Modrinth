@@ -1953,7 +1953,13 @@ provideContentManager({
 	confirmAction: packActions.confirmAction,
 	confirmDeleteItems: packActions.confirmDeleteItems,
 	getDeleteDependencyWarning,
-	refresh: () => initProjects('must_revalidate'),
+	refresh: async () => {
+		if (!instance.value) return
+		await refresh_content_updates(instance.value.id, 'bypass').catch((error) => {
+			console.error('Failed to refresh content updates', error)
+		})
+		await initProjects(undefined, 0)
+	},
 	browse: handleBrowseContent,
 	uploadFiles: handleUploadFiles,
 	hasUpdateSupport: true,

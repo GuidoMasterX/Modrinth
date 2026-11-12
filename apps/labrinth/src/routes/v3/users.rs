@@ -1134,7 +1134,8 @@ pub async fn user_edit(
                 .wrap_internal_err("querying database for `user_edit`")?;
             }
 
-            if let Some(allow_friend_requests) = &user.allow_friend_requests {
+            if let Some(allow_friend_requests) = &new_user.allow_friend_requests
+            {
                 sqlx::query!(
                     "
                     UPDATE users
@@ -1237,15 +1238,6 @@ pub async fn user_icon_edit(
             )));
         }
 
-        delete_old_images(
-            actual_user.avatar_url,
-            actual_user.raw_avatar_url,
-            FileHostPublicity::Public,
-            &**file_host,
-        )
-        .await
-        .wrap_api_err("deleting old images")?;
-
         let bytes = read_limited_from_payload(
             &mut payload,
             GLOBALS.max_user_icon_size,
@@ -1288,6 +1280,21 @@ pub async fn user_icon_edit(
         DBUser::clear_caches(&[(actual_user.id, None)], &redis)
             .await
             .wrap_internal_err("clearing cached data from Redis")?;
+
+        if let Err(error) = delete_old_images(
+            actual_user
+                .avatar_url
+                .filter(|url| url != &upload_result.url),
+            actual_user
+                .raw_avatar_url
+                .filter(|url| url != &upload_result.raw_url),
+            FileHostPublicity::Public,
+            &**file_host,
+        )
+        .await
+        {
+            tracing::warn!(?error, "failed to delete previous user avatar");
+        }
 
         Ok(HttpResponse::NoContent().body(""))
     } else {

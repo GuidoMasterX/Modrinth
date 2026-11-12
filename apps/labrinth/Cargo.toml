@@ -18,6 +18,7 @@ actix-multipart = { workspace = true }
 actix-rt = { workspace = true }
 actix-web = { workspace = true }
 actix-web-prom = { workspace = true, features = ["process"] }
+hickory-resolver = { workspace = true }
 actix-ws = { workspace = true }
 arc-swap = { workspace = true }
 argon2 = { workspace = true }

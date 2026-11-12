@@ -130,5 +130,13 @@ export async function finishAuth(destination?: string | null, replace = false) {
 	if (!destination || destination === current) {
 		return
 	}
-	await navigateTo(destination, replace ? { replace: true } : undefined)
+	const origin = import.meta.client
+		? window.location.origin
+		: String(useRuntimeConfig().public.siteUrl)
+	const target = new URL(destination, origin)
+	const sameOrigin =
+		target.origin === new URL(origin).origin
+			? `${target.pathname}${target.search}${target.hash}`
+			: '/'
+	await navigateTo(sameOrigin, replace ? { replace: true } : undefined)
 }

@@ -1478,9 +1478,6 @@
   "app.nav.switch-account": {
     "message": "切換帳號"
   },
-  "app.nav.upgrade-to-modrinth-plus": {
-    "message": "升級至 Modrinth+"
-  },
   "app.nav.view-profile": {
     "message": "查看個人檔案"
   },
@@ -1723,18 +1720,6 @@
   },
   "app.screenshots.sort.oldest": {
     "message": "由舊到新"
-  },
-  "app.server-sharing-update.notification.description": {
-    "message": "邀請好友一同遊玩由你的伺服器管理的實例。"
-  },
-  "app.server-sharing-update.notification.dismiss": {
-    "message": "忽略"
-  },
-  "app.server-sharing-update.notification.view-update": {
-    "message": "查看更新"
-  },
-  "app.server-sharing-update.title": {
-    "message": "與好友共遊伺服器"
   },
   "app.settings.app-version": {
     "message": "Modrinth App {version}"
@@ -3685,9 +3670,6 @@
   },
   "friends.sign-in-to-add-friends": {
     "message": "<link>登入 Modrinth 帳號</link>即可新增好友並查看他們正在玩什麼！"
-  },
-  "hosting.play.update-to-play": {
-    "message": "更新以遊玩"
   },
   "installation-settings.advanced.title": {
     "message": "進階"

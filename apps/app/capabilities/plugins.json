@@ -32,9 +32,6 @@
 					"url": "https://*.nodes.modrinth.com/*"
 				},
 				{
-					"url": "https://*.tail029726.ts.net/*"
-				},
-				{
 					"url": "https://api.mclo.gs/*"
 				},
 				{
@@ -42,24 +39,6 @@
 				},
 				{
 					"url": "https://api.purpurmc.org/*"
-				},
-				{
-					"url": "http://localhost:8000/*"
-				},
-				{
-					"url": "http://127.0.0.1:8000/*"
-				},
-				{
-					"url": "http://localhost:8080/*"
-				},
-				{
-					"url": "http://127.0.0.1:8080/*"
-				},
-				{
-					"url": "http://*.taila228c5.ts.net/*"
-				},
-				{
-					"url": "https://*.taila228c5.ts.net/*"
 				},
 				{
 					"url": "https://edge.forgecdn.net/*"

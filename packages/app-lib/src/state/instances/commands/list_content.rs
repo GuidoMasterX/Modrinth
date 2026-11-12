@@ -947,6 +947,7 @@ async fn content_projects_for_scope_inner(
         &files,
         &entries_by_file_id,
         &file_info_by_hash,
+        file_info_live,
         cache_behaviour,
     )
     .await?;
@@ -1783,8 +1784,12 @@ pub(crate) async fn detect_curseforge_metadata(
     files: &[InstanceFile],
     entries_by_file_id: &HashMap<&str, &ContentEntry>,
     file_info_by_hash: &HashMap<String, CachedFile>,
+    modrinth_lookup_ok: bool,
     cache_behaviour: Option<CacheBehaviour>,
 ) -> crate::Result<HashMap<String, crate::state::FileMetadata>> {
+    if !modrinth_lookup_ok {
+        return Ok(HashMap::new());
+    }
     let untracked: Vec<&InstanceFile> = files
         .iter()
         .filter(|file| !file.missing)
@@ -1816,11 +1821,15 @@ pub(crate) async fn detect_curseforge_metadata(
     if unique.is_empty() {
         return Ok(HashMap::new());
     }
-    let key = unique
-        .iter()
-        .map(ToString::to_string)
-        .collect::<Vec<_>>()
-        .join(",");
+    let key = sha1_smol::Sha1::from(
+        unique
+            .iter()
+            .map(ToString::to_string)
+            .collect::<Vec<_>>()
+            .join(",")
+            .as_bytes(),
+    )
+    .hexdigest();
     // Fingerprint resolution is best-effort: a throttled CurseForge must not
     // fail the whole content listing.
     let cached = match CachedEntry::get_curseforge_fingerprints(

@@ -1445,9 +1445,6 @@
   "app.nav.switch-account": {
     "message": "切换账户"
   },
-  "app.nav.upgrade-to-modrinth-plus": {
-    "message": "升级至Modrinth+"
-  },
   "app.nav.view-profile": {
     "message": "查看个人主页"
   },
@@ -1690,12 +1687,6 @@
   },
   "app.screenshots.sort.oldest": {
     "message": "从旧到新"
-  },
-  "app.server-sharing-update.notification.view-update": {
-    "message": "查看更新"
-  },
-  "app.server-sharing-update.title": {
-    "message": "与好友共享服务器"
   },
   "app.settings.app-version": {
     "message": "Modrinth App {version}"

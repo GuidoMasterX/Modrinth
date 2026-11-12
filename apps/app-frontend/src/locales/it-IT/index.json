@@ -1511,9 +1511,6 @@
   "app.nav.switch-account": {
     "message": "Cambia account"
   },
-  "app.nav.upgrade-to-modrinth-plus": {
-    "message": "Abbonati a Modrinth+"
-  },
   "app.nav.view-profile": {
     "message": "Mostra profilo"
   },
@@ -1756,21 +1753,6 @@
   },
   "app.screenshots.sort.oldest": {
     "message": "Meno recenti"
-  },
-  "app.server-sharing-update.notification.description": {
-    "message": "Invita chi vuoi a giocare a un'istanza gestita dal server."
-  },
-  "app.server-sharing-update.notification.dismiss": {
-    "message": "Ignora"
-  },
-  "app.server-sharing-update.notification.purchase-description": {
-    "message": "Ottieni un server e invita chi vuoi per giocare a un'istanza autogestita."
-  },
-  "app.server-sharing-update.notification.view-update": {
-    "message": "Scopri di più"
-  },
-  "app.server-sharing-update.title": {
-    "message": "Condividi i server con chi vuoi"
   },
   "app.settings.app-version": {
     "message": "Modrinth App {version}"
@@ -3721,24 +3703,6 @@
   },
   "friends.sign-in-to-add-friends": {
     "message": "<link>Accedi a un account Modrinth</link> per stringere amicizie e sapere a cosa stanno giocando!"
-  },
-  "hosting.play.account-changed": {
-    "message": "L'account di Modrinth è cambiato. Premi Entra nel server di nuovo per continuare."
-  },
-  "hosting.play.no-address": {
-    "message": "Il server non ha ancora un indirizzo di connessione."
-  },
-  "hosting.play.not-ready": {
-    "message": "L'istanza non è disponibile per l'avvio. Controlla lo stato di installazione dalla libreria."
-  },
-  "hosting.play.update-description": {
-    "message": "Aggiorna l'istanza all'ultima versione condivisa dal server prima di entrare."
-  },
-  "hosting.play.update-to-play": {
-    "message": "Aggiorna per continuare"
-  },
-  "hosting.play.world-changed": {
-    "message": "Il mondo non è più attivo o non è stato condiviso. Apri il pannello del server e riclicca Entra nel server."
   },
   "installation-settings.advanced.title": {
     "message": "Avanzate"

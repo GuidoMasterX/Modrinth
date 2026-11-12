@@ -1,7 +1,5 @@
 use crate::api::Result;
-use theseus::data::{
-    BrowseSearchResponse, CFCategory, Project, SourceVersionFile, Version,
-};
+use theseus::data::{BrowseSearchResponse, CFCategory, Project, Version};
 use theseus::prelude::*;
 
 macro_rules! impl_cache_methods {
@@ -14,6 +12,7 @@ macro_rules! impl_cache_methods {
                     Ok(theseus::cache::[<get_ $variant:snake>](id, cache_behaviour).await?)
                 }
 
+                #[allow(dead_code)]
                 #[tauri::command]
                 pub async fn [<get_ $variant:snake _many>](
                     ids: Vec<String>,
@@ -39,9 +38,7 @@ impl_cache_methods!(
     (Team, Vec<TeamMember>),
     (Organization, Organization),
     (SearchResults, SearchResults),
-    (SearchResultsV3, SearchResultsV3),
-    (CurseforgeFile, SourceVersionFile),
-    (CurseforgeFingerprints, CachedCFFingerprints)
+    (SearchResultsV3, SearchResultsV3)
 );
 
 pub fn init<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
@@ -56,13 +53,9 @@ pub fn init<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
             get_user,
             get_user_many,
             get_team,
-            get_team_many,
             get_organization,
-            get_organization_many,
             get_search_results,
-            get_search_results_many,
             get_search_results_v3,
-            get_search_results_v3_many,
             purge_cache_types,
             get_project_versions,
             get_curseforge_search_results,
@@ -71,10 +64,6 @@ pub fn init<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
             get_curseforge_project_versions,
             get_curseforge_file_changelog,
             get_curseforge_categories,
-            get_curseforge_file,
-            get_curseforge_file_many,
-            get_curseforge_fingerprints,
-            get_curseforge_fingerprints_many,
             get_curseforge_description,
         ])
         .build()

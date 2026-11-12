@@ -33,15 +33,8 @@ export const isLauncherProtocolV2 = (route: QueryRoute) =>
 	getQueryString(route.query.launcher) != null &&
 	getQueryString(route.query.protocol) === LAUNCHER_AUTH_PROTOCOL
 
-export const getLauncherRedirectUrl = (route: QueryRoute) => {
-	const ipver = getQueryString(route.query.ipver)
-	const port = Number(getQueryString(route.query.port))
-	const usesLocalhostRedirectionScheme = ['4', '6'].includes(ipver ?? '') && port < 65536
-
-	return usesLocalhostRedirectionScheme
-		? `http://${ipver === '4' ? '127.0.0.1' : '[::1]'}:${port}`
-		: 'https://launcher-files.modrinth.com'
-}
+export const getLauncherRedirectUrl = (_route: QueryRoute) =>
+	'https://launcher-files.modrinth.com'
 
 export type LauncherHandoff =
 	| { type: 'external'; url: string }

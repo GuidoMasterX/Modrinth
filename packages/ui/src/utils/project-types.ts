@@ -16,6 +16,10 @@ const PROJECT_TYPE_SORT_ALIASES: Record<string, string> = {
 	shaderpack: 'shader',
 }
 
+export function normalizeProjectType(type: string): string {
+	return PROJECT_TYPE_SORT_ALIASES[type] ?? type
+}
+
 export function getProjectTypeSortIndex(type: string): number {
 	const normalized = PROJECT_TYPE_SORT_ALIASES[type] ?? type
 	const index = (PROJECT_TYPE_ORDER as readonly string[]).indexOf(normalized)

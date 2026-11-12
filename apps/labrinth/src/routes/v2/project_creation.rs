@@ -1,8 +1,10 @@
+use crate::auth::get_user_from_headers;
 use crate::database::PgPool;
 use crate::database::models::version_item;
 use crate::file_hosting::FileHost;
 use crate::models;
 use crate::models::ids::ImageId;
+use crate::models::pats::Scopes;
 use crate::models::projects::{Loader, Project, ProjectStatus};
 use crate::models::v2::projects::{
     DonationLink, LegacyProject, LegacySideType,
@@ -166,6 +168,18 @@ pub async fn project_create(
     kafka_client: Data<KafkaClientState>,
     search_state: Data<SearchState>,
 ) -> Result<HttpResponse, CreateError> {
+    get_user_from_headers(
+        &req,
+        &**client,
+        &redis,
+        &session_queue,
+        Scopes::PROJECT_CREATE,
+    )
+    .await
+    .map_err(|error| {
+        CreateError::Request(crate::routes::ApiError::Auth(eyre::eyre!(error)))
+    })?;
+
     // Convert V2 multipart payload to V3 multipart payload
     let redirect_client = client.clone();
     let redirect_redis = redis.clone();

@@ -166,7 +166,7 @@ export function useCurseforgeSearch(opts: {
 				id: 'cf_loader',
 				formatted_name: formatMessage(
 					defineMessage({
-						id: 'search.filter_type.mod_loader',
+						id: 'search.filter_type.cf_loader',
 						defaultMessage: 'Mod loader',
 					}),
 				),

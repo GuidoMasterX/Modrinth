@@ -802,7 +802,9 @@ function getUpdateAllCandidates(items: ContentItem[]) {
 			item.has_update &&
 			!item.locked &&
 			item.project?.id &&
+			!item.project.id.startsWith('cf-') &&
 			item.version?.id &&
+			!item.version.id.startsWith('cf-') &&
 			item.update_version_id,
 	)
 }
@@ -1300,7 +1302,10 @@ const confirmUnlinkModal = ref<InstanceType<typeof ConfirmUnlinkModal>>()
 		>
 			<template #actions>
 				<Button
-					v-if="hasBulkUpdateSupport && selectedItems.some((m) => m.has_update && !m.locked)"
+					v-if="
+						hasBulkUpdateSupport &&
+						selectedItems.some((m) => getUpdateAllCandidates([m]).length > 0)
+					"
 					v-tooltip="formatMessage(commonMessages.updateButton)"
 					type="quiet"
 					color="green"

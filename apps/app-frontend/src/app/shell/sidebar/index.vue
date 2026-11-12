@@ -15,7 +15,6 @@ import { injectOnboardingChecklist } from '@/providers/onboarding-checklist'
 
 defineProps<{
 	credentials: ModrinthCredentials | null | undefined
-	hasPlus: boolean
 	visible: boolean
 	requestSignIn: () => void
 }>()

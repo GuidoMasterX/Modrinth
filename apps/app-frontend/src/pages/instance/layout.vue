@@ -143,7 +143,6 @@ import { useAppSettings } from '@/composables/use-app-settings.ts'
 import { handleSevereError } from '@/composables/use-error.js'
 import { useInstanceConsole } from '@/composables/useInstanceConsole'
 import { injectInstanceLaunchState } from '@/features/instances/launch-state'
-import { useLinkedServer } from '@/features/instances/linked-server/use-linked-server'
 import InstanceSettingsModal from '@/features/instances/settings-modal/index.vue'
 import { useHiddenInstances } from '@/features/library/hidden-instances/use-hidden-instances'
 import { serverStatusQueryOptions } from '@/features/servers/queries'
@@ -344,7 +343,13 @@ const linkedProjectQuery = useQuery(
 	})),
 )
 const linkedProjectV3 = computed(() => linkedProjectQuery.data.value ?? undefined)
-const hosting = useLinkedServer(instance, offline)
+const hosting = {
+	isHostingInstance: computed(() => false),
+	onlineStatus: ref<'running' | 'stopped' | null>(null),
+	region: computed(() => undefined as string | undefined),
+	address: computed(() => undefined as string | undefined),
+	refreshOnlineStatus: async () => null,
+}
 const isServerInstance = computed(
 	() => hosting.isHostingInstance.value || linkedProjectV3.value?.minecraft_server != null,
 )

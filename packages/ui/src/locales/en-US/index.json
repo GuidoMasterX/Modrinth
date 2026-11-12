@@ -5225,6 +5225,9 @@
   "search.filter_type.advanced.disclosure.telemetry": {
     "defaultMessage": "Telemetry"
   },
+  "search.filter_type.cf_loader": {
+    "defaultMessage": "Mod loader"
+  },
   "search.filter_type.compatible_dependency_project_ids": {
     "defaultMessage": "Depends on"
   },

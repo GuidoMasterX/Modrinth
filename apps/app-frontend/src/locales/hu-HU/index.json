@@ -1343,9 +1343,6 @@
   "app.nav.switch-account": {
     "message": "Fiókváltás"
   },
-  "app.nav.upgrade-to-modrinth-plus": {
-    "message": "Frissíts a Modrinth+-ra"
-  },
   "app.nav.view-profile": {
     "message": "Profil megtekintése"
   },

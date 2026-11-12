@@ -65,6 +65,50 @@ pub fn init<R: Runtime>() -> tauri::plugin::TauriPlugin<R> {
         .build()
 }
 
+const ALLOWED_LOCAL_FILE_EXTENSIONS: &[&str] = &[
+    "jar",
+    "litemod",
+    "zip",
+    "mrpack",
+    "png",
+    "jpg",
+    "jpeg",
+    "gif",
+    "webp",
+    "svg",
+    "json",
+    "toml",
+    "yml",
+    "yaml",
+    "txt",
+    "md",
+    "cfg",
+    "conf",
+    "properties",
+    "sig",
+    "asc",
+    "gpg",
+];
+const MAX_LOCAL_FILE_SIZE: u64 = 1024 * 1024 * 1024;
+
+fn has_allowed_local_extension(path: &str) -> bool {
+    std::path::Path::new(path)
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .is_some_and(|extension| {
+            ALLOWED_LOCAL_FILE_EXTENSIONS
+                .iter()
+                .any(|allowed| extension.eq_ignore_ascii_case(allowed))
+        })
+}
+
+fn ensure_allowed_local_path(path: &str) -> Result<()> {
+    if !has_allowed_local_extension(path) {
+        return Err(anyhow!("unsupported local file type").into());
+    }
+    Ok(())
+}
+
 #[derive(Serialize)]
 pub struct ExtractDryRunResult {
     modpack_name: Option<String>,
@@ -73,9 +117,10 @@ pub struct ExtractDryRunResult {
 
 #[tauri::command]
 pub async fn file_read_dragged_file(path: String) -> Result<Vec<u8>> {
+    ensure_allowed_local_path(&path)?;
     let metadata = tokio::fs::metadata(&path).await?;
-    if !metadata.is_file() {
-        return Err(anyhow!("dropped path is not a file").into());
+    if !metadata.is_file() || metadata.len() > MAX_LOCAL_FILE_SIZE {
+        return Err(anyhow!("dropped path is not a supported file").into());
     }
 
     Ok(tokio::fs::read(path).await?)
@@ -89,9 +134,10 @@ pub struct LocalFileInfo {
 
 #[tauri::command]
 pub async fn file_local_info(path: String) -> Result<LocalFileInfo> {
+    ensure_allowed_local_path(&path)?;
     let metadata = tokio::fs::metadata(&path).await?;
-    if !metadata.is_file() {
-        return Err(anyhow!("path is not a file").into());
+    if !metadata.is_file() || metadata.len() > MAX_LOCAL_FILE_SIZE {
+        return Err(anyhow!("path is not a supported file").into());
     }
 
     let name = std::path::Path::new(&path)
@@ -145,6 +191,15 @@ pub async fn file_upload_local<R: Runtime>(
     on_progress: tauri::ipc::Channel<LocalUploadProgress>,
 ) -> Result<LocalUploadResponse> {
     let url = url::Url::parse(&request.url)?;
+    let host = url.host_str().unwrap_or_default();
+    let allowed_host = host == "modrinth.com"
+        || host.ends_with(".modrinth.com")
+        || (cfg!(debug_assertions)
+            && (host == "localhost" || host == "127.0.0.1"));
+    if !allowed_host {
+        return Err(anyhow!("upload destination is not allowed").into());
+    }
+    ensure_allowed_local_path(&request.path.to_string_lossy())?;
     let cancel = CancellationToken::new();
     state.0.insert(
         upload_id.clone(),

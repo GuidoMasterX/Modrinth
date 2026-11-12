@@ -1460,9 +1460,6 @@
   "app.nav.switch-account": {
     "message": "アカウントの切り替え"
   },
-  "app.nav.upgrade-to-modrinth-plus": {
-    "message": "Modrinth+にアップグレード"
-  },
   "app.nav.view-profile": {
     "message": "プロフィールを表示"
   },
@@ -1705,12 +1702,6 @@
   },
   "app.screenshots.sort.oldest": {
     "message": "古い順"
-  },
-  "app.server-sharing-update.notification.dismiss": {
-    "message": "閉じる"
-  },
-  "app.server-sharing-update.notification.view-update": {
-    "message": "アップデートを表示"
   },
   "app.settings.app-version": {
     "message": "Modrinth App {version}"

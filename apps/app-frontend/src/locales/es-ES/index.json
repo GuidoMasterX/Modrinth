@@ -1511,9 +1511,6 @@
   "app.nav.switch-account": {
     "message": "Cambiar cuenta"
   },
-  "app.nav.upgrade-to-modrinth-plus": {
-    "message": "Actualizar a Modrinth+"
-  },
   "app.nav.view-profile": {
     "message": "Ver perfil"
   },
@@ -1756,21 +1753,6 @@
   },
   "app.screenshots.sort.oldest": {
     "message": "Antiguo"
-  },
-  "app.server-sharing-update.notification.description": {
-    "message": "Invita a tus amigos a jugar con una instancia administrada por tu servidor."
-  },
-  "app.server-sharing-update.notification.dismiss": {
-    "message": "Descartar"
-  },
-  "app.server-sharing-update.notification.purchase-description": {
-    "message": "Consigue un servidor e invita a tus amigos a jugar con una instancia administrada por el propio servidor."
-  },
-  "app.server-sharing-update.notification.view-update": {
-    "message": "Ver Actualización"
-  },
-  "app.server-sharing-update.title": {
-    "message": "Compartir servidores con tus amigos"
   },
   "app.settings.app-version": {
     "message": "Modrinth App {version}"
@@ -3709,24 +3691,6 @@
   },
   "friends.sign-in-to-add-friends": {
     "message": "¡<link>Inicia sesión en una cuenta Modrinth</link> para añadir amigos y ver a qué están jugando!"
-  },
-  "hosting.play.account-changed": {
-    "message": "Tu cuenta de Modrinth ha cambiado. Pulsa el Jugar al servidor otra vez para continuar."
-  },
-  "hosting.play.no-address": {
-    "message": "Este servidor aún no tiene una dirección de conexión."
-  },
-  "hosting.play.not-ready": {
-    "message": "Esta instancia no está disponible para su lanzamiento. Compruebe su estado de instalación en su biblioteca."
-  },
-  "hosting.play.update-description": {
-    "message": "Actualice esta instancia al último contenido compartido del servidor antes de unirse."
-  },
-  "hosting.play.update-to-play": {
-    "message": "Actualiza para jugar"
-  },
-  "hosting.play.world-changed": {
-    "message": "Este mundo ya no está activo o no ha sido compartido. Abre el panel del servidor y presiona Jugar al servidor otra vez."
   },
   "installation-settings.shared-instance.linked-title": {
     "message": "Instancia compartida enlazada"

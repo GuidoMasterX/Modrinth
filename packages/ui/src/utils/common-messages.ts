@@ -2,6 +2,7 @@ import type { Labrinth } from '@modrinth/api-client'
 import { capitalizeString } from '@modrinth/utils'
 
 import { defineMessage, defineMessages, type MessageDescriptor } from '../composables/i18n'
+import { normalizeProjectType } from './project-types'
 
 export const commonMessages = defineMessages({
 	acceptButton: {
@@ -831,14 +832,7 @@ export const financialMessages = defineMessages({
 	},
 })
 
-const PROJECT_TYPE_ALIASES: Record<string, string> = {
-	shaderpack: 'shader',
-	minecraft_java_server: 'server',
-}
-
-export function normalizeProjectType(type: string): string {
-	return PROJECT_TYPE_ALIASES[type] ?? type
-}
+export { normalizeProjectType }
 
 type FormatMessage = (descriptor: MessageDescriptor, values?: Record<string, unknown>) => string
 

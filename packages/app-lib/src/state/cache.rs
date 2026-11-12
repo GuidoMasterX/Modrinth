@@ -2546,14 +2546,23 @@ impl CachedEntry {
 
                 let mut resolved = std::collections::HashMap::new();
                 for chunk in unresolved.chunks(100) {
-                    for file in crate::api::curseforge::api::get_files(
+                    match crate::api::curseforge::api::get_files(
                         chunk,
                         fetch_semaphore,
                         pool,
                     )
-                    .await?
+                    .await
                     {
-                        resolved.insert(file.id, file);
+                        Ok(files) => {
+                            for file in files {
+                                resolved.insert(file.id, file);
+                            }
+                        }
+                        Err(error) => {
+                            tracing::warn!(
+                                "Unable to resolve CurseForge latest files for one batch: {error}"
+                            );
+                        }
                     }
                 }
 
@@ -3031,6 +3040,14 @@ impl CachedEntry {
                 CacheValueType::SearchResults,
                 CacheValueType::SearchResultsV3,
                 CacheValueType::ProjectVersions,
+                CacheValueType::CurseforgeSearchResults,
+                CacheValueType::CurseforgeProject,
+                CacheValueType::CurseforgeProjectVersions,
+                CacheValueType::CurseforgeProjectLatest,
+                CacheValueType::CurseforgeFile,
+                CacheValueType::CurseforgeFileChangelog,
+                CacheValueType::CurseforgeDescription,
+                CacheValueType::CurseforgeFingerprints,
             ]
             .map(|cache_type| cache_type.as_str()),
         )?;

@@ -76,10 +76,42 @@ impl CensoredString {
                     &credentials.offline_profile.id.as_hyphenated().to_string(),
                     "{MINECRAFT_UUID}",
                 );
+            if !credentials.refresh_token.is_empty() {
+                s = s.replace(
+                    &credentials.refresh_token,
+                    "{MINECRAFT_REFRESH_TOKEN}",
+                );
+            }
         }
 
         Self(s)
     }
+
+    fn censor_modrinth(
+        mut self,
+        credentials: &[crate::state::ModrinthCredentials],
+    ) -> Self {
+        for credentials in credentials {
+            if !credentials.session.is_empty() {
+                self.0 =
+                    self.0.replace(&credentials.session, "{MODRINTH_SESSION}");
+            }
+        }
+        self
+    }
+}
+
+async fn censor_output(
+    state: &State,
+    output: String,
+    credentials: &[Credentials],
+) -> crate::Result<CensoredString> {
+    let modrinth_credentials =
+        crate::state::ModrinthCredentials::get_all(&state.pool)
+            .await
+            .unwrap_or_default();
+    Ok(CensoredString::censor(output, credentials)
+        .censor_modrinth(&modrinth_credentials))
 }
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -406,7 +438,7 @@ async fn get_output_by_filename_from_path(
             let compacted = read_compacted_log(&mut reader)
                 .map_err(|e| IOError::with_path(e, &path))?;
             maybe_emit_log_compaction_warning(file_name, compacted.stats).await;
-            return Ok(CensoredString::censor(compacted.output, &credentials));
+            return censor_output(state, compacted.output, &credentials).await;
         } else if ext == "log" || ext == "txt" {
             let file = std::fs::File::open(&path)
                 .map_err(|e| IOError::with_path(e, &path))?;
@@ -414,7 +446,7 @@ async fn get_output_by_filename_from_path(
             let compacted = read_compacted_log(&mut reader)
                 .map_err(|e| IOError::with_path(e, &path))?;
             maybe_emit_log_compaction_warning(file_name, compacted.stats).await;
-            return Ok(CensoredString::censor(compacted.output, &credentials));
+            return censor_output(state, compacted.output, &credentials).await;
         }
     }
     bail!("file extension not supported {}", path.display())
@@ -517,7 +549,7 @@ pub async fn get_live_log_chunk(
     };
 
     Ok(LiveLogChunk {
-        output: CensoredString::censor(output, &credentials),
+        output: censor_output(&state, output, &credentials).await?,
         cursor: next_cursor,
         generation: mode_generation,
         reset,
@@ -539,7 +571,7 @@ pub async fn get_live_log_buffer(
         .map(|x| x.1)
         .collect::<Vec<_>>();
     maybe_emit_log_compaction_warning("live log", compacted.stats).await;
-    Ok(CensoredString::censor(compacted.output, &credentials))
+    censor_output(&state, compacted.output, &credentials).await
 }
 
 pub fn clear_live_log_buffer(instance_id: &str) {
@@ -607,7 +639,7 @@ pub async fn get_generic_live_log_cursor(
         .map(|x| x.1)
         .collect::<Vec<_>>();
     maybe_emit_log_compaction_warning(log_file_name, compacted.stats).await;
-    let output = CensoredString::censor(compacted.output, &credentials);
+    let output = censor_output(&state, compacted.output, &credentials).await?;
     Ok(LatestLogCursor {
         cursor,
         new_file,

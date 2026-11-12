@@ -1,7 +1,6 @@
 <script setup>
 import { ModrinthApiError } from '@modrinth/api-client'
 import {
-	ArrowBigUpDashIcon,
 	ArrowLeftRightIcon,
 	CompassIcon,
 	ImageIcon,
@@ -26,8 +25,6 @@ import {
 	commonSettingsMessages,
 	ContentInstallModal,
 	ContentUpdaterModal,
-	createServerInviteHandoff,
-	createServerOnboardingFlow,
 	CreationFlowModal,
 	defineMessages,
 	I18nDebugPanel,
@@ -43,10 +40,6 @@ import {
 	provideNotificationManager,
 	providePageContext,
 	providePopupNotificationManager,
-	provideServerInviteHandoff,
-	provideServerOnboardingFlow,
-	provideServerPlay,
-	ServerOnboardingModal,
 	TeleportOverflowMenu,
 	TooltipDirective,
 	useDebugLogger,
@@ -107,7 +100,6 @@ import SharedInstanceModals from '@/features/library/shared-instances/shared-ins
 import { provideMinecraftAccounts } from '@/features/minecraft-accounts/context'
 import AppSettingsModal from '@/features/settings/app-settings-modal/index.vue'
 import { provideSettingsActions } from '@/features/settings/settings-actions'
-import NewUpdateModal from '@/features/updates/new-update-modal/index.vue'
 import { getAccountAppearance, rememberAccountAppearance } from '@/helpers/account-appearance.ts'
 import { debugAnalytics, initAnalytics, trackEvent } from '@/helpers/analytics'
 import { check_reachable } from '@/helpers/auth.js'
@@ -145,7 +137,6 @@ import {
 	syncedServersQueryOptions,
 } from '@/helpers/synced-options'
 import { syncedPackQueryOptions } from '@/helpers/synced-packs'
-import { hasActivePride26Midas, hasMidasBadge } from '@/helpers/user-campaigns.ts'
 import { get_user_preferences } from '@/helpers/user-preferences.ts'
 import { parse_modrinth_user_link } from '@/helpers/users'
 import {
@@ -250,26 +241,10 @@ const { addPopupNotification } = popupNotificationManager
 
 const tauriApiClient = createAppClient()
 provideModrinthClient(tauriApiClient)
-provideServerOnboardingFlow(createServerOnboardingFlow())
-provideServerInviteHandoff(createServerInviteHandoff())
 provideFileDownload(createFileDownload(tauriApiClient, trackExternalFileDownload))
 const iconCache = createIconCache()
 provideIconCache(iconCache)
 provideInstanceLaunchState(createInstanceLaunchState())
-const serverPlayHandler = ref()
-const serverPlay = {
-	async play(target) {
-		if (!serverPlayHandler.value) throw new Error('Server play handler is not ready.')
-		await serverPlayHandler.value.play(target)
-	},
-}
-provideServerPlay(serverPlay)
-const { data: authenticatedModrinthUser } = useQuery({
-	queryKey: computed(() => ['authenticated-user', 'campaigns', credentials.value?.user?.id]),
-	queryFn: () => tauriApiClient.labrinth.users_v3.getAuthenticated(),
-	enabled: () => !!credentials.value?.session,
-	retry: false,
-})
 useQuery({
 	queryKey: computed(() => instanceKeys.sharedEligibility(credentials.value?.user?.id)),
 	queryFn: can_current_user_use_shared_instances,
@@ -280,12 +255,6 @@ useQuery({
 	refetchOnWindowFocus: false,
 	refetchOnReconnect: false,
 })
-const hasPlus = computed(
-	() =>
-		!!credentials.value?.user &&
-		(hasMidasBadge(credentials.value.user) ||
-			hasActivePride26Midas(authenticatedModrinthUser.value?.campaigns?.pride_26)),
-)
 providePageContext({
 	hierarchicalSidebarAvailable: ref(true),
 	floatingActionBarOffsets: {
@@ -544,10 +513,6 @@ const messages = defineMessages({
 		id: 'app.restarting',
 		defaultMessage: 'Restarting...',
 	},
-	upgradeToModrinthPlus: {
-		id: 'app.nav.upgrade-to-modrinth-plus',
-		defaultMessage: 'Upgrade to Modrinth+',
-	},
 })
 
 async function setupApp() {
@@ -585,7 +550,6 @@ async function setupApp() {
 		friends_pending_collapsed,
 		developer_mode,
 		feature_flags,
-		pending_update_toast_for_version,
 	} = await traceStartupStep('Read startup settings', getSettings)
 
 	// Initialize locale from saved settings
@@ -640,7 +604,6 @@ async function setupApp() {
 	stateInitialized.value = true
 	debugStartup('App state initialized')
 	await traceStartupStep('Render initialized app', nextTick)
-	await newUpdateModal.value?.notifyForVersion(version, pending_update_toast_for_version)
 
 	await traceStartupStep('Register window resize listener', () =>
 		getCurrentWindow().onResized(async () => {
@@ -677,26 +640,11 @@ async function setupApp() {
 
 	traceStartupStep('Read opening command', get_opening_command).then(handleCommand)
 	traceStartupStep('Refresh startup credentials', fetchCredentials)
-
-	if (pending_update_toast_for_version !== null) {
-		const settings = await traceStartupStep(
-			'Read settings to clear update notification',
-			getSettings,
-		)
-		settings.pending_update_toast_for_version = null
-		await traceStartupStep('Clear update notification', () => setSettings(settings))
-	}
 }
 
 const stateFailed = ref(false)
-const {
-	loading,
-	canNavigateBack,
-	canNavigateForward,
-	onboardingPageReady,
-	onSuspensePending,
-	onSuspenseResolve,
-} = useRouteLoading({ stateInitialized, stateFailed })
+const { loading, canNavigateBack, canNavigateForward, onSuspensePending, onSuspenseResolve } =
+	useRouteLoading({ stateInitialized, stateFailed })
 useSharedInstanceLockSync()
 provideLoadingState(loading)
 
@@ -720,21 +668,6 @@ const handleClose = async () => {
 }
 
 const queryClient = useQueryClient()
-
-watch(stateInitialized, (ready) => {
-	if (ready) {
-		queryClient.prefetchQuery({
-			queryKey: ['billing', 'subscriptions'],
-			queryFn: () => tauriApiClient.labrinth.billing_internal.getSubscriptions(),
-			staleTime: 30_000,
-		})
-		queryClient.prefetchQuery({
-			queryKey: ['billing', 'payments'],
-			queryFn: () => tauriApiClient.labrinth.billing_internal.getPayments(),
-			staleTime: 30_000,
-		})
-	}
-})
 
 const error = useError()
 const errorModal = ref()
@@ -831,7 +764,6 @@ const updateToPlayModal = ref()
 
 const modrinthLoginModal = ref()
 const appSettingsModal = ref()
-const newUpdateModal = ref()
 
 const settingsActions = provideSettingsActions({
 	openSettings: () => appSettingsModal.value?.show(),
@@ -1171,16 +1103,6 @@ const modrinthAccountMenuOptions = computed(() => [
 		action: () => router.push(`/user/${encodeURIComponent(credentials.value.user.username)}`),
 	},
 	{
-		id: 'plus',
-		label: formatMessage(messages.upgradeToModrinthPlus),
-		icon: ArrowBigUpDashIcon,
-		type: 'link',
-		href: 'https://modrinth.plus?app',
-		target: '_blank',
-		tone: 'purple',
-		shown: !hasPlus.value,
-	},
-	{
 		id: 'add-friend',
 		label: formatMessage(messages.addFriend),
 		icon: UserPlusIcon,
@@ -1280,8 +1202,6 @@ async function handleCommand(e) {
 		} else {
 			await run(e.id).catch(handleError)
 		}
-	} else if (e.event === 'PlayHostingServer') {
-		await serverPlay.play({ serverId: e.server_id, worldId: e.world_id }).catch(handleError)
 	} else if (e.event === 'InstallSharedInstanceInvite') {
 		await sharedInstanceInviteHandler.value?.installFromInviteId(e.invite_id)
 	} else if (e.event === 'InstallServer') {
@@ -1730,7 +1650,6 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 			</div>
 		</Transition>
 		<AppSettingsModal ref="appSettingsModal" />
-		<NewUpdateModal ref="newUpdateModal" />
 		<Suspense>
 			<ModrinthAccountRequiredModal ref="modrinthLoginModal" :request-auth="requestModrinthAuth" />
 		</Suspense>
@@ -1747,12 +1666,6 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 			:customize-instance-icon="customizeCreationIcon"
 			@create="handleCreate"
 			@browse-modpacks="handleBrowseModpacks"
-		/>
-		<ServerOnboardingModal
-			browse-path="/browse/modpack"
-			:get-loader-manifest="getLoaderManifest"
-			:navigate="(to) => router.push(to)"
-			:page-ready="onboardingPageReady"
 		/>
 		<IconEditorModal
 			ref="creationIconEditorModal"
@@ -1954,7 +1867,6 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 		<AppSidebar
 			ref="sidebar"
 			:credentials="credentials"
-			:has-plus="hasPlus"
 			:visible="sidebarVisible"
 			:request-sign-in="() => requestSignIn()"
 			@create-instance="installationModal?.show()"

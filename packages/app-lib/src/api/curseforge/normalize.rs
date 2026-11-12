@@ -111,6 +111,8 @@ pub struct SourceVersionFile {
     pub primary: bool,
     pub size: u64,
     pub sha1: Option<String>,
+    #[serde(default)]
+    pub release_type: i32,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -212,6 +214,7 @@ impl SourceVersionFile {
                 .iter()
                 .find(|hash| hash.algo == 1)
                 .map(|hash| hash.value.clone()),
+            release_type: file.release_type,
         }
     }
 }
