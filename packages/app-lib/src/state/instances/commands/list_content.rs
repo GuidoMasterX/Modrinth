@@ -1821,19 +1821,10 @@ pub(crate) async fn detect_curseforge_metadata(
     if unique.is_empty() {
         return Ok(HashMap::new());
     }
-    let key = sha1_smol::Sha1::from(
-        unique
-            .iter()
-            .map(ToString::to_string)
-            .collect::<Vec<_>>()
-            .join(",")
-            .as_bytes(),
-    )
-    .hexdigest();
     // Fingerprint resolution is best-effort: a throttled CurseForge must not
     // fail the whole content listing.
     let cached = match CachedEntry::get_curseforge_fingerprints(
-        &key,
+        &unique,
         cache_behaviour,
         &state.pool,
         &state.api_semaphore,

@@ -568,6 +568,17 @@ pub(crate) fn file_modified_at_ns(
     Ok(signed_ns as u64)
 }
 
+fn fingerprint_cache_key(fingerprints: &[u32]) -> String {
+    let mut unique = fingerprints.to_vec();
+    unique.sort_unstable();
+    unique.dedup();
+    unique
+        .iter()
+        .map(ToString::to_string)
+        .collect::<Vec<_>>()
+        .join(",")
+}
+
 pub(crate) fn file_hash_cache_key(
     size: u64,
     modified_at_ns: u64,
@@ -1271,9 +1282,52 @@ impl_cache_methods!(
     (CurseforgeProjectLatest, CachedCFProjectLatest),
     (CurseforgeFile, SourceVersionFile),
     (CurseforgeFileChangelog, CachedCFChangelog),
-    (CurseforgeDescription, CachedCFDescription),
-    (CurseforgeFingerprints, CachedCFFingerprints)
+    (CurseforgeDescription, CachedCFDescription)
 );
+
+impl CachedEntry {
+    pub async fn get_curseforge_fingerprints(
+        fingerprints: &[u32],
+        cache_behaviour: Option<CacheBehaviour>,
+        pool: &SqlitePool,
+        fetch_semaphore: &FetchSemaphore,
+    ) -> crate::Result<Option<CachedCFFingerprints>> {
+        let key = fingerprint_cache_key(fingerprints);
+        Ok(Self::get_curseforge_fingerprints_many(
+            &[&key],
+            cache_behaviour,
+            pool,
+            fetch_semaphore,
+        )
+        .await?
+        .into_iter()
+        .next())
+    }
+
+    pub async fn get_curseforge_fingerprints_many(
+        keys: &[&str],
+        cache_behaviour: Option<CacheBehaviour>,
+        pool: &SqlitePool,
+        fetch_semaphore: &FetchSemaphore,
+    ) -> crate::Result<Vec<CachedCFFingerprints>> {
+        let entries = Self::get_many(
+            CacheValueType::CurseforgeFingerprints,
+            keys,
+            cache_behaviour,
+            pool,
+            fetch_semaphore,
+        )
+        .await?;
+
+        Ok(entries
+            .into_iter()
+            .filter_map(|entry| match entry.data {
+                Some(CacheValue::CurseforgeFingerprints(value)) => Some(value),
+                _ => None,
+            })
+            .collect())
+    }
+}
 
 impl_cache_method_singular!(
     (
@@ -3230,4 +3284,21 @@ pub async fn cache_file_hash_metadata(
     .await?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod fingerprint_cache_tests {
+    use super::fingerprint_cache_key;
+
+    #[test]
+    fn fingerprint_cache_key_is_stable_and_distinct() {
+        assert_eq!(
+            fingerprint_cache_key(&[3, 1, 2]),
+            fingerprint_cache_key(&[1, 2, 3])
+        );
+        assert_ne!(
+            fingerprint_cache_key(&[1, 2]),
+            fingerprint_cache_key(&[1, 3])
+        );
+    }
 }

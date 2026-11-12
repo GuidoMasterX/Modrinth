@@ -445,9 +445,9 @@ pub(crate) async fn resolve_file_counterparts(
             .join(relative_path);
         match tokio::fs::read(&full_path).await {
             Ok(bytes) => {
-                let fingerprint = crate::util::murmur2::murmur2(&bytes) as i64;
+                let fingerprint = crate::util::murmur2::murmur2(&bytes);
                 match CachedEntry::get_curseforge_fingerprints(
-                    &fingerprint.to_string(),
+                    &[fingerprint],
                     Some(CacheBehaviour::StaleWhileRevalidateSkipOffline),
                     &state.pool,
                     &state.api_semaphore,
