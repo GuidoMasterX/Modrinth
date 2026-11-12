@@ -207,9 +207,7 @@ const hasSwitchVersionListener = computed(
 const hasSwitchSourceListener = computed(
 	() => typeof instance?.vnode.props?.onSwitchSource === 'function',
 )
-const canSwitchSource = computed(
-	() => hasSwitchSourceListener.value && !props.external && !props.locked,
-)
+const canSwitchSource = computed(() => hasSwitchSourceListener.value && !props.locked)
 
 const versionNumberRef = ref<HTMLElement | null>(null)
 const compactVersionNumberRef = ref<HTMLElement | null>(null)

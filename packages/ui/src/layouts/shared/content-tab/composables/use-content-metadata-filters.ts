@@ -204,10 +204,6 @@ export function useContentMetadataFilters(
 		return !!licenseId && openSourceLicenseIds.has(licenseId)
 	}
 
-	function isExternal(item: ContentItem) {
-		return item.external || !item.project?.license
-	}
-
 	function getSourceLabel(item: ContentItem) {
 		switch (item.package_source) {
 			case 'curseforge':
@@ -324,13 +320,6 @@ export function useContentMetadataFilters(
 				isOpenSource(item) ? [option('open_source', formatMessage(messages.openSource))] : [],
 		},
 		{
-			key: 'external',
-			label: formatMessage(messages.external),
-			direct: true,
-			values: (item) =>
-				isExternal(item) ? [option('external', formatMessage(messages.external))] : [],
-		},
-		{
 			key: 'category',
 			label: formatMessage(messages.category),
 			values: (item) => {
@@ -346,6 +335,11 @@ export function useContentMetadataFilters(
 		{
 			key: 'source',
 			label: formatMessage(messages.source),
+			options: [
+				option('modrinth', formatMessage(messages.modrinthSource)),
+				option('curseforge', formatMessage(messages.curseforgeSource)),
+				option('external', formatMessage(messages.external)),
+			],
 			values: (item) => [option(item.package_source ?? 'external', getSourceLabel(item))],
 		},
 		...(config?.showSharedContent?.value
