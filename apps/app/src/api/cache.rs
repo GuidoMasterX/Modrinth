@@ -62,6 +62,7 @@ pub fn init<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
             get_curseforge_project,
             get_curseforge_project_many,
             get_curseforge_project_versions,
+            get_curseforge_project_versions_page,
             get_curseforge_file_changelog,
             get_curseforge_categories,
             get_curseforge_description,
@@ -192,6 +193,33 @@ pub async fn get_curseforge_project_versions(
     }
 
     Ok(versions)
+}
+
+#[derive(serde::Serialize)]
+pub struct CFVersionPage {
+    versions: Vec<Version>,
+    total_count: u32,
+}
+
+#[tauri::command]
+pub async fn get_curseforge_project_versions_page(
+    project_id: &str,
+    page: u32,
+    cache_behaviour: Option<CacheBehaviour>,
+) -> Result<Option<CFVersionPage>> {
+    Ok(theseus::cache::get_curseforge_project_versions_page(
+        project_id,
+        page,
+        cache_behaviour,
+    )
+    .await?
+    .map(|(versions, total_count)| CFVersionPage {
+        versions: versions
+            .iter()
+            .map(theseus::data::labrinth_map::version_to_labrinth)
+            .collect(),
+        total_count,
+    }))
 }
 
 #[tauri::command]

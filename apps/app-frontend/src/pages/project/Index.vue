@@ -293,7 +293,7 @@ import {
 	CF_ID_PREFIX,
 	cfProjectUrl,
 	getCfProject,
-	getCfVersions,
+	getCfVersionsPage,
 	isCfProjectId,
 	parseCfId,
 } from '@/helpers/curseforge-project'
@@ -937,7 +937,9 @@ async function fetchCfProjectData(requestedId) {
 	// Start the version history alongside the project fetch: the description
 	// panel mounts as soon as `data` is set, and the versions list fills in
 	// once the CurseForge file pages resolve.
-	const versionsPromise = getCfVersions(requestedId, 'stale_while_revalidate').catch(() => null)
+	const versionsPromise = getCfVersionsPage(requestedId, 0, 'stale_while_revalidate').catch(
+		() => null,
+	)
 	const project = await getCfProject(requestedId).catch(handleError)
 	if (String(route.params.id ?? '') !== requestedId) return
 
@@ -978,19 +980,19 @@ async function fetchCfProjectData(requestedId) {
 	isServerProject.value = false
 	serverStatusOnline.value = false
 
-	const cfVersions = await versionsPromise
-	if (String(route.params.id ?? '') !== requestedId || !cfVersions) return
-	versions.value = cfVersions.sort((a, b) => dayjs(b.date_published) - dayjs(a.date_published))
-	data.value.versions = cfVersions.map((version) => version.id)
+	const cfPage = await versionsPromise
+	if (String(route.params.id ?? '') !== requestedId || !cfPage) return
+	versions.value = cfPage.versions.sort((a, b) => dayjs(b.date_published) - dayjs(a.date_published))
+	data.value.versions = cfPage.versions.map((version) => version.id)
 
-	// Fast first paint from cache, then replace it with a fresh list.
-	void getCfVersions(requestedId, 'must_revalidate')
-		.then((freshVersions) => {
-			if (String(route.params.id ?? '') !== requestedId || !freshVersions?.length) return
-			versions.value = freshVersions.sort(
+	// Fast first paint from page 0, then replace it with a fresh page.
+	void getCfVersionsPage(requestedId, 0, 'must_revalidate')
+		.then((freshPage) => {
+			if (String(route.params.id ?? '') !== requestedId || !freshPage.versions.length) return
+			versions.value = freshPage.versions.sort(
 				(a, b) => dayjs(b.date_published) - dayjs(a.date_published),
 			)
-			data.value.versions = freshVersions.map((version) => version.id)
+			data.value.versions = freshPage.versions.map((version) => version.id)
 		})
 		.catch(() => {})
 }

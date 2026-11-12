@@ -45,6 +45,7 @@ fn main() {
                         "get_curseforge_project",
                         "get_curseforge_project_many",
                         "get_curseforge_project_versions",
+                        "get_curseforge_project_versions_page",
                         "get_curseforge_file_changelog",
                         "get_curseforge_categories",
                         "get_curseforge_description",

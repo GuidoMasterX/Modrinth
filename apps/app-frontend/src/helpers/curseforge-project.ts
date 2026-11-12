@@ -1,6 +1,10 @@
 import type { Labrinth } from '@modrinth/api-client'
 
-import { get_curseforge_project, get_curseforge_project_versions } from '@/helpers/cache.js'
+import {
+	get_curseforge_project,
+	get_curseforge_project_versions,
+	get_curseforge_project_versions_page,
+} from '@/helpers/cache.js'
 import type { CacheBehaviour } from '@/helpers/types'
 
 export const CF_ID_PREFIX = 'cf-'
@@ -33,6 +37,19 @@ export async function getCfVersions(
 			cacheBehaviour,
 		)) ?? []
 	)
+}
+
+export async function getCfVersionsPage(
+	requestedId: string,
+	page = 0,
+	cacheBehaviour: CacheBehaviour = 'stale_while_revalidate',
+): Promise<{ versions: Labrinth.Versions.v2.Version[]; totalCount: number }> {
+	const result = (await get_curseforge_project_versions_page(
+		requestedId.slice(CF_ID_PREFIX.length),
+		page,
+		cacheBehaviour,
+	)) as { versions: Labrinth.Versions.v2.Version[]; totalCount: number } | null
+	return result ?? { versions: [], totalCount: 0 }
 }
 
 const CF_CLASS_PATHS: Record<string, string> = {

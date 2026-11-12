@@ -1879,7 +1879,7 @@ async function initProjects(cacheBehaviour?: CacheBehaviour, staleTime = 0) {
 	// from stored check results, so listing alone would keep showing stale
 	// CurseForge update state.
 	if (cacheBehaviour === 'must_revalidate') {
-		await refresh_content_updates(instance.value.id, 'bypass').catch((error) => {
+		await refresh_content_updates(instance.value.id, 'must_revalidate').catch((error) => {
 			console.error('Failed to refresh content updates', error)
 		})
 	}
@@ -1967,10 +1967,12 @@ provideContentManager({
 	getDeleteDependencyWarning,
 	refresh: async () => {
 		if (!instance.value) return
-		await refresh_content_updates(instance.value.id, 'bypass').catch((error) => {
-			console.error('Failed to refresh content updates', error)
-		})
-		await initProjects(undefined, 0)
+		await Promise.all([
+			refresh_content_updates(instance.value.id, 'must_revalidate').catch((error) => {
+				console.error('Failed to refresh content updates', error)
+			}),
+			initProjects(undefined, 0),
+		])
 	},
 	browse: handleBrowseContent,
 	uploadFiles: handleUploadFiles,

@@ -30,7 +30,7 @@ macro_rules! impl_cache_methods {
                 {
                     let state = crate::State::get().await?;
                     let entries =
-                        CachedEntry::[<get_ $variant:snake _many>](ids, None, &state.pool, &state.api_semaphore).await?;
+                        CachedEntry::[<get_ $variant:snake _many>](ids, cache_behaviour, &state.pool, &state.api_semaphore).await?;
 
                     Ok(entries)
                 }
@@ -94,6 +94,24 @@ pub async fn get_curseforge_project_versions(
     )
     .await?
     .map(|versions| versions.versions))
+}
+
+#[tracing::instrument]
+pub async fn get_curseforge_project_versions_page(
+    project_id: &str,
+    page: u32,
+    cache_behaviour: Option<CacheBehaviour>,
+) -> crate::Result<Option<(Vec<SourceVersion>, u32)>> {
+    let state = crate::State::get().await?;
+    let key = crate::state::cf_version_page_key(project_id, page);
+    Ok(CachedEntry::get_curseforge_project_versions(
+        &key,
+        cache_behaviour,
+        &state.pool,
+        &state.api_semaphore,
+    )
+    .await?
+    .map(|cached| (cached.versions, cached.total_count)))
 }
 
 #[tracing::instrument]

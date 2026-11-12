@@ -72,6 +72,14 @@ export async function get_curseforge_project_versions(id, cacheBehaviour) {
 	return await invoke('plugin:cache|get_curseforge_project_versions', { id, cacheBehaviour })
 }
 
+export async function get_curseforge_project_versions_page(id, page, cacheBehaviour) {
+	return await invoke('plugin:cache|get_curseforge_project_versions_page', {
+		projectId: id,
+		page,
+		cacheBehaviour,
+	})
+}
+
 export async function get_curseforge_file_changelog(modId, fileId) {
 	return await invoke('plugin:cache|get_curseforge_file_changelog', { modId, fileId })
 }

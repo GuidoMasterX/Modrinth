@@ -280,8 +280,56 @@ pub async fn get_file_changelog(
     Ok(res.data)
 }
 
-/// Lists a mod's files, optionally filtered by game version and mod loader,
-/// following pagination (CF returns at most 50 files per page).
+#[derive(Debug, Clone)]
+pub struct CFModFilesPage {
+    pub files: Vec<CFFile>,
+    pub total_count: u32,
+    pub index: u32,
+}
+
+/// Fetches one page of a mod's files. CF returns at most 50 files per page.
+pub async fn get_mod_files_page(
+    mod_id: i64,
+    game_version: Option<&str>,
+    mod_loader: Option<i64>,
+    index: u32,
+    fetch_semaphore: &FetchSemaphore,
+    pool: &SqlitePool,
+) -> crate::Result<CFModFilesPage> {
+    let mut url = format!(
+        "{}/mods/{}/files?gameId={}&index={}&pageSize={}",
+        CURSEFORGE_API_URL,
+        mod_id,
+        CF_GAME_ID_MINECRAFT,
+        index,
+        CF_MAX_PAGE_SIZE
+    );
+    if let Some(game_version) = game_version {
+        url.push_str(&format!("&gameVersion={}", game_version));
+    }
+    if let Some(mod_loader) = mod_loader {
+        url.push_str(&format!("&modLoaderType={}", mod_loader));
+    }
+
+    let res: CFModFilesResponse = cf_fetch_json(
+        Method::GET,
+        &url,
+        None,
+        Some("curseforge/mods/:id/files"),
+        fetch_semaphore,
+        pool,
+    )
+    .await?;
+
+    Ok(CFModFilesPage {
+        files: res.data,
+        total_count: res.pagination.total_count,
+        index,
+    })
+}
+
+/// Lists every file for a mod. Callers that only need the first screen should
+/// use [`get_mod_files_page`] instead.
 pub async fn get_mod_files(
     mod_id: i64,
     game_version: Option<&str>,
@@ -293,38 +341,21 @@ pub async fn get_mod_files(
     let mut index = 0;
 
     loop {
-        let mut url = format!(
-            "{}/mods/{}/files?gameId={}&index={}&pageSize={}",
-            CURSEFORGE_API_URL,
+        let page = get_mod_files_page(
             mod_id,
-            CF_GAME_ID_MINECRAFT,
+            game_version,
+            mod_loader,
             index,
-            CF_MAX_PAGE_SIZE
-        );
-        if let Some(game_version) = game_version {
-            url.push_str(&format!("&gameVersion={}", game_version));
-        }
-        if let Some(mod_loader) = mod_loader {
-            url.push_str(&format!("&modLoaderType={}", mod_loader));
-        }
-
-        let res: CFModFilesResponse = cf_fetch_json(
-            Method::GET,
-            &url,
-            None,
-            Some("curseforge/mods/:id/files"),
             fetch_semaphore,
             pool,
         )
         .await?;
-
-        let page_len = res.data.len();
-        let total_count = res.pagination.total_count as usize;
-        all_files.extend(res.data);
+        let page_len = page.files.len();
+        all_files.extend(page.files);
 
         if page_len < CF_MAX_PAGE_SIZE as usize
-            || all_files.len() >= 1000
-            || (total_count > 0 && all_files.len() >= total_count)
+            || (page.total_count > 0
+                && all_files.len() >= page.total_count as usize)
         {
             break;
         }

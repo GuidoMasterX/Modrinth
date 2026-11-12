@@ -162,6 +162,12 @@ impl CacheValueType {
             CacheValueType::CurseforgeFileChangelog => {
                 30 * 24 * 60 * 60 // changelogs are immutable per file id
             }
+            CacheValueType::CurseforgeFile => 30 * 24 * 60 * 60,
+            CacheValueType::CurseforgeDescription => 7 * 24 * 60 * 60,
+            CacheValueType::CurseforgeProject => 6 * 60 * 60,
+            CacheValueType::CurseforgeProjectVersions
+            | CacheValueType::CurseforgeProjectLatest => 30 * 60,
+            CacheValueType::CurseforgeSearchResults => 45,
             // ModpackFiles never expire - version_id is immutable so hashes never change
             // TODO: There has to be a way to exclude this from the "Purge cache" stuff?
             CacheValueType::ModpackFiles
@@ -169,9 +175,9 @@ impl CacheValueType {
             | CacheValueType::SharedInstanceLibrary => {
                 100 * 365 * 24 * 60 * 60 // 100 years (effectively never)
             }
-            CacheValueType::SearchResults
-            | CacheValueType::SearchResultsV3
-            | CacheValueType::CurseforgeSearchResults => 10 * 60, // 10 minutes
+            CacheValueType::SearchResults | CacheValueType::SearchResultsV3 => {
+                10 * 60
+            } // 10 minutes
             _ => 30 * 60, // 30 minutes
         }
     }
@@ -252,6 +258,8 @@ pub struct CachedCFSearchResults {
 pub struct CachedCFProjectVersions {
     pub project_id: String,
     pub versions: Vec<SourceVersion>,
+    #[serde(default)]
+    pub total_count: u32,
 }
 
 /// The latest files of a CurseForge project, as returned by a single
@@ -566,6 +574,10 @@ pub(crate) fn file_modified_at_ns(
     };
 
     Ok(signed_ns as u64)
+}
+
+pub(crate) fn cf_version_page_key(project_id: &str, page: u32) -> String {
+    format!("{project_id}:{page}")
 }
 
 fn fingerprint_cache_key(fingerprints: &[u32]) -> String {
@@ -2482,25 +2494,40 @@ impl CachedEntry {
                     .iter()
                     .map(|key| key.key().to_string())
                     .collect::<Vec<_>>();
+                let parsed = keys
+                    .iter()
+                    .map(|key| match key.split_once(':') {
+                        Some((id, page)) => {
+                            (id.to_string(), page.parse::<u32>().ok())
+                        }
+                        None => (key.clone(), None),
+                    })
+                    .collect::<Vec<_>>();
+                let base_keys =
+                    parsed.iter().map(|(id, _)| id.clone()).collect::<Vec<_>>();
                 // The loader synthesis below needs each project's class id.
                 // Reuse the project cache (usually warm from the same page's
                 // project fetch) instead of paying an extra batched request.
-                let project_types = if keys.is_empty() {
+                let project_types = if base_keys.is_empty() {
                     std::collections::HashMap::new()
                 } else {
-                    curseforge_project_types_for(&keys, pool, fetch_semaphore)
-                        .await
+                    curseforge_project_types_for(
+                        &base_keys,
+                        pool,
+                        fetch_semaphore,
+                    )
+                    .await
                 };
 
-                let requests = keys
-                    .iter()
-                    .map(|key| {
-                        let project_type = key
+                let requests = parsed
+                    .into_iter()
+                    .map(|(id, page)| {
+                        let project_type = id
                             .parse::<i64>()
                             .ok()
                             .and_then(|id| project_types.get(&id).copied())
                             .unwrap_or(SourceProjectType::Mod);
-                        (key.clone(), project_type)
+                        (id, page, project_type)
                     })
                     .collect::<Vec<_>>();
 
@@ -2508,20 +2535,38 @@ impl CachedEntry {
                 // project's freshly fetched versions, so failures drop just
                 // their own key (readers treat it as a cache miss).
                 futures::future::join_all(requests.into_iter().map(
-                    |(key, project_type)| async move {
-                        let Ok(id) = key.parse::<i64>() else {
+                    |(id, page, project_type)| async move {
+                        let Ok(id_num) = id.parse::<i64>() else {
                             return None;
                         };
-                        match crate::api::curseforge::api::get_mod_files(
-                            id,
-                            None,
-                            None,
-                            fetch_semaphore,
-                            pool,
-                        )
-                        .await
-                        {
-                            Ok(files) => {
+                        let result =
+                            if let Some(page) = page {
+                                crate::api::curseforge::api::get_mod_files_page(
+                                    id_num,
+                                    None,
+                                    None,
+                                    page * crate::api::curseforge::api::CF_MAX_PAGE_SIZE,
+                                    fetch_semaphore,
+                                    pool,
+                                )
+                                .await
+                                .map(|page| (page.files, page.total_count))
+                            } else {
+                                crate::api::curseforge::api::get_mod_files(
+                                    id_num,
+                                    None,
+                                    None,
+                                    fetch_semaphore,
+                                    pool,
+                                )
+                                .await
+                                .map(|files| {
+                                    let count = files.len() as u32;
+                                    (files, count)
+                                })
+                            };
+                        match result {
+                            Ok((files, total_count)) => {
                                 let mut versions: Vec<SourceVersion> = files
                                     .into_iter()
                                     .map(|file| {
@@ -2539,8 +2584,9 @@ impl CachedEntry {
                                 Some((
                                     CacheValue::CurseforgeProjectVersions(
                                         CachedCFProjectVersions {
-                                            project_id: key,
+                                            project_id: id,
                                             versions,
+                                            total_count,
                                         },
                                     )
                                     .get_entry(),
@@ -2550,7 +2596,7 @@ impl CachedEntry {
                             Err(err) => {
                                 tracing::warn!(
                                     "Unable to fetch CurseForge versions for \
-                                     project {id}: {err}"
+                                     project {id_num}: {err}"
                                 );
                                 None
                             }
@@ -3111,7 +3157,10 @@ impl CachedEntry {
             "
             DELETE FROM cache
             WHERE expires < $1
-                AND data_type IN (SELECT value FROM json_each($2))
+                AND (
+                    data_type IN (SELECT value FROM json_each($2))
+                    OR data_type = 'local_fingerprint'
+                )
             ",
             cutoff,
             cache_types,
@@ -3299,6 +3348,19 @@ mod fingerprint_cache_tests {
         assert_ne!(
             fingerprint_cache_key(&[1, 2]),
             fingerprint_cache_key(&[1, 3])
+        );
+    }
+}
+
+#[cfg(test)]
+mod curseforge_version_page_tests {
+    use super::cf_version_page_key;
+
+    #[test]
+    fn version_page_key_is_page_specific() {
+        assert_ne!(
+            cf_version_page_key("238222", 0),
+            cf_version_page_key("238222", 1)
         );
     }
 }
