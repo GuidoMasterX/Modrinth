@@ -1252,6 +1252,7 @@ async fn content_files_to_content_items(
     cache_behaviour: Option<CacheBehaviour>,
     state: &State,
 ) -> crate::Result<Vec<ContentItem>> {
+    let mut files = files.to_vec();
     let project_ids = files
         .iter()
         .filter_map(|(_, file)| {
@@ -1272,7 +1273,7 @@ async fn content_files_to_content_items(
         .collect::<HashSet<_>>();
     let mut cf_project_ids = HashSet::new();
     let mut cf_file_ids = HashSet::new();
-    for (_, file) in files {
+    for (_, file) in &files {
         if let Some(metadata) = &file.metadata {
             if metadata.source == Source::CurseForge {
                 if let Some(id) = metadata.cf_project_id {
@@ -1357,6 +1358,43 @@ async fn content_files_to_content_items(
     } else {
         (HashMap::new(), HashMap::new())
     };
+    // Self-heal entries that inherited another file's CurseForge fingerprint
+    // before the ordered fingerprint cache was used.
+    let mut cleared_paths = Vec::new();
+    for (path, file) in &mut files {
+        let Some(metadata) = &file.metadata else {
+            continue;
+        };
+        if metadata.source != Source::CurseForge {
+            continue;
+        }
+        let Some(cf_version_id) = metadata.cf_version_id else {
+            continue;
+        };
+        let Some(cf_file) = cf_files_by_id.get(&cf_version_id) else {
+            continue;
+        };
+        let Some(cf_sha1) = cf_file.sha1.as_deref() else {
+            continue;
+        };
+        if !cf_sha1.eq_ignore_ascii_case(&file.hash) {
+            file.metadata = None;
+            cleared_paths.push(path.clone());
+        }
+    }
+    for path in cleared_paths {
+        if let Err(error) = sqlite::content_rows::clear_curseforge_metadata(
+            &instance.id,
+            &path,
+            &state.pool,
+        )
+        .await
+        {
+            tracing::warn!(
+                "Unable to clear stale CurseForge metadata for {path}: {error}"
+            );
+        }
+    }
     let meta = resolve_metadata(
         &project_ids,
         &version_ids,
@@ -1367,7 +1405,10 @@ async fn content_files_to_content_items(
     .await?;
     let embedded_metadata =
         super::embedded_content_metadata::resolve_embedded_content_metadata(
-            instance, loader, files, state,
+            instance,
+            loader,
+            &files,
+            state,
         )
         .await?;
     let instance_path = state.directories.instances_dir().join(&instance.path);
@@ -1884,8 +1925,10 @@ pub(crate) async fn detect_curseforge_metadata(
             .await
         });
     }
+    // `buffered` preserves the untracked-file order; `buffer_unordered`
+    // would pair fingerprints with the wrong jar.
     let fingerprints = futures::stream::iter(pending)
-        .buffer_unordered(4)
+        .buffered(4)
         .collect::<Vec<Option<u32>>>()
         .await;
     let mut unique: Vec<u32> = fingerprints.iter().flatten().copied().collect();

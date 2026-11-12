@@ -838,6 +838,32 @@ pub(crate) async fn restore_instance_content_snapshot(
     Ok(())
 }
 
+pub(crate) async fn clear_curseforge_metadata(
+    instance_id: &str,
+    relative_path: &str,
+    pool: &SqlitePool,
+) -> crate::Result<()> {
+    sqlx::query(
+        "UPDATE instance_content_entries
+         SET source = 'modrinth',
+             project_id = NULL,
+             version_id = NULL,
+             cf_project_id = NULL,
+             cf_version_id = NULL
+         WHERE instance_id = ?
+           AND file_id IN (
+               SELECT id FROM instance_files
+               WHERE instance_id = ? AND relative_path = ?
+           )",
+    )
+    .bind(instance_id)
+    .bind(instance_id)
+    .bind(relative_path)
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
 pub(crate) async fn get_content_entries<'e, E>(
     content_set_id: &str,
     exec: E,
