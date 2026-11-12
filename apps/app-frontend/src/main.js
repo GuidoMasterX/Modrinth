@@ -30,7 +30,10 @@ const queryClient = new QueryClient({
 			refetchOnWindowFocus: false,
 			networkMode: 'offlineFirst',
 			retry: (count, error) => {
-				const status = error && typeof error === 'object' ? error.status : undefined
+				const status =
+					error && typeof error === 'object'
+						? (error.statusCode ?? error.status ?? error.response?.status)
+						: undefined
 				return count < 2 && status !== 403 && status !== 429
 			},
 		},

@@ -3,7 +3,7 @@
 		<ProjectPageVersions
 			:loaders="loaders"
 			:game-versions="gameVersions"
-			:versions="versions"
+			:versions="displayedVersions"
 			:project="project"
 			:show-environment-column="appSettings.featureFlags.show_version_environment_column"
 			:version-link="(version) => buildProjectHref(`/project/${project.id}/version/${version.id}`)"
@@ -48,12 +48,18 @@
 				</ButtonLink>
 			</template>
 		</ProjectPageVersions>
+		<div v-if="canLoadMore" class="flex justify-center pt-4">
+			<Button :disabled="loadingMore" @click="loadMore">
+				{{ formatMessage(messages.loadMore) }}
+			</Button>
+		</div>
 	</div>
 </template>
 
 <script setup>
 import { CheckIcon, DownloadIcon, ExternalIcon } from '@modrinth/assets'
 import {
+	Button,
 	ButtonLink,
 	commonMessages,
 	defineMessages,
@@ -62,12 +68,17 @@ import {
 	ProjectPageVersions,
 	useVIntl,
 } from '@modrinth/ui'
-import { ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 
 import { SwapIcon } from '@/assets/icons/index.js'
 import { useAppSettings } from '@/composables/use-app-settings.ts'
-import { cfProjectUrl, parseCfId } from '@/helpers/curseforge-project'
+import {
+	cfProjectUrl,
+	getCfVersionsPage,
+	isCfProjectId,
+	parseCfId,
+} from '@/helpers/curseforge-project'
 import { get_game_versions, get_loaders } from '@/helpers/tags.js'
 
 const { formatMessage } = useVIntl()
@@ -78,9 +89,13 @@ const messages = defineMessages({
 		id: 'app.project.versions.already-installed',
 		defaultMessage: 'Already installed',
 	},
+	loadMore: {
+		id: 'app.project.versions.load-more',
+		defaultMessage: 'Load more versions',
+	},
 })
 
-defineProps({
+const props = defineProps({
 	project: {
 		type: Object,
 		default: () => {},
@@ -113,6 +128,42 @@ defineProps({
 
 const { handleError } = injectNotificationManager()
 const route = useRoute()
+
+const displayedVersions = ref(props.versions)
+const nextPage = ref(1)
+const hasMore = ref(props.versions.length >= 50)
+const loadingMore = ref(false)
+const canLoadMore = computed(() => isCfProjectId(props.project?.id) && hasMore.value)
+
+watch(
+	() => props.versions,
+	(next) => {
+		displayedVersions.value = next
+		nextPage.value = 1
+		hasMore.value = next.length >= 50
+	},
+)
+
+async function loadMore() {
+	if (loadingMore.value || !props.project?.id) return
+	loadingMore.value = true
+	try {
+		const page = await getCfVersionsPage(props.project.id, nextPage.value)
+		const existing = new Set(displayedVersions.value.map((version) => version.id))
+		displayedVersions.value = [
+			...displayedVersions.value,
+			...page.versions.filter((version) => !existing.has(version.id)),
+		]
+		nextPage.value++
+		hasMore.value =
+			page.versions.length === 50 &&
+			(!page.totalCount || displayedVersions.value.length < page.totalCount)
+	} catch (error) {
+		handleError(error)
+	} finally {
+		loadingMore.value = false
+	}
+}
 
 function buildProjectHref(path) {
 	const params = new URLSearchParams()

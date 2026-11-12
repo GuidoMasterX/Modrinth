@@ -1967,15 +1967,7 @@ provideContentManager({
 	getDeleteDependencyWarning,
 	refresh: async () => {
 		if (!instance.value) return
-		await Promise.all([
-			refresh_content_updates(instance.value.id, 'must_revalidate').catch((error) => {
-				console.error('Failed to refresh content updates', error)
-			}),
-			initProjects(undefined, 0),
-		])
-		// The first list paints immediately; reload once after the check so
-		// update badges reflect the newly written rows.
-		await initProjects(undefined, 0)
+		await initProjects('must_revalidate', 0)
 	},
 	browse: handleBrowseContent,
 	uploadFiles: handleUploadFiles,

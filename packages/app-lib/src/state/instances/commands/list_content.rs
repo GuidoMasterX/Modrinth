@@ -1895,26 +1895,43 @@ pub(crate) async fn detect_curseforge_metadata(
         return Ok(HashMap::new());
     }
     // Fingerprint resolution is best-effort: a throttled CurseForge must not
-    // fail the whole content listing.
-    let cached = match CachedEntry::get_curseforge_fingerprints(
-        &unique,
-        cache_behaviour,
-        &state.pool,
-        &state.api_semaphore,
-    )
-    .await
-    {
-        Ok(cached) => cached,
-        Err(err) => {
-            tracing::warn!(
+    // fail the whole content listing. Batch the undocumented request body.
+    let mut merged =
+        crate::api::curseforge::structs::CFFingerprintData::default();
+    let mut found = false;
+    for chunk in unique.chunks(100) {
+        match CachedEntry::get_curseforge_fingerprints(
+            chunk,
+            cache_behaviour,
+            &state.pool,
+            &state.api_semaphore,
+        )
+        .await
+        {
+            Ok(Some(cached)) => {
+                found = true;
+                merged.is_cache_built |= cached.data.is_cache_built;
+                merged
+                    .exact_fingerprints
+                    .extend(cached.data.exact_fingerprints);
+                merged.exact_matches.extend(cached.data.exact_matches);
+                merged
+                    .unmatched_fingerprints
+                    .extend(cached.data.unmatched_fingerprints);
+            }
+            Ok(None) => {}
+            Err(err) => tracing::warn!(
                 "Unable to resolve CurseForge fingerprints: {err}; \
                  continuing without them"
-            );
-            return Ok(HashMap::new());
+            ),
         }
-    };
-    let Some(cached) = cached else {
+    }
+    if !found {
         return Ok(HashMap::new());
+    }
+    let cached = crate::state::CachedCFFingerprints {
+        fingerprints_key: String::new(),
+        data: merged,
     };
 
     let matched = cached
