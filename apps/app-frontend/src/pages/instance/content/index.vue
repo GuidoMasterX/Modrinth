@@ -161,7 +161,7 @@ import {
 	parseCfId,
 	toCfProjectId,
 } from '@/helpers/curseforge-project'
-import { install_bulk_update_content } from '@/helpers/install'
+import { install_bulk_update_content, wait_for_install_job } from '@/helpers/install'
 import type { InstalledSource } from '@/helpers/instance'
 import {
 	add_project_from_curseforge_file,
@@ -190,6 +190,7 @@ import { get as getSettings, set as setSettings } from '@/helpers/settings'
 import { set_synced_pack_enabled, syncedPackKeys } from '@/helpers/synced-packs'
 import type { CacheBehaviour } from '@/helpers/types'
 import { highlightModInInstance } from '@/helpers/utils.js'
+import { injectAppEvents } from '@/providers/app-events'
 import { injectContentInstall } from '@/providers/content-install'
 
 import { injectInstancePage } from '../instance-context'
@@ -270,6 +271,7 @@ const { formatMessage } = useVIntl()
 const { handleError, addNotification } = injectNotificationManager()
 const { installingItems, installRevisionByInstance, installFailureRevisionByInstance } =
 	injectContentInstall()
+const appEvents = injectAppEvents()
 const router = useRouter()
 const route = useRoute()
 const queryClient = useQueryClient()
@@ -1120,6 +1122,7 @@ const bulkUpdateMutation = useMutation({
 async function bulkUpdateSelections(selections: UpdateAllSelection[]) {
 	if (isInstanceBusy.value || bulkUpdateMutation.isPending.value) return
 	const instanceId = instance.value.id
+	const busyItems: ContentItem[] = []
 	const updates = selections.flatMap((selection) => {
 		const item =
 			projects.value.find((project) => getContentItemId(project) === selection.id) ??
@@ -1131,10 +1134,19 @@ async function bulkUpdateSelections(selections: UpdateAllSelection[]) {
 			item.version?.id === selection.version.id
 		)
 			return []
+		busyItems.push(item)
 		return [{ project_path: item.file_path, version_id: selection.version.id }]
 	})
 	if (!updates.length) return
-	await bulkUpdateMutation.mutateAsync({ instanceId, updates })
+	for (const item of busyItems) setContentItemBusy(item, true)
+	try {
+		const job = await bulkUpdateMutation.mutateAsync({ instanceId, updates })
+		await wait_for_install_job(appEvents, job.job_id).catch(handleError)
+	} catch {
+		// The mutation's onError already reports start failures.
+	} finally {
+		for (const item of busyItems) setContentItemBusy(item, false)
+	}
 }
 
 async function updateProject(mod: ContentItem) {

@@ -934,9 +934,10 @@ async function fetchProjectData() {
 }
 
 async function fetchCfProjectData(requestedId) {
-	// Render the project as soon as it loads: the description panel mounts
-	// with `data`, and waiting for the full version history made every cold
-	// project page sit behind up to twenty serial CurseForge file pages.
+	// Start the version history alongside the project fetch: the description
+	// panel mounts as soon as `data` is set, and the versions list fills in
+	// once the CurseForge file pages resolve.
+	const versionsPromise = getCfVersions(requestedId, 'stale_while_revalidate').catch(() => null)
 	const project = await getCfProject(requestedId).catch(handleError)
 	if (String(route.params.id ?? '') !== requestedId) return
 
@@ -977,12 +978,21 @@ async function fetchCfProjectData(requestedId) {
 	isServerProject.value = false
 	serverStatusOnline.value = false
 
-	await new Promise((resolve) => setTimeout(resolve, 400))
-	if (String(route.params.id ?? '') !== requestedId) return
-	const cfVersions = await getCfVersions(requestedId).catch(() => null)
+	const cfVersions = await versionsPromise
 	if (String(route.params.id ?? '') !== requestedId || !cfVersions) return
 	versions.value = cfVersions.sort((a, b) => dayjs(b.date_published) - dayjs(a.date_published))
 	data.value.versions = cfVersions.map((version) => version.id)
+
+	// Fast first paint from cache, then replace it with a fresh list.
+	void getCfVersions(requestedId, 'must_revalidate')
+		.then((freshVersions) => {
+			if (String(route.params.id ?? '') !== requestedId || !freshVersions?.length) return
+			versions.value = freshVersions.sort(
+				(a, b) => dayjs(b.date_published) - dayjs(a.date_published),
+			)
+			data.value.versions = freshVersions.map((version) => version.id)
+		})
+		.catch(() => {})
 }
 
 async function checkCrossSourceInstalled(project, requestedId) {

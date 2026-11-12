@@ -311,6 +311,7 @@ export function useContentMetadataFilters(
 						key: 'updates',
 						label: formatMessage(messages.updateAvailable),
 						direct: true,
+						options: [option('available', formatMessage(messages.updateAvailable))],
 						values: (item: ContentItem) =>
 							item.has_update ? [option('available', formatMessage(messages.updateAvailable))] : [],
 					},

@@ -535,7 +535,7 @@ async fn check_curseforge_content_updates(
         .collect::<Vec<_>>();
     let installed_files = CachedEntry::get_curseforge_file_many(
         &installed_file_id_refs,
-        cache_behaviour,
+        Some(CacheBehaviour::StaleWhileRevalidateSkipOffline),
         &state.pool,
         &state.api_semaphore,
     )

@@ -20,6 +20,10 @@ import ContentEnabledFor from './ContentEnabledFor.vue'
 const { formatMessage } = useVIntl()
 
 const messages = defineMessages({
+	source: {
+		id: 'content.table.source',
+		defaultMessage: 'Source',
+	},
 	enabledFor: {
 		id: 'content.enabled-for.label',
 		defaultMessage: 'Enabled for',
@@ -153,6 +157,7 @@ function getItemListeners(id: string) {
 	}
 }
 
+const SOURCE_COLUMN_WIDTH = 128
 const tableRef = ref<HTMLElement | null>(null)
 const { width: tableWidth } = useElementSize(tableRef)
 const controlColumns = computed(() => [
@@ -162,7 +167,7 @@ const controlColumns = computed(() => [
 const layout = computed(() => {
 	const controls = controlColumns.value
 	const controlBudget = controls.reduce((sum, width) => sum + width, 0)
-	const compactBudget = 24 + controlBudget + controls.length * 16 + 240
+	const compactBudget = 24 + controlBudget + controls.length * 16 + 240 + SOURCE_COLUMN_WIDTH + 16
 	const wideBudget = compactBudget + (props.showVersion ? 288 + 16 : 0)
 	if (tableWidth.value >= wideBudget) return 'wide'
 	if (tableWidth.value >= compactBudget) return 'compact'
@@ -185,6 +190,7 @@ const contentColumnStyles = computed(() => {
 			'minmax(0, 1.2fr)',
 			...(hasEnabledForColumn.value ? [`minmax(${controls[0]}, 0.4fr)`] : []),
 			...(separateVersion.value ? ['minmax(0, 1fr)'] : []),
+			`${SOURCE_COLUMN_WIDTH}px`,
 			...(hasAnyActions.value ? [`${Math.ceil(actionsWidth.value)}px`] : []),
 		]
 	}
@@ -400,12 +406,11 @@ function handleSort(column: ContentCardTableSortColumn) {
 				}}</span>
 			</div>
 
-			<div
-				v-if="hasAnyActions"
-				role="columnheader"
-				class="shrink-0 text-right"
-				:class="layout === 'narrow' ? 'justify-self-start' : 'justify-self-end'"
-			>
+			<div v-if="!stacked" role="columnheader" class="shrink-0">
+				<span class="font-semibold text-secondary">{{ formatMessage(messages.source) }}</span>
+			</div>
+
+			<div v-if="hasAnyActions" role="columnheader" class="shrink-0 justify-self-start">
 				<span class="font-semibold text-secondary">{{
 					formatMessage(commonMessages.actionsLabel)
 				}}</span>

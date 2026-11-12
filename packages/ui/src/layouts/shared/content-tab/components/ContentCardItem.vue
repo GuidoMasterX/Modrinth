@@ -11,6 +11,7 @@ import {
 	TriangleAlertIcon,
 	UploadIcon,
 } from '@modrinth/assets'
+import { capitalizeString } from '@modrinth/utils'
 import { useMagicKeys } from '@vueuse/core'
 import { computed, getCurrentInstance, ref } from 'vue'
 import type { RouteLocationRaw } from 'vue-router'
@@ -21,8 +22,10 @@ import BulletDivider from '#ui/components/base/BulletDivider.vue'
 import type { ButtonMenuOption } from '#ui/components/base/buttons'
 import { IconButton, TeleportOverflowMenu } from '#ui/components/base/buttons'
 import Checkbox from '#ui/components/base/Checkbox.vue'
+import FormattedTag from '#ui/components/base/FormattedTag.vue'
 import ProgressSpinner from '#ui/components/base/ProgressSpinner.vue'
 import Toggle from '#ui/components/base/Toggle.vue'
+import { useCompactNumber } from '#ui/composables'
 import { defineMessages, useVIntl } from '#ui/composables/i18n'
 import { PROJECT_TYPE_ICONS } from '#ui/utils/auto-icons'
 import { commonMessages, getProjectTypeTitleMessage } from '#ui/utils/common-messages'
@@ -42,6 +45,7 @@ import ContentCardItemIcon from './ContentCardItemIcon.vue'
 import ContentEnabledFor from './ContentEnabledFor.vue'
 
 const { formatMessage } = useVIntl()
+const { formatCompactNumber } = useCompactNumber()
 
 const messages = defineMessages({
 	selectProject: {
@@ -260,7 +264,8 @@ const sourcePillMessage = computed(() =>
 <template>
 	<div
 		role="row"
-		class="items-center"
+		class="relative items-center"
+		:aria-busy="installing"
 		:class="[
 			tableLayout
 				? [
@@ -333,7 +338,7 @@ const sourcePillMessage = computed(() =>
 						<slot name="title-badges" />
 						<component
 							:is="canSwitchSource ? 'button' : 'span'"
-							v-if="packageSource"
+							v-if="packageSource && (!tableLayout || stacked)"
 							v-tooltip="canSwitchSource ? formatMessage(messages.switchSource) : false"
 							:type="canSwitchSource ? 'button' : undefined"
 							class="inline-flex shrink-0 items-center gap-1.5 rounded-full px-2 py-1 text-sm font-semibold leading-none"
@@ -369,7 +374,7 @@ const sourcePillMessage = computed(() =>
 						</span>
 					</div>
 
-					<div class="flex min-w-0 items-center gap-1">
+					<div class="flex min-w-0 items-center gap-1 overflow-hidden">
 						<template v-if="source">
 							<span v-if="source.label" class="shrink-0 text-sm leading-5 text-secondary">
 								{{ source.label }}
@@ -457,6 +462,33 @@ const sourcePillMessage = computed(() =>
 								</span>
 							</AutoLink>
 						</template>
+						<template v-if="project.downloads || project.categories?.length">
+							<BulletDivider class="shrink-0" />
+							<span
+								v-if="project.downloads"
+								v-tooltip="
+									capitalizeString(
+										formatMessage(commonMessages.projectDownloads, {
+											count: project.downloads,
+										}),
+									)
+								"
+								class="flex shrink-0 items-center gap-1 text-sm leading-5 text-secondary"
+							>
+								<DownloadIcon class="size-4 shrink-0" aria-hidden="true" />
+								{{ formatCompactNumber(project.downloads) }}
+							</span>
+							<template v-if="project.categories?.length">
+								<BulletDivider v-if="project.downloads" class="shrink-0" />
+								<span
+									v-for="category in project.categories?.slice(0, 2)"
+									:key="category"
+									class="inline-flex max-w-[8rem] shrink-0 items-center rounded-full border-[1px] border-solid border-surface-5 bg-[--_bg-color,var(--color-button-bg)] px-1.5 py-0.5 text-xs leading-none font-normal text-nowrap text-secondary"
+								>
+									<span class="min-w-0 truncate"><FormattedTag :tag="category" /></span>
+								</span>
+							</template>
+						</template>
 					</div>
 				</div>
 			</div>
@@ -512,6 +544,28 @@ const sourcePillMessage = computed(() =>
 					}}</span>
 				</span>
 			</template>
+		</div>
+
+		<div v-if="tableLayout && !stacked" class="flex w-32 shrink-0 items-center">
+			<component
+				:is="canSwitchSource ? 'button' : 'span'"
+				v-tooltip="canSwitchSource ? formatMessage(messages.switchSource) : false"
+				:type="canSwitchSource ? 'button' : undefined"
+				:class="[
+					'inline-flex w-28 shrink-0 items-center justify-center gap-1.5 rounded-full px-2 py-1 text-sm font-semibold leading-none',
+					{
+						'cursor-pointer transition-[filter] duration-200 hover:brightness-110': canSwitchSource,
+					},
+				]"
+				:style="{
+					backgroundColor: `color-mix(in srgb, ${sourcePillColor} 18%, transparent)`,
+					color: sourcePillColor,
+				}"
+				@click="canSwitchSource && emit('switchSource')"
+			>
+				<span class="size-2 rounded-full" :style="{ backgroundColor: sourcePillColor }" />
+				{{ formatMessage(sourcePillMessage) }}
+			</component>
 		</div>
 
 		<div
@@ -654,5 +708,34 @@ const sourcePillMessage = computed(() =>
 				<MoreVerticalIcon class="size-5" />
 			</TeleportOverflowMenu>
 		</div>
+
+		<div
+			v-if="installing"
+			class="pointer-events-none absolute inset-x-0 bottom-0 h-0.5 overflow-hidden"
+			aria-hidden="true"
+		>
+			<div class="content-busy-bar h-full w-1/3 rounded-full bg-brand" />
+		</div>
 	</div>
 </template>
+
+<style scoped>
+.content-busy-bar {
+	animation: content-busy 1.2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.content-busy-bar {
+		animation: none;
+	}
+}
+
+@keyframes content-busy {
+	from {
+		transform: translateX(-100%);
+	}
+	to {
+		transform: translateX(400%);
+	}
+}
+</style>
