@@ -19,7 +19,7 @@ import { useManagedContentPolicy } from '@/composables/instances/use-managed-con
 import { useAppSettings } from '@/composables/use-app-settings.ts'
 import { trackEvent } from '@/helpers/analytics'
 import { get_project_versions, get_version } from '@/helpers/cache'
-import { getCfVersions } from '@/helpers/curseforge-project'
+import { getCfVersionsPage } from '@/helpers/curseforge-project'
 import {
 	install_existing_instance,
 	install_pack_to_existing_instance,
@@ -451,7 +451,7 @@ provideInstallationSettings({
 			projectId: instance.value.link?.project_id,
 		})
 		const versions = isCurseforgeLinkedModpack.value
-			? await getCfVersions(instance.value.link!.project_id!)
+			? (await getCfVersionsPage(instance.value.link!.project_id!)).versions
 			: await get_project_versions(instance.value.link!.project_id!).catch(handleError)
 		debug('fetchModpackVersions: done', { count: versions?.length ?? 0 })
 		return (versions ?? []) as Labrinth.Versions.v2.Version[]

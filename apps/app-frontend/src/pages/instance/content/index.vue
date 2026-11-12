@@ -1973,6 +1973,9 @@ provideContentManager({
 			}),
 			initProjects(undefined, 0),
 		])
+		// The first list paints immediately; reload once after the check so
+		// update badges reflect the newly written rows.
+		await initProjects(undefined, 0)
 	},
 	browse: handleBrowseContent,
 	uploadFiles: handleUploadFiles,

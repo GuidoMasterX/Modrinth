@@ -1780,21 +1780,28 @@ fn file_metadata_from_entry_or_cache(
 }
 
 fn local_fingerprint_cache_key(
+    instance_id: &str,
     path: &str,
     size: u64,
     modified_at_ns: u64,
 ) -> String {
-    format!("local-fingerprint-v1-{size}-{modified_at_ns}-{path}")
+    format!("local-fingerprint-v1-{instance_id}-{size}-{modified_at_ns}-{path}")
 }
 
 async fn cached_local_fingerprint(
     pool: &SqlitePool,
+    instance_id: &str,
     path: &std::path::Path,
     relative_path: &str,
     size: u64,
     modified_at_ns: u64,
 ) -> Option<u32> {
-    let key = local_fingerprint_cache_key(relative_path, size, modified_at_ns);
+    let key = local_fingerprint_cache_key(
+        instance_id,
+        relative_path,
+        size,
+        modified_at_ns,
+    );
     if let Ok(Some(data)) = sqlx::query_scalar::<_, String>(
         "SELECT data FROM cache WHERE id = ? AND data_type = 'local_fingerprint'",
     )
@@ -1855,10 +1862,12 @@ pub(crate) async fn detect_curseforge_metadata(
 
     let instance_dir = state.directories.instances_dir().join(&instance.path);
     let pool = state.pool.clone();
+    let instance_id = instance.id.clone();
     let mut pending = Vec::with_capacity(untracked.len());
     for file in untracked.iter().cloned() {
         let path = instance_dir.join(&file.relative_path);
         let relative_path = file.relative_path.clone();
+        let instance_id = instance_id.clone();
         let size = file.size;
         let modified_at_ns =
             file.modified_at.timestamp_nanos_opt().unwrap_or_default() as u64;
@@ -1866,6 +1875,7 @@ pub(crate) async fn detect_curseforge_metadata(
         pending.push(async move {
             cached_local_fingerprint(
                 &pool,
+                &instance_id,
                 &path,
                 &relative_path,
                 size,
@@ -2383,8 +2393,12 @@ mod local_fingerprint_tests {
     #[test]
     fn fingerprint_stamp_changes_with_mtime() {
         assert_ne!(
-            local_fingerprint_cache_key("mods/a.jar", 10, 1),
-            local_fingerprint_cache_key("mods/a.jar", 10, 2)
+            local_fingerprint_cache_key("instance-a", "mods/a.jar", 10, 1),
+            local_fingerprint_cache_key("instance-a", "mods/a.jar", 10, 2)
+        );
+        assert_ne!(
+            local_fingerprint_cache_key("instance-a", "mods/a.jar", 10, 1),
+            local_fingerprint_cache_key("instance-b", "mods/a.jar", 10, 1)
         );
     }
 }

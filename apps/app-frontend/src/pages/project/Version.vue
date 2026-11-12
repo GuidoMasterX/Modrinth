@@ -256,7 +256,7 @@ async function refreshEnrichment() {
 		}
 		enrichmentLoading.value = true
 		try {
-			const projects = await get_curseforge_project_many(depIds, 'bypass')
+			const projects = await get_curseforge_project_many(depIds, 'stale_while_revalidate')
 			enrichment.value = { projects: projects ?? [], versions: [] }
 		} catch {
 			enrichment.value = { projects: [], versions: [] }

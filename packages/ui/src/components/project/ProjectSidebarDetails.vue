@@ -357,6 +357,8 @@ const messages = defineMessages({
 const { data: disclosuresResponse } = useQuery({
 	queryKey: computed(() => ['project', 'disclosures', 'v3', props.project.id] as const),
 	queryFn: () => labrinth.projects_v3.getDisclosures(props.project.id),
+	enabled: computed(() => !props.project.id.startsWith('cf-')),
+	retry: false,
 	staleTime: DISCLOSURE_STALE_TIME,
 })
 

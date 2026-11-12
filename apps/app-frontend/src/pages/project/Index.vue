@@ -933,6 +933,32 @@ async function fetchProjectData() {
 	fetchDeferredServerData(project)
 }
 
+async function loadRemainingCfVersions(
+	requestedId: string,
+	startPage: number,
+	totalCount: number,
+) {
+	for (let page = startPage; ; page++) {
+		if (String(route.params.id ?? '') !== requestedId) return
+		const next = await getCfVersionsPage(
+			requestedId,
+			page,
+			'stale_while_revalidate',
+		).catch(() => null)
+		if (!next?.versions.length) return
+		const existing = new Set(versions.value.map((version) => version.id))
+		const additions = next.versions.filter(
+			(version) => !existing.has(version.id),
+		)
+		if (!additions.length) return
+		versions.value = [...versions.value, ...additions].sort(
+			(a, b) => dayjs(b.date_published) - dayjs(a.date_published),
+		)
+		data.value.versions = versions.value.map((version) => version.id)
+		if (versions.value.length >= totalCount || next.versions.length < 50) return
+	}
+}
+
 async function fetchCfProjectData(requestedId) {
 	// Start the version history alongside the project fetch: the description
 	// panel mounts as soon as `data` is set, and the versions list fills in
@@ -984,15 +1010,22 @@ async function fetchCfProjectData(requestedId) {
 	if (String(route.params.id ?? '') !== requestedId || !cfPage) return
 	versions.value = cfPage.versions.sort((a, b) => dayjs(b.date_published) - dayjs(a.date_published))
 	data.value.versions = cfPage.versions.map((version) => version.id)
+	if (cfPage.totalCount > cfPage.versions.length) {
+		setTimeout(() => {
+			void loadRemainingCfVersions(requestedId, 1, cfPage.totalCount)
+		}, 3000)
+	}
 
 	// Fast first paint from page 0, then replace it with a fresh page.
 	void getCfVersionsPage(requestedId, 0, 'must_revalidate')
 		.then((freshPage) => {
 			if (String(route.params.id ?? '') !== requestedId || !freshPage.versions.length) return
-			versions.value = freshPage.versions.sort(
-				(a, b) => dayjs(b.date_published) - dayjs(a.date_published),
-			)
-			data.value.versions = freshPage.versions.map((version) => version.id)
+			const freshIds = new Set(freshPage.versions.map((version) => version.id))
+			versions.value = [
+				...freshPage.versions,
+				...versions.value.filter((version) => !freshIds.has(version.id)),
+			].sort((a, b) => dayjs(b.date_published) - dayjs(a.date_published))
+			data.value.versions = versions.value.map((version) => version.id)
 		})
 		.catch(() => {})
 }

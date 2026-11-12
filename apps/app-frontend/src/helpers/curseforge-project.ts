@@ -42,7 +42,7 @@ export async function getCfVersions(
 export async function getCfVersionsPage(
 	requestedId: string,
 	page = 0,
-	cacheBehaviour: CacheBehaviour = 'stale_while_revalidate',
+	cacheBehaviour: CacheBehaviour = 'must_revalidate',
 ): Promise<{ versions: Labrinth.Versions.v2.Version[]; totalCount: number }> {
 	const result = (await get_curseforge_project_versions_page(
 		requestedId.slice(CF_ID_PREFIX.length),

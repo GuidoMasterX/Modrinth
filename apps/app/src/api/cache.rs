@@ -196,6 +196,7 @@ pub async fn get_curseforge_project_versions(
 }
 
 #[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CFVersionPage {
     versions: Vec<Version>,
     total_count: u32,
