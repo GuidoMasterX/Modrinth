@@ -48,6 +48,7 @@ use rand::RngExt;
 use rand::distr::Alphanumeric;
 use rand_chacha::ChaCha20Rng;
 use rand_chacha::rand_core::SeedableRng;
+use redis::AsyncCommands;
 use reqwest::header::AUTHORIZATION;
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
@@ -1208,8 +1209,7 @@ pub async fn init(
     let link_code_user_id = if let Some(code) = &info.link_code {
         let mut connection = redis.connect().await?;
         let key = redis.key().with_slot("auth_link_code:v1", code, code);
-        let value = connection.get(&key).await?;
-        connection.delete(&key).await?;
+        let value: Option<String> = connection.get_del(&key).await?;
         value
             .and_then(|value| parse_base62(&value).ok())
             .map(|id| crate::database::models::DBUserId(id as i64))

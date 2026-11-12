@@ -137,7 +137,7 @@ pub async fn version_create(
         &**client,
         &redis,
         &session_queue,
-        Scopes::VERSION_WRITE,
+        Scopes::VERSION_CREATE,
     )
     .await
     .map_err(|error| {

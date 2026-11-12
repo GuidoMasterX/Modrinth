@@ -313,6 +313,8 @@ fn is_public_ip(ip: IpAddr) -> bool {
                 || ip.is_documentation()
                 || ip.is_unspecified()
                 || ip.is_multicast()
+                || first == 0
+                || first >= 240
                 || (first == 100 && (64..=127).contains(&second))
                 || (first == 198 && (18..=19).contains(&second)))
         }
@@ -320,11 +322,19 @@ fn is_public_ip(ip: IpAddr) -> bool {
             if let Some(ip) = ip.to_ipv4_mapped() {
                 return is_public_ip(IpAddr::V4(ip));
             }
+            let segments = ip.segments();
+            let ipv4_compatible =
+                segments[..6].iter().all(|segment| *segment == 0);
+            let nat64 = segments[0] == 0x64
+                && segments[1] == 0xff9b
+                && segments[2..6].iter().all(|segment| *segment == 0);
             !(ip.is_loopback()
                 || ip.is_unspecified()
                 || ip.is_multicast()
                 || ip.is_unique_local()
-                || ip.is_unicast_link_local())
+                || ip.is_unicast_link_local()
+                || ipv4_compatible
+                || nat64)
         }
     }
 }

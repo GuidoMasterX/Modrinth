@@ -82,6 +82,7 @@ pub async fn export_debug_info(
         "UPDATE minecraft_device_tokens SET private_key = '', token = ''",
         "UPDATE modrinth_users SET session_id = ''",
         "UPDATE settings SET curseforge_api_key = NULL",
+        "UPDATE settings SET custom_env_vars = json('[]')",
         "VACUUM",
     ] {
         sqlx::query(statement).execute(&snapshot_pool).await?;

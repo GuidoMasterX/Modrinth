@@ -91,15 +91,19 @@ const ALLOWED_LOCAL_FILE_EXTENSIONS: &[&str] = &[
 ];
 const MAX_LOCAL_FILE_SIZE: u64 = 1024 * 1024 * 1024;
 
-fn has_allowed_local_extension(path: &str) -> bool {
+fn has_allowed_extension(path: &str, allowed: &[&str]) -> bool {
     std::path::Path::new(path)
         .extension()
         .and_then(|extension| extension.to_str())
         .is_some_and(|extension| {
-            ALLOWED_LOCAL_FILE_EXTENSIONS
+            allowed
                 .iter()
                 .any(|allowed| extension.eq_ignore_ascii_case(allowed))
         })
+}
+
+fn has_allowed_local_extension(path: &str) -> bool {
+    has_allowed_extension(path, ALLOWED_LOCAL_FILE_EXTENSIONS)
 }
 
 fn ensure_allowed_local_path(path: &str) -> Result<()> {
@@ -107,6 +111,35 @@ fn ensure_allowed_local_path(path: &str) -> Result<()> {
         return Err(anyhow!("unsupported local file type").into());
     }
     Ok(())
+}
+
+fn is_allowed_download_host(host: &str) -> bool {
+    host == "modrinth.com"
+        || host.ends_with(".modrinth.com")
+        || host == "api.mclo.gs"
+        || host == "fill.papermc.io"
+        || host == "api.purpurmc.org"
+        || host == "edge.forgecdn.net"
+        || host == "media.forgecdn.net"
+        || host == "www.curseforge.com"
+        || host == "api.curseforge.com"
+        || host == "github.com"
+        || host.ends_with(".github.com")
+        || host == "githubusercontent.com"
+        || host.ends_with(".githubusercontent.com")
+        || host == "files.minecraftforge.net"
+        || host == "maven.minecraftforge.net"
+        || host == "maven.neoforged.net"
+        || (cfg!(debug_assertions)
+            && (host == "localhost" || host == "127.0.0.1"))
+}
+
+fn is_allowed_download_url(url: &url::Url) -> bool {
+    let host = url.host_str().unwrap_or_default();
+    (url.scheme() == "https" && is_allowed_download_host(host))
+        || (cfg!(debug_assertions)
+            && url.scheme() == "http"
+            && (host == "localhost" || host == "127.0.0.1"))
 }
 
 #[derive(Serialize)]
@@ -196,7 +229,11 @@ pub async fn file_upload_local<R: Runtime>(
         || host.ends_with(".modrinth.com")
         || (cfg!(debug_assertions)
             && (host == "localhost" || host == "127.0.0.1"));
-    if !allowed_host {
+    let allowed_scheme = url.scheme() == "https"
+        || (cfg!(debug_assertions)
+            && url.scheme() == "http"
+            && (host == "localhost" || host == "127.0.0.1"));
+    if !allowed_host || !allowed_scheme {
         return Err(anyhow!("upload destination is not allowed").into());
     }
     ensure_allowed_local_path(&request.path.to_string_lossy())?;
@@ -585,8 +622,8 @@ pub async fn files_save_external<R: Runtime>(
     let session = external_save_session(&window, &state, &save_id)?;
     let url = url::Url::parse(&request.url)
         .map_err(|_| ExternalSaveError::new("Invalid download URL"))?;
-    if !matches!(url.scheme(), "http" | "https") {
-        return Err(ExternalSaveError::new("Unsupported download URL"));
+    if !is_allowed_download_url(&url) {
+        return Err(ExternalSaveError::new("Download URL is not allowed"));
     }
     tokio::select! {
         _ = session.cancel.cancelled() => Err(ExternalSaveError::new("Download cancelled")),
@@ -600,6 +637,15 @@ pub async fn files_save_external<R: Runtime>(
             let client = reqwest::Client::builder()
                 .connect_timeout(Duration::from_secs(30))
                 .read_timeout(Duration::from_secs(60))
+                .redirect(reqwest::redirect::Policy::custom(|attempt| {
+                    if attempt.previous().len() >= 5 {
+                        attempt.error("too many redirects")
+                    } else if !is_allowed_download_url(attempt.url()) {
+                        attempt.error("redirect target is not allowed")
+                    } else {
+                        attempt.follow()
+                    }
+                }))
                 .build()?;
             let mut download = client.get(url);
             for (name, value) in request.headers {
