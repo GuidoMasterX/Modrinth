@@ -933,11 +933,7 @@ async function fetchProjectData() {
 	fetchDeferredServerData(project)
 }
 
-async function loadRemainingCfVersions(
-	requestedId: string,
-	startPage: number,
-	totalCount: number,
-) {
+async function loadRemainingCfVersions(requestedId, startPage, totalCount) {
 	for (let page = startPage; ; page++) {
 		if (String(route.params.id ?? '') !== requestedId) return
 		const next = await getCfVersionsPage(
