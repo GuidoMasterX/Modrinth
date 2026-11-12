@@ -1102,24 +1102,28 @@ watch(
 
 async function install(version) {
 	installing.value = true
-	await installVersion(
-		data.value.id,
-		version,
-		instance.value ? instance.value.id : null,
-		'ProjectPage',
-		(version, installedProjectIds) => {
-			installing.value = false
-
-			const installedIds = installedProjectIds ?? [data.value.id]
-			if (instance.value && version && installedIds.includes(data.value.id)) {
-				installed.value = true
-				installedVersion.value = version
-			}
-		},
-		(profile) => {
-			router.push(`/instance/${profile}`)
-		},
-	).catch(handleError)
+	try {
+		await installVersion(
+			data.value.id,
+			version,
+			instance.value ? instance.value.id : null,
+			'ProjectPage',
+			(version, installedProjectIds) => {
+				const installedIds = installedProjectIds ?? [data.value.id]
+				if (instance.value && version && installedIds.includes(data.value.id)) {
+					installed.value = true
+					installedVersion.value = version
+				}
+			},
+			(profile) => {
+				router.push(`/instance/${profile}`)
+			},
+		)
+	} catch (error) {
+		handleError(error)
+	} finally {
+		installing.value = false
+	}
 }
 
 const options = ref(null)

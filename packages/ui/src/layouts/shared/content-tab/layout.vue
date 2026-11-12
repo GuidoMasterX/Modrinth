@@ -404,22 +404,7 @@ const tableItems = computed<ContentCardTableItem[]>(() => {
 	return items
 })
 
-const hasOutdatedProjects = computed(() => {
-	const outdated = ctx.items.value.filter((p) => p.has_update && !p.locked)
-	if (outdated.length > 0) {
-		debug('hasOutdatedProjects: raw items with has_update=true', {
-			count: outdated.length,
-			items: outdated.map((p) => ({
-				id: p.id,
-				fileName: p.file_name,
-				title: p.project?.title,
-				has_update: p.has_update,
-				update_version_id: p.update_version_id,
-			})),
-		})
-	}
-	return outdated.length > 0
-})
+const hasOutdatedProjects = computed(() => getUpdateAllCandidates(ctx.items.value).length > 0)
 
 //  Deletion
 const pendingDeletionItems = ref<ContentItem[]>([])

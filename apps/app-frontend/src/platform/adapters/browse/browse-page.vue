@@ -52,7 +52,7 @@ import {
 	get_search_results_v3,
 	get_version_many,
 } from '@/helpers/cache.js'
-import { cfProjectUrl, getCfVersions, isCfProjectId } from '@/helpers/curseforge-project'
+import { cfProjectUrl, getCfVersionsPage, isCfProjectId } from '@/helpers/curseforge-project'
 import {
 	get_installed_project_ids as getInstalledProjectIds,
 	getInstanceIconUrl,
@@ -660,7 +660,7 @@ function getInstanceInstallTargetPreferences(projectTypeValue: string) {
 
 async function getInstallProjectVersions(projectId: string) {
 	if (isCfProjectId(projectId)) {
-		return getCfVersions(projectId)
+		return (await getCfVersionsPage(projectId)).versions
 	}
 	const project = await get_project(projectId, 'must_revalidate')
 	return (await get_version_many(

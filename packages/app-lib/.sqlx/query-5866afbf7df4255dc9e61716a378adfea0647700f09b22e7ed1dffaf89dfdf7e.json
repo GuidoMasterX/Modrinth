@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            DELETE FROM cache\n            WHERE expires < $1\n                AND (\n                    data_type IN (SELECT value FROM json_each($2))\n                    OR data_type = 'local_fingerprint'\n                )\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "5866afbf7df4255dc9e61716a378adfea0647700f09b22e7ed1dffaf89dfdf7e"
+}

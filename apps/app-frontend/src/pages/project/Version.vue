@@ -325,5 +325,5 @@ watch([() => props.versions, () => route.params.version], async () => {
 	}
 })
 
-await Promise.all([refreshEnrichment(), refreshChangelog()])
+void Promise.all([refreshEnrichment(), refreshChangelog()])
 </script>

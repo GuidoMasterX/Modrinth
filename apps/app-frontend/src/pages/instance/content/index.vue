@@ -156,7 +156,7 @@ import {
 	get_version_many,
 } from '@/helpers/cache.js'
 import {
-	getCfVersions,
+	getCfVersionsPage,
 	isCfProjectId,
 	parseCfId,
 	toCfProjectId,
@@ -752,12 +752,12 @@ function mergeVersionIntoList(
 
 async function getUpdaterProjectVersions(projectId: string, pinnedVersionId?: string) {
 	if (isCfProjectId(projectId)) {
-		const versions = await getCfVersions(projectId)
+		const versions = (await getCfVersionsPage(projectId, 0, 'stale_while_revalidate')).versions
 		return sortVersionsByPublishedDate(versions)
 	}
 
 	let fetchError: unknown = null
-	let versions = (await get_project_versions(projectId, 'bypass').catch((err) => {
+	let versions = (await get_project_versions(projectId, 'stale_while_revalidate').catch((err) => {
 		fetchError = err
 		return null
 	})) as Labrinth.Versions.v2.Version[] | null
@@ -775,7 +775,7 @@ async function getUpdaterProjectVersions(projectId: string, pinnedVersionId?: st
 	let mergedVersions = sortVersionsByPublishedDate(versions ?? [])
 
 	if (pinnedVersionId && !mergedVersions.some((version) => version.id === pinnedVersionId)) {
-		const pinnedVersion = (await get_version(pinnedVersionId, 'bypass').catch(
+		const pinnedVersion = (await get_version(pinnedVersionId).catch(
 			() => null,
 		)) as Labrinth.Versions.v2.Version | null
 

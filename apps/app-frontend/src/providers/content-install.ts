@@ -25,7 +25,7 @@ import {
 } from '@/helpers/cache.js'
 import {
 	getCfProject,
-	getCfVersions,
+	getCfVersionsPage,
 	isCfProjectId,
 	parseCfId,
 	toCfProjectId,
@@ -644,7 +644,7 @@ export function createContentInstall(opts: {
 
 		const versions: Labrinth.Versions.v2.Version[] = (
 			isCfProjectId(projectId)
-				? await getCfVersions(projectId)
+				? (await getCfVersionsPage(projectId)).versions
 				: ((await get_version_many(project.versions)) as Labrinth.Versions.v2.Version[])
 		).sort((a, b) => dayjs(b.date_published).valueOf() - dayjs(a.date_published).valueOf())
 
@@ -960,7 +960,7 @@ export function createContentInstall(opts: {
 			if (isCfProjectId(projectId)) {
 				let version = versionId ?? null
 				if (!version) {
-					const versions = await getCfVersions(projectId)
+					const versions = (await getCfVersionsPage(projectId)).versions
 					version =
 						versions
 							.slice()
@@ -1054,7 +1054,7 @@ export function createContentInstall(opts: {
 				get(instanceId),
 				get_projects(instanceId),
 				isCfProjectId(projectId)
-					? getCfVersions(projectId)
+					? getCfVersionsPage(projectId).then((page) => page.versions)
 					: (get_version_many(project.versions, 'must_revalidate') as Promise<
 							Labrinth.Versions.v2.Version[]
 						>),
@@ -1123,7 +1123,7 @@ export function createContentInstall(opts: {
 		} else {
 			let versions: Labrinth.Versions.v2.Version[] = (
 				isCfProjectId(projectId)
-					? await getCfVersions(projectId)
+					? (await getCfVersionsPage(projectId)).versions
 					: ((await get_version_many(project.versions)) as Labrinth.Versions.v2.Version[])
 			).sort((a, b) => dayjs(b.date_published).valueOf() - dayjs(a.date_published).valueOf())
 			if (versionId) versions = versions.filter((v) => v.id === versionId)
