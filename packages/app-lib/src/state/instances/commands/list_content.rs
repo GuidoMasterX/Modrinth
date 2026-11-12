@@ -22,6 +22,7 @@ use crate::util::fetch::{DownloadMeta, DownloadReason, FetchSemaphore};
 use crate::{ErrorKind, State};
 use anyhow::{Context, bail};
 use dashmap::DashMap;
+use futures::StreamExt;
 use sqlx::SqlitePool;
 use std::collections::{HashMap, HashSet};
 
@@ -1778,6 +1779,53 @@ fn file_metadata_from_entry_or_cache(
     modrinth.or_else(|| cf.cloned())
 }
 
+fn local_fingerprint_cache_key(
+    path: &str,
+    size: u64,
+    modified_at_ns: u64,
+) -> String {
+    format!("local-fingerprint-v1-{size}-{modified_at_ns}-{path}")
+}
+
+async fn cached_local_fingerprint(
+    pool: &SqlitePool,
+    path: &std::path::Path,
+    relative_path: &str,
+    size: u64,
+    modified_at_ns: u64,
+) -> Option<u32> {
+    let key = local_fingerprint_cache_key(relative_path, size, modified_at_ns);
+    if let Ok(Some(data)) = sqlx::query_scalar::<_, String>(
+        "SELECT data FROM cache WHERE id = ? AND data_type = 'local_fingerprint'",
+    )
+    .bind(&key)
+    .fetch_optional(pool)
+    .await
+    {
+        if let Ok(Some(fingerprint)) =
+            serde_json::from_str::<Option<u32>>(&data)
+        {
+            return Some(fingerprint);
+        }
+    }
+
+    let bytes = tokio::fs::read(path).await.ok()?;
+    let fingerprint = crate::util::murmur2::murmur2(&bytes);
+    if let Ok(data) = serde_json::to_string(&Some(fingerprint)) {
+        let expires = chrono::Utc::now().timestamp() + 30 * 24 * 60 * 60;
+        let _ = sqlx::query(
+            "INSERT INTO cache (id, data_type, data, expires) VALUES (?, 'local_fingerprint', ?, ?) \
+             ON CONFLICT(id, data_type) DO UPDATE SET data = excluded.data, expires = excluded.expires",
+        )
+        .bind(&key)
+        .bind(data)
+        .bind(expires)
+        .execute(pool)
+        .await;
+    }
+    Some(fingerprint)
+}
+
 pub(crate) async fn detect_curseforge_metadata(
     state: &State,
     instance: &Instance,
@@ -1806,15 +1854,30 @@ pub(crate) async fn detect_curseforge_metadata(
     }
 
     let instance_dir = state.directories.instances_dir().join(&instance.path);
-    let mut fingerprints = Vec::with_capacity(untracked.len());
-    for file in &untracked {
-        let fingerprint =
-            tokio::fs::read(instance_dir.join(&file.relative_path))
-                .await
-                .ok()
-                .map(|bytes| crate::util::murmur2::murmur2(&bytes));
-        fingerprints.push(fingerprint);
+    let pool = state.pool.clone();
+    let mut pending = Vec::with_capacity(untracked.len());
+    for file in untracked.iter().cloned() {
+        let path = instance_dir.join(&file.relative_path);
+        let relative_path = file.relative_path.clone();
+        let size = file.size;
+        let modified_at_ns =
+            file.modified_at.timestamp_nanos_opt().unwrap_or_default() as u64;
+        let pool = pool.clone();
+        pending.push(async move {
+            cached_local_fingerprint(
+                &pool,
+                &path,
+                &relative_path,
+                size,
+                modified_at_ns,
+            )
+            .await
+        });
     }
+    let fingerprints = futures::stream::iter(pending)
+        .buffer_unordered(4)
+        .collect::<Vec<Option<u32>>>()
+        .await;
     let mut unique: Vec<u32> = fingerprints.iter().flatten().copied().collect();
     unique.sort_unstable();
     unique.dedup();
@@ -2311,4 +2374,17 @@ async fn get_curseforge_modpack_info(
         update_version_id: latest.map(|file| format!("cf-{}", file.id)),
         update_version,
     })
+}
+
+#[cfg(test)]
+mod local_fingerprint_tests {
+    use super::local_fingerprint_cache_key;
+
+    #[test]
+    fn fingerprint_stamp_changes_with_mtime() {
+        assert_ne!(
+            local_fingerprint_cache_key("mods/a.jar", 10, 1),
+            local_fingerprint_cache_key("mods/a.jar", 10, 2)
+        );
+    }
 }
